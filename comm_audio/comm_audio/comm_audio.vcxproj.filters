@@ -16,10 +16,19 @@
     <Filter Include="Source Files\connection_handlers">
       <UniqueIdentifier>{98fb99b1-3b02-437c-88dc-d259f0c061ad}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\connection_handlers">
+      <UniqueIdentifier>{a0579f9b-a611-4b68-89d9-c90bafb348dc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="winsock_handler.cpp">
+      <Filter>Source Files\connection_handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="server_handler.cpp">
+      <Filter>Source Files\connection_handlers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -31,6 +40,12 @@
     </ClInclude>
     <ClInclude Include="constants.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="winsock_handler.h">
+      <Filter>Header Files\connection_handlers</Filter>
+    </ClInclude>
+    <ClInclude Include="server_handler.h">
+      <Filter>Header Files\connection_handlers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

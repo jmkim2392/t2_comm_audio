@@ -13,9 +13,9 @@
 --					void initialize_dialog(HWND hwnd, LPCWSTR type)
 --					void get_user_input(LPCWSTR type, LPCWSTR prompt)
 --
---	DATE:			January 21, 2019
+--	DATE:			March 2, 2019
 --
---	REVISIONS:		January 21, 2019
+--	REVISIONS:		March 2, 2019
 --
 --	DESIGNER:		Jason Kim
 --
@@ -37,9 +37,9 @@ std::vector<std::wstring> messages;
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	WinMain
 --
---	DATE:			January 21, 2019
+--	DATE:			March 2, 2019
 --
---	REVISIONS:		January 21, 2019
+--	REVISIONS:		March 2, 2019
 --
 --	DESIGNER:		Jason Kim
 --
@@ -56,13 +56,11 @@ std::vector<std::wstring> messages;
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance, LPSTR lspszCmdParam, int nCmdShow)
 {
 	MSG Msg;
-	size_t i;
 
 	InitializeWindow(hInst, nCmdShow);
 
 	//initialize both sockets
 	//initialize the worker threads to return early if error happens
-
 
 	while (GetMessage(&Msg, NULL, 0, 0))
 	{
@@ -76,9 +74,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance, LPSTR lspszCmdParam
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	WndProc
 --
---	DATE:			January 21, 2019
+--	DATE:			March 2, 2019
 --
---	REVISIONS:		January 21, 2019
+--	REVISIONS:		March 2, 2019
 --
 --	DESIGNER:		Jason Kim
 --
@@ -104,11 +102,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 		switch (LOWORD(wParam))
 		{
 		case IDM_CONNECT:
-			//create_dialog_box(Connect_text);
 			//test with just as a server
-			break;
-		case IDM_SETTINGS:
-			//create_dialog_box(Settings_text);
 			break;
 		case IDM_EXIT:
 			PostQuitMessage(0);
@@ -133,110 +127,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 		break;
 	default:
 		return DefWindowProc(hwnd, Message, wParam, lParam);
-	}
-	return 0;
-}
-
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	GetInputProc
---
---	DATE:			January 21, 2019
---
---	REVISIONS:		January 21, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		LRESULT CALLBACK GetInputProc(HWND hwnd, UINT Message, WPARAM wParam,
---											LPARAM lParam)
---
---	RETURNS:		LRESULT
---
---	NOTES:
---	Call this to handle window messages for input dialog.
---------------------------------------------------------------------------------------*/
-LRESULT CALLBACK GetInputProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
-{
-	LPWSTR type = new TCHAR[MAX_INPUT_LENGTH];
-
-	std::vector<std::wstring> api_messages;
-
-	LPWSTR mode_input = new TCHAR[MAX_INPUT_LENGTH];
-	LPWSTR port_number = new TCHAR[MAX_INPUT_LENGTH];
-	LPWSTR protocol_input = new TCHAR[MAX_INPUT_LENGTH];
-	LPWSTR ip_address_input = new TCHAR[MAX_INPUT_LENGTH];
-	LPWSTR packet_size_input = new TCHAR[MAX_INPUT_LENGTH];
-	LPWSTR number_packets_input = new TCHAR[MAX_INPUT_LENGTH];
-
-	memset(type, 0, MAX_INPUT_LENGTH);
-	memset(mode_input, 0, MAX_INPUT_LENGTH);
-	memset(port_number, 0, MAX_INPUT_LENGTH);
-	memset(protocol_input, 0, MAX_INPUT_LENGTH);
-	memset(ip_address_input, 0, MAX_INPUT_LENGTH);
-	memset(packet_size_input, 0, MAX_INPUT_LENGTH);
-	memset(number_packets_input, 0, MAX_INPUT_LENGTH);
-
-	switch (Message)
-	{
-	case WM_COMMAND:
-		switch (LOWORD(wParam))
-		{
-		case IDOK:
-			/*GetWindowText(hwnd, type, MAX_INPUT_LENGTH);
-			messages.clear();
-			if (wcscmp(type, Connect_text) == 0)
-			{
-				GetDlgItemText(hwnd, IDC_FIRST_INPUT, port_number, MAX_INPUT_LENGTH);
-				if (wcslen(port_number) == 0)
-				{
-					MessageBox(hwnd, L"You must enter a port number", L"", MB_OK);
-				}
-				else
-				{
-					GetDlgItemText(hwnd, IDC_OPTIONS, mode_input, MAX_INPUT_LENGTH);
-					mode = mode_input;
-					GetDlgItemText(hwnd, IDC_SECOND_INPUT, ip_address_input, MAX_INPUT_LENGTH);
-
-					if (wcscmp(mode_input, Client_text) == 0 && wcslen(ip_address_input) == 0)
-					{
-						MessageBox(hwnd, L"You must enter an IP Address", L"", MB_OK);
-					}
-					else
-					{
-						ClientThreadParams->ip_address = ip_address_input;
-						GetDlgItemText(hwnd, IDC_OPTIONS2, protocol_input, MAX_INPUT_LENGTH);
-						reset_printer(mode_input);
-						update_default_report(mode_input, protocol_input, ClientThreadParams->packet_size, ClientThreadParams->number_packets);
-						initialize_connection(mode_input, protocol_input, port_number, ClientThreadParams);
-					}
-				}
-			}
-			else if (wcscmp(type, Settings_text) == 0)
-			{
-				GetDlgItemText(hwnd, IDC_FIRST_INPUT, packet_size_input, MAX_INPUT_LENGTH);
-				GetDlgItemText(hwnd, IDC_SECOND_INPUT, number_packets_input, MAX_INPUT_LENGTH);
-				ClientThreadParams->packet_size = packet_size_input;
-				ClientThreadParams->number_packets = number_packets_input;
-				update_default_report(NULL, NULL, ClientThreadParams->packet_size, ClientThreadParams->number_packets);
-			}
-			update_window();
-			delete type;
-			delete port_number;
-			delete mode_input;
-			EnableWindow(parent_hwnd, TRUE);
-			EndDialog(hwnd, wParam);*/
-			break;
-		case IDCANCEL:
-			delete type;
-			delete port_number;
-			delete mode_input;
-			delete protocol_input;
-			delete number_packets_input;
-			EnableWindow(parent_hwnd, TRUE);
-			EndDialog(hwnd, wParam);
-			return 1;
-		}
 	}
 	return 0;
 }

@@ -116,8 +116,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="server_handler.cpp" />
+    <ClCompile Include="winsock_handler.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="server_handler.h" />
+    <ClInclude Include="winsock_handler.h" />
     <ClInclude Include="constants.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="resource.h" />
