@@ -6,7 +6,7 @@ SOCKADDR_IN InternetAddr;
 int s_port;
 
 bool isAcceptingConnections = FALSE;
-
+SOCKET AcceptedSocket;
 WSAEVENT AcceptEvent;
 
 void initialize_wsa(LPCWSTR protocol, LPCWSTR port_number)
@@ -51,11 +51,13 @@ void open_socket(SOCKET* tcp_socket, int socket_type, int protocol_type) {
 	}
 }
 
-void start_connection_monitor(SOCKET* tcp_socket) {
+DWORD WINAPI  start_connection_monitor(LPVOID tcp_socket) {
+	
+	SOCKET* socket = (SOCKET*) tcp_socket;
 
 	isAcceptingConnections = TRUE;
 
-	if (listen(*tcp_socket, 5))
+	if (listen(*socket, 5))
 	{
 		printf("listen() failed with error %d\n", WSAGetLastError());
 		return;
@@ -68,12 +70,70 @@ void start_connection_monitor(SOCKET* tcp_socket) {
 
 	while (isAcceptingConnections)
 	{
-		HostSocket = accept(*tcp_socket, NULL, NULL);
+		AcceptedSocket = accept(*socket, NULL, NULL);
 
 		if (WSASetEvent(AcceptEvent) == FALSE)
 		{
 			printf("WSASetEvent failed with error %d\n", WSAGetLastError());
 		}
+	}
+}
+
+DWORD WINAPI start_request_handler(LPVOID acceptEvent)
+{
+	DWORD Flags;
+	LPSOCKET_INFORMATION SocketInfo;
+	DWORD ret_val;
+	DWORD RecvBytes;
+	WSAEVENT EventArray[1];
+	EventArray[0] = (WSAEVENT)acceptEvent;
+
+	while (TRUE)
+	{
+		while (TRUE)
+		{
+			ret_val = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+			switch (ret_val)
+			{
+			case WSA_WAIT_FAILED :
+				break;
+			case WAIT_IO_COMPLETION :
+				break;
+			}
+		}
+		WSAResetEvent(EventArray[ret_val - WSA_WAIT_EVENT_0]);
+
+		// Create a socket information structure to associate with the accepted socket.
+		if ((SocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
+			sizeof(SOCKET_INFORMATION))) == NULL)
+		{
+			printf("GlobalAlloc() failed with error %d\n", GetLastError());
+			return FALSE;
+		}
+
+		// Fill in the details of our accepted socket.
+		SocketInfo->Socket = AcceptedSocket;
+		ZeroMemory(&(SocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
+		SocketInfo->BytesSEND = 0;
+		SocketInfo->BytesRECV = 0;
+		SocketInfo->DataBuf.len = DATA_BUFSIZE;
+		SocketInfo->DataBuf.buf = SocketInfo->Buffer;
+
+		Flags = 0;
+
+		if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes, &Flags,
+			&(SocketInfo->Overlapped), HostWorkerRoutine) == SOCKET_ERROR)
+		{
+			if (WSAGetLastError() != WSA_IO_PENDING)
+			{
+				int temp = WSAGetLastError();
+				printf("WSARecv() failed with error %d\n", WSAGetLastError());
+				return FALSE;
+			}
+		}
+		printf("Socket %d connected\n", AcceptedSocket);
+
+		
 	}
 }
 

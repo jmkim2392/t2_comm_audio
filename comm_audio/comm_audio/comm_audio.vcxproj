@@ -118,6 +118,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="server_handler.cpp" />
     <ClCompile Include="winsock_handler.cpp" />
+    <ClCompile Include="worker_routines.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="server_handler.h" />
@@ -125,6 +126,7 @@
     <ClInclude Include="constants.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="worker_routines.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="menu.rc" />

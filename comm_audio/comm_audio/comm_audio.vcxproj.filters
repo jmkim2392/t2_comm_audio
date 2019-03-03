@@ -30,6 +30,9 @@
     <ClCompile Include="server_handler.cpp">
       <Filter>Source Files\connection_handlers</Filter>
     </ClCompile>
+    <ClCompile Include="worker_routines.cpp">
+      <Filter>Source Files\connection_handlers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
@@ -45,6 +48,9 @@
       <Filter>Header Files\connection_handlers</Filter>
     </ClInclude>
     <ClInclude Include="server_handler.h">
+      <Filter>Header Files\connection_handlers</Filter>
+    </ClInclude>
+    <ClInclude Include="worker_routines.h">
       <Filter>Header Files\connection_handlers</Filter>
     </ClInclude>
   </ItemGroup>
