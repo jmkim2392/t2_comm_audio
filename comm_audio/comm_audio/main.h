@@ -10,9 +10,12 @@
 #include <vector>
 #include "resource.h"
 #include "constants.h"
+#include "server.h"
+#include "circular_buffer.h"
 
 static HINSTANCE hInstance;
 static WNDCLASSEX Wcl;
+static bool isAcceptingRequests = false;
 
 typedef struct _SOCKET_INFORMATION {
 	OVERLAPPED Overlapped;
@@ -30,6 +33,5 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	WPARAM wParam, LPARAM lParam);
-
 
 void InitializeWindow(HINSTANCE hInst, int nCmdShow);

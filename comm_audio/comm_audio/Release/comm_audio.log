@@ -1,9 +1,7 @@
-﻿  main.cpp
-  server_handler.cpp
-  winsock_handler.cpp
+﻿  server.cpp
   Generating code
-  89 of 89 functions (100.0%) were compiled.
-    4 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
+  3 of 98 functions ( 3.1%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    1 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   comm_audio.vcxproj -> C:\Users\Jason\Projects\gitroot\comm_audio\comm_audio\Release\comm_audio.exe
