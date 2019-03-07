@@ -103,6 +103,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 		{
 		case IDM_CONNECT:
 			//test with just as a server
+			initialize_server(L"4985",L"4986");
 			break;
 		case IDM_EXIT:
 			PostQuitMessage(0);

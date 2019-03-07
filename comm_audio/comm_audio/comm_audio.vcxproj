@@ -116,12 +116,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="server_handler.cpp" />
+    <ClCompile Include="request_handler.cpp" />
+    <ClCompile Include="server.cpp" />
     <ClCompile Include="winsock_handler.cpp" />
     <ClCompile Include="worker_routines.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="server_handler.h" />
+    <ClInclude Include="circular_buffer.h" />
+    <ClInclude Include="request_handler.h" />
+    <ClInclude Include="server.h" />
     <ClInclude Include="winsock_handler.h" />
     <ClInclude Include="constants.h" />
     <ClInclude Include="main.h" />
