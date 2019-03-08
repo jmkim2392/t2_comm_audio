@@ -6,11 +6,14 @@ SOCKET udp_socket;
 SOCKET RequestSocket;
 
 HANDLE AcceptThread;
-HANDLE RequestMonitorThread;
+HANDLE RequestReceiverThread;
+HANDLE RequestHandlerThread;
+
 REQUEST_HANDLER_INFO req_handler_info;
 
 bool isAcceptingConnections = FALSE;
 WSAEVENT AcceptEvent;
+WSAEVENT RequestReceivedEvent;
 
 DWORD serverThreads[20];
 int threadCount = 0;
@@ -27,13 +30,10 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port) {
 	initialize_wsa(udp_port);
 	open_socket(&udp_socket, SOCK_DGRAM, IPPROTO_UDP);
 	
-	if ((AcceptEvent = WSACreateEvent()) == WSA_INVALID_EVENT)
-	{
-		printf("WSACreateEvent() failed with error %d\n", WSAGetLastError());
-		return;
-	}
+	initialize_events();
 
-	start_request_monitor();
+	start_request_receiver();
+	start_request_handler();
 
 	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&tcp_socket, 0, &ThreadId)) == NULL)
 	{
@@ -44,14 +44,43 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port) {
 
 }
 
-void start_request_monitor() {
+void initialize_events()
+{
+	if ((AcceptEvent = WSACreateEvent()) == WSA_INVALID_EVENT)
+	{
+		printf("WSACreateEvent() failed with error %d\n", WSAGetLastError());
+		return;
+	}
+
+	if ((RequestReceivedEvent = WSACreateEvent()) == WSA_INVALID_EVENT)
+	{
+		printf("WSACreateEvent() failed with error %d\n", WSAGetLastError());
+		return;
+	}
+}
+
+void start_request_receiver() 
+{
 
 	DWORD ThreadId;
 
 	req_handler_info.event = AcceptEvent;
 	req_handler_info.req_sock = RequestSocket;
+	req_handler_info.CompleteEvent = RequestReceivedEvent;
 
-	if ((RequestMonitorThread = CreateThread(NULL, 0, RequestHandlerWorkerThread, (LPVOID)&req_handler_info, 0, &ThreadId)) == NULL)
+	if ((RequestReceiverThread = CreateThread(NULL, 0, RequestReceiverThreadFunc, (LPVOID)&req_handler_info, 0, &ThreadId)) == NULL)
+	{
+		printf("CreateThread failed with error %d\n", GetLastError());
+		return;
+	}
+	add_new_thread(ThreadId);
+}
+
+void start_request_handler()
+{
+	DWORD ThreadId;
+
+	if ((RequestHandlerThread = CreateThread(NULL, 0, HandleRequest, (LPVOID)RequestReceivedEvent, 0, &ThreadId)) == NULL)
 	{
 		printf("CreateThread failed with error %d\n", GetLastError());
 		return;

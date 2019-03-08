@@ -3,7 +3,7 @@
 bool isAcceptingRequests = FALSE;
 circular_buffer<std::string> request_buffer(10);
 
-DWORD WINAPI RequestHandlerWorkerThread(LPVOID lpParameter)
+DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 {
 	LPSOCKET_INFORMATION SocketInfo;
 	LPREQUEST_HANDLER_INFO req_handler_info;
@@ -59,10 +59,11 @@ DWORD WINAPI RequestHandlerWorkerThread(LPVOID lpParameter)
 		SocketInfo->BytesRECV = 0;
 		SocketInfo->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
 		SocketInfo->DataBuf.buf = SocketInfo->Buffer;
+		SocketInfo->CompletedEvent = req_handler_info->CompleteEvent;
 
 		Flags = 0;
 
-		retVal = WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes, &Flags, &(SocketInfo->Overlapped), RequestHandlerRoutine);
+		retVal = WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes, &Flags, &(SocketInfo->Overlapped), RequestReceiverRoutine);
 
 		if (retVal == SOCKET_ERROR) {
 			if (WSAGetLastError() != WSA_IO_PENDING) {
@@ -76,7 +77,7 @@ DWORD WINAPI RequestHandlerWorkerThread(LPVOID lpParameter)
 	return TRUE;
 }
 
-void CALLBACK RequestHandlerRoutine(DWORD Error, DWORD BytesTransferred,
+void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	LPWSAOVERLAPPED Overlapped, DWORD InFlags)
 {
 	DWORD RecvBytes;
@@ -100,28 +101,83 @@ void CALLBACK RequestHandlerRoutine(DWORD Error, DWORD BytesTransferred,
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 	if (BytesTransferred == DEFAULT_REQUEST_PACKET_SIZE)
 	{
-		//write_to_file(SI->DataBuf.buf, SI->DataBuf.len);
 		request_buffer.put(SI->DataBuf.buf);
  		SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+		TriggerEvent(SI->CompletedEvent);
 	}
 	else if (BytesTransferred > 0) 
 	{
 		packet = request_buffer.peek();
-		if (packet.length() <= DEFAULT_REQUEST_PACKET_SIZE) {
+		if (packet.length() < DEFAULT_REQUEST_PACKET_SIZE) 
+		{
 			packet += SI->DataBuf.buf;
 			request_buffer.update(packet);
+			SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE - BytesTransferred;
+		} 
+		
+		if (packet.length() == DEFAULT_REQUEST_PACKET_SIZE)
+		{
+			//full packet  
+			SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+			TriggerEvent(SI->CompletedEvent);
 		}
-		SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE-BytesTransferred;
 	}
 
 	SI->DataBuf.buf = SI->Buffer;
 	
-	if (WSARecv(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, &(SI->Overlapped), RequestHandlerRoutine) == SOCKET_ERROR)
+	if (WSARecv(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, &(SI->Overlapped), RequestReceiverRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
 			printf("WSARecv() failed with error %d\n", WSAGetLastError());
 			return;
 		}
+	}
+}
+
+DWORD WINAPI HandleRequest(LPVOID lpParameter)
+{
+	std::string request;
+	DWORD Index;
+	WSAEVENT EventArray[1];
+	int temp;
+	
+	isAcceptingRequests = TRUE;
+	EventArray[0] = (WSAEVENT) lpParameter;
+
+	while (isAcceptingRequests)
+	{
+		Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
+
+		temp = request_buffer.peek().length();
+		request = request_buffer.get();
+		temp = request.length();
+		
+		////	check if ring buffer is empty, read, and handle accordingly 
+		//if (!request_buffer.empty() && request_buffer.peek().length() == DEFAULT_REQUEST_PACKET_SIZE)
+		//{
+		//	
+
+		//	//parse packet and handle accordingly
+		//	/*if (request.compare("REQUEST HERE") == 0) {
+
+		//	}*/
+
+		//} 
+		//else
+		//{
+		//	// request corrupt/wrong format
+		//}
+	}
+	return 0;
+}
+
+void TriggerEvent(WSAEVENT event) 
+{
+	if (WSASetEvent(event) == FALSE)
+	{
+		printf("WSASetEvent failed with error %d\n", WSAGetLastError());
+		return;
 	}
 }
