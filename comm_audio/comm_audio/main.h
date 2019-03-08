@@ -15,7 +15,6 @@
 
 static HINSTANCE hInstance;
 static WNDCLASSEX Wcl;
-static bool isAcceptingRequests = false;
 
 typedef struct _SOCKET_INFORMATION {
 	OVERLAPPED Overlapped;

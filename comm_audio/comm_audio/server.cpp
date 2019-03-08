@@ -3,8 +3,11 @@
 SOCKET tcp_socket;
 SOCKET udp_socket;
 
+SOCKET RequestSocket;
+
 HANDLE AcceptThread;
 HANDLE RequestMonitorThread;
+REQUEST_HANDLER_INFO req_handler_info;
 
 bool isAcceptingConnections = FALSE;
 WSAEVENT AcceptEvent;
@@ -23,19 +26,34 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port) {
 	//open udp socket
 	initialize_wsa(udp_port);
 	open_socket(&udp_socket, SOCK_DGRAM, IPPROTO_UDP);
-
-	isAcceptingRequests = TRUE;
 	
-	if ((RequestMonitorThread = CreateThread(NULL, 0, RequestHandlerWorkerThread, (LPVOID)AcceptEvent, 0, &ThreadId)) == NULL)
+	if ((AcceptEvent = WSACreateEvent()) == WSA_INVALID_EVENT)
 	{
-		printf("CreateThread failed with error %d\n", GetLastError());
+		printf("WSACreateEvent() failed with error %d\n", WSAGetLastError());
 		return;
 	}
-	add_new_thread(ThreadId);
+
+	start_request_monitor();
 
 	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&tcp_socket, 0, &ThreadId)) == NULL)
 	{
 		printf("Creating Host Thread failed with error %d\n", GetLastError());
+		return;
+	}
+	add_new_thread(ThreadId);
+
+}
+
+void start_request_monitor() {
+
+	DWORD ThreadId;
+
+	req_handler_info.event = AcceptEvent;
+	req_handler_info.req_sock = RequestSocket;
+
+	if ((RequestMonitorThread = CreateThread(NULL, 0, RequestHandlerWorkerThread, (LPVOID)&req_handler_info, 0, &ThreadId)) == NULL)
+	{
+		printf("CreateThread failed with error %d\n", GetLastError());
 		return;
 	}
 	add_new_thread(ThreadId);
@@ -52,15 +70,11 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 		printf("listen() failed with error %d\n", WSAGetLastError());
 		return WSAGetLastError();
 	}
-	if ((AcceptEvent = WSACreateEvent()) == WSA_INVALID_EVENT)
-	{
-		printf("WSACreateEvent() failed with error %d\n", WSAGetLastError());
-		return WSAGetLastError();
-	}
+	
 
 	while (isAcceptingConnections)
 	{
-		RequestSocket = accept(*socket, NULL, NULL);
+		req_handler_info.req_sock = accept(*socket, NULL, NULL);
 
 		if (WSASetEvent(AcceptEvent) == FALSE)
 		{

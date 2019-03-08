@@ -1,10 +1,12 @@
 #include "request_handler.h"
 
+bool isAcceptingRequests = FALSE;
 circular_buffer<std::string> request_buffer(10);
 
 DWORD WINAPI RequestHandlerWorkerThread(LPVOID lpParameter)
 {
 	LPSOCKET_INFORMATION SocketInfo;
+	LPREQUEST_HANDLER_INFO req_handler_info;
 	WSAEVENT EventArray[1];
 	DWORD Index;
 	DWORD RecvBytes;
@@ -12,8 +14,11 @@ DWORD WINAPI RequestHandlerWorkerThread(LPVOID lpParameter)
 	DWORD BytesSent = 0;
 	DWORD Flags = 0;
 
+	req_handler_info = (LPREQUEST_HANDLER_INFO)lpParameter;
+
 	// Save the accept event in the event array.
-	EventArray[0] = (WSAEVENT)lpParameter;
+	EventArray[0] = req_handler_info->event;
+	isAcceptingRequests = TRUE;
 
 	while (isAcceptingRequests)
 	{
@@ -48,7 +53,7 @@ DWORD WINAPI RequestHandlerWorkerThread(LPVOID lpParameter)
 		}
 
 		// Fill in the details of our accepted socket.
-		SocketInfo->Socket = RequestSocket;
+		SocketInfo->Socket = req_handler_info->req_sock;
 		ZeroMemory(&(SocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
 		SocketInfo->BytesSEND = 0;
 		SocketInfo->BytesRECV = 0;
@@ -97,7 +102,7 @@ void CALLBACK RequestHandlerRoutine(DWORD Error, DWORD BytesTransferred,
 	{
 		//write_to_file(SI->DataBuf.buf, SI->DataBuf.len);
 		request_buffer.put(SI->DataBuf.buf);
-		SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+ 		SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
 	}
 	else if (BytesTransferred > 0) 
 	{
@@ -110,7 +115,7 @@ void CALLBACK RequestHandlerRoutine(DWORD Error, DWORD BytesTransferred,
 	}
 
 	SI->DataBuf.buf = SI->Buffer;
-
+	
 	if (WSARecv(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, &(SI->Overlapped), RequestHandlerRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
