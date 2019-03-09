@@ -1,8 +1,50 @@
+/*-------------------------------------------------------------------------------------
+--	SOURCE FILE: request_handler.cpp - Contains request related functions
+--
+--	PROGRAM:		Comm_Audio
+--
+--	FUNCTIONS:
+--					DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter);
+--					void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred, 
+												LPWSAOVERLAPPED Overlapped, DWORD InFlags);
+--					DWORD WINAPI HandleRequest(LPVOID lpParameter);
+--					void TriggerEvent(WSAEVENT event);
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--
+--------------------------------------------------------------------------------------*/
 #include "request_handler.h"
 
 bool isAcceptingRequests = FALSE;
 circular_buffer<std::string> request_buffer(10);
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	RequestReceiverThreadFunc
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
+--									LPVOID lpParameter - request handler info struct
+--
+--	RETURNS:		DWORD
+--
+--	NOTES:
+--	Request Receiver Thread function to wait for Accept Events and start receiving requests
+--	from client
+--------------------------------------------------------------------------------------*/
 DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 {
 	LPSOCKET_INFORMATION SocketInfo;
@@ -77,6 +119,29 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 	return TRUE;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	RequestReceiverRoutine
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
+--												LPWSAOVERLAPPED Overlapped, DWORD InFlags)
+--										DWORD Error - WSA error
+--										DWORD BytesTransferred - number of bytes transferred
+--										LPWSAOVERLAPPED Overlapped - overlapped struct
+--										DWORD InFlags - unused flags
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Completion Routine Callback function to receive request packets
+--------------------------------------------------------------------------------------*/
 void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	LPWSAOVERLAPPED Overlapped, DWORD InFlags)
 {
@@ -135,6 +200,25 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	HandleRequest
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		DWORD WINAPI HandleRequest(LPVOID lpParameter)
+--									LPVOID lpParameter - the Packet Received Event
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Thread function to read from circular buffer and handle requests as received
+--------------------------------------------------------------------------------------*/
 DWORD WINAPI HandleRequest(LPVOID lpParameter)
 {
 	std::string request;
@@ -173,6 +257,25 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 	return 0;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	TriggerEvent
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void TriggerEvent(WSAEVENT event) 
+--								WSAEVENT event - event to trigger
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to intialize the program as a server
+--------------------------------------------------------------------------------------*/
 void TriggerEvent(WSAEVENT event) 
 {
 	if (WSASetEvent(event) == FALSE)

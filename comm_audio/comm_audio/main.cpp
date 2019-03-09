@@ -2,7 +2,7 @@
 --	SOURCE FILE: main.cpp - Main src file handles various menu functions and windows
 --							messages.
 --
---	PROGRAM:		Winsock2_API_Interface
+--	PROGRAM:		Comm_Audio
 --
 --	FUNCTIONS:
 --					int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
@@ -13,33 +13,30 @@
 --					void initialize_dialog(HWND hwnd, LPCWSTR type)
 --					void get_user_input(LPCWSTR type, LPCWSTR prompt)
 --
---	DATE:			March 2, 2019
+--	DATE:			March 8, 2019
 --
---	REVISIONS:		March 2, 2019
+--	REVISIONS:		March 8, 2019
 --
 --	DESIGNER:		Jason Kim
 --
 --	PROGRAMMER:		Jason Kim
 --
 --	NOTES:
---	This program allows users utilize winsock2 APIs through a GUI.
---	Users can obtain host name, IP addresses, service, and port number.
---
+--	Temporary Window GUI for network testing/dev. To be updated
+--	Currently only implemented with server function
 --------------------------------------------------------------------------------------*/
 #define STRICT
 #include "main.h"
 
 LPCWSTR mode = new TCHAR[MAX_INPUT_LENGTH];
-//LPCLIENT_THREAD_PARAMS ClientThreadParams;
-
 std::vector<std::wstring> messages;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	WinMain
 --
---	DATE:			March 2, 2019
+--	DATE:			March 8, 2019
 --
---	REVISIONS:		March 2, 2019
+--	REVISIONS:		March 8, 2019
 --
 --	DESIGNER:		Jason Kim
 --
@@ -74,9 +71,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance, LPSTR lspszCmdParam
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	WndProc
 --
---	DATE:			March 2, 2019
+--	DATE:			March 8, 2019
 --
---	REVISIONS:		March 2, 2019
+--	REVISIONS:		March 8, 2019
 --
 --	DESIGNER:		Jason Kim
 --
@@ -102,7 +99,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 		switch (LOWORD(wParam))
 		{
 		case IDM_CONNECT:
-			//test with just as a server
+			//testing just as a server
 			initialize_server(L"4985",L"4986");
 			break;
 		case IDM_EXIT:
@@ -132,6 +129,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	InitializeWindow
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void InitializeWindow(HINSTANCE hInst, int nCmdShow)
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to intialize the main program window
+--------------------------------------------------------------------------------------*/
 void InitializeWindow(HINSTANCE hInst, int nCmdShow) {
 	Wcl.cbSize = sizeof(WNDCLASSEX);
 	Wcl.style = CS_HREDRAW | CS_VREDRAW;

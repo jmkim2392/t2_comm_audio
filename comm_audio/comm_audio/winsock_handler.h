@@ -15,5 +15,4 @@ static LPCWSTR connection_mode;
 
 void initialize_wsa(LPCWSTR port_number);
 void open_socket(SOCKET* socket, int socket_type, int protocol_type);
-
 void terminate_connection();

@@ -1,3 +1,23 @@
+/*-------------------------------------------------------------------------------------
+--	SOURCE FILE: winsock_handler.cpp - Contains winsock related functions
+--
+--	PROGRAM:		Comm_Audio
+--
+--	FUNCTIONS:
+--					void initialize_wsa(LPCWSTR port_number);
+--					void open_socket(SOCKET* socket, int socket_type, int protocol_type);
+--					void terminate_connection();
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--
+--------------------------------------------------------------------------------------*/
 #include "winsock_handler.h"
 
 WSADATA wsaData;
@@ -5,6 +25,25 @@ WSADATA wsaData;
 SOCKADDR_IN InternetAddr;
 int s_port;
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	initialize_wsa
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void initialize_wsa(LPCWSTR port_number)
+--									LPCWSTR port_number - port number to open
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to initialize wsa with a port number
+--------------------------------------------------------------------------------------*/
 void initialize_wsa(LPCWSTR port_number)
 {
 	size_t i;
@@ -28,6 +67,27 @@ void initialize_wsa(LPCWSTR port_number)
 	free(port_num);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	open_socket
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void open_socket(SOCKET* socket, int socket_type, int protocol_type)
+--									SOCKET* socket - the socket to open
+--									int socket_type - type of socket (SOCK_STREAM/SOCK_DGRAM)
+--									int protocol_type - type of protocol (IPPROTO_TCP/IPPROTO_UDP)
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to open a socket with the specified type
+--------------------------------------------------------------------------------------*/
 void open_socket(SOCKET* socket, int socket_type, int protocol_type) 
 {
 	if ((*socket = WSASocket(AF_INET, socket_type, protocol_type, NULL, 0,
@@ -47,6 +107,24 @@ void open_socket(SOCKET* socket, int socket_type, int protocol_type)
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	terminate_connection
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void terminate_connection()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to cleanup wsa
+--------------------------------------------------------------------------------------*/
 void terminate_connection()
 {
 	WSACleanup();
