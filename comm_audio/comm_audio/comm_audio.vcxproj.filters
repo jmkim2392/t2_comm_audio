@@ -1,21 +1,56 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="request_handler.cpp" />
-    <ClCompile Include="server.cpp" />
-    <ClCompile Include="winsock_handler.cpp" />
+    <ClCompile Include="winsock_handler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="server.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="request_handler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="circular_buffer.h" />
-    <ClInclude Include="request_handler.h" />
-    <ClInclude Include="server.h" />
-    <ClInclude Include="winsock_handler.h" />
-    <ClInclude Include="constants.h" />
-    <ClInclude Include="main.h" />
-    <ClInclude Include="resource.h" />
+    <ClInclude Include="constants.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="circular_buffer.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="main.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="winsock_handler.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="request_handler.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="server.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="menu.rc" />
+    <Filter Include="Headers">
+      <UniqueIdentifier>{5e554db6-d655-4dcc-adf4-862c0f24135c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{347bf2db-62d3-4425-9746-acbeee3d83fa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource">
+      <UniqueIdentifier>{1ef42646-0fb9-4649-9323-347379351836}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="menu.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

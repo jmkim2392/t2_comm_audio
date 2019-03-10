@@ -37,6 +37,8 @@ HANDLE BroadCastThread;
 REQUEST_HANDLER_INFO req_handler_info;
 BROADCAST_INFO broadcast_info;
 
+SOCKADDR_IN InternetAddr;
+
 bool isAcceptingConnections = FALSE;
 BOOL isBroadcasting = FALSE;
 WSAEVENT AcceptEvent;
@@ -70,11 +72,19 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	DWORD ThreadId;
 
 	//open tcp socket 
-	initialize_wsa(tcp_port);
+	initialize_wsa(tcp_port, &InternetAddr);
 	open_socket(&tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
 
+	if (bind(tcp_accept_socket, (PSOCKADDR)&InternetAddr,
+		sizeof(InternetAddr)) == SOCKET_ERROR)
+	{
+		printf("bind() failed with error %d\n", WSAGetLastError());
+		terminate_connection();
+		return;
+	}
+
 	//open udp socket
-	initialize_wsa(udp_port);
+	initialize_wsa(udp_port, &InternetAddr);
 	open_socket(&udp_socket, SOCK_DGRAM, IPPROTO_UDP);
 	
 	initialize_events();
@@ -296,7 +306,7 @@ DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
 	if (Overlapped.hEvent == WSA_INVALID_EVENT) {
 		printf("WSACreateEvent failed with error: %d\n", WSAGetLastError());
 		WSACleanup();
-		return 1;
+		return -1;
 	}
 
 	// while flag on and no error
@@ -310,6 +320,7 @@ DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
 			printf("sendto() failed: %d\n", WSAGetLastError());
 			break;
 		}
+		Sleep(10000);
 	}
 	return 0;
 }

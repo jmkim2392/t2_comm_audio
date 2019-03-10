@@ -162,6 +162,13 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 		printf("Closing socket %d\n", SI->Socket);
 	}
 
+	if (Error != 0 || BytesTransferred == 0)
+	{
+		closesocket(SI->Socket);
+		GlobalFree(SI);
+		return;
+	}
+
 	Flags = 0;
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 	if (BytesTransferred == DEFAULT_REQUEST_PACKET_SIZE)
