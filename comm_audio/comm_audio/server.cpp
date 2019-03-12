@@ -267,6 +267,8 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 	return 0;
 }
 
+//TODO: Current implementation is for testing only and uses Broadcast.
+// Will be reimplemented with Multicast as required by Phat
 DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
 {
 	int retVal;
