@@ -200,6 +200,25 @@ void start_request_handler()
 	add_new_thread(ThreadId);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_broadcast
+--
+--	DATE:			March 11, 2019
+--
+--	REVISIONS:		March 11, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
+--								SOCKET* socket - the udp Socket to multicast
+--								LPCWSTR udp_port - udp port number
+--	RETURNS:		DWORD
+--
+--	NOTES:
+--	Call this function to initialize and start multicasting audio to clients
+--------------------------------------------------------------------------------------*/
 void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
 {
 	DWORD ThreadId;
@@ -267,8 +286,27 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 	return 0;
 }
 
-//TODO: Current implementation is for testing only and uses Broadcast.
-// Will be reimplemented with Multicast as required by Phat
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	broadcast_audio
+--
+--	DATE:			March 11, 2019
+--
+--	REVISIONS:		March 11, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
+--									LPVOID broadcastInfo - struct for multicasting
+--
+--	RETURNS:		DWORD
+--
+--	NOTES:
+--	Thread function for multicasting an audio stream to clients.
+	//TODO: Current implementation is for testing only and uses Broadcast.
+	// Will be reimplemented with Multicast as required by Phat
+--------------------------------------------------------------------------------------*/
 DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
 {
 	int retVal;
