@@ -26,6 +26,11 @@ typedef struct _SOCKET_INFORMATION {
 	DWORD BytesRECV;
 } SOCKET_INFORMATION, *LPSOCKET_INFORMATION;
 
+typedef struct _BROADCAST_INFO {
+	SOCKET udpSocket;
+	int portNum;
+} BROADCAST_INFO, *LPBROADCAST_INFO;
+
 static HWND parent_hwnd, child_hwnd;
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
