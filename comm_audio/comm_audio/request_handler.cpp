@@ -213,6 +213,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 --	DATE:			March 8, 2019
 --
 --	REVISIONS:		March 8, 2019
+--					March 11, 2019 - JK - added packet parsing and request handling 
 --
 --	DESIGNER:		Jason Kim
 --
@@ -229,6 +230,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 DWORD WINAPI HandleRequest(LPVOID lpParameter)
 {
 	std::string request;
+	REQUEST_PACKET parsedPacket;
 	DWORD Index;
 	WSAEVENT EventArray[1];
 	int temp;
@@ -241,27 +243,32 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 		Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
 		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
 
-		temp = request_buffer.peek().length();
 		request = request_buffer.get();
-		temp = request.length();
-		
-		////	check if ring buffer is empty, read, and handle accordingly 
-		//if (!request_buffer.empty() && request_buffer.peek().length() == DEFAULT_REQUEST_PACKET_SIZE)
-		//{
-		//	
 
-		//	//parse packet and handle accordingly
-		//	/*if (request.compare("REQUEST HERE") == 0) {
+		parseRequest(&parsedPacket,request);
 
-		//	}*/
-
-		//} 
-		//else
-		//{
-		//	// request corrupt/wrong format
-		//}
+		switch (parsedPacket.type) {
+		case 1:
+			// audio file request
+			// parsedPacket.message should contain the file name
+			break;
+		case 2:
+			// audio file stream request
+			// parsedPacket.message should contain the file name
+			break;
+		case 3:
+			// voip request
+			// parsedPacket.message should contain the client info
+			break;
+		}
 	}
 	return 0;
+}
+
+void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet) 
+{
+	parsedPacket->type = packet.at(0);
+	parsedPacket->message = packet.substr(1);
 }
 
 /*-------------------------------------------------------------------------------------
