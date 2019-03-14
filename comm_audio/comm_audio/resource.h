@@ -12,3 +12,4 @@
 #define IDM_CONNECT		110
 #define IDM_SETTINGS	111
 #define IDM_UPLOAD		112
+#define IDM_CLIENT		113

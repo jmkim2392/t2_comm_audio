@@ -13,6 +13,12 @@
     <ClCompile Include="main.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="client.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="general_functions.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="constants.h">
@@ -34,6 +40,12 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="server.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="client.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="general_functions.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

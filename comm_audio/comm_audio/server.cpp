@@ -25,7 +25,7 @@
 #include "server.h"
 
 SOCKET tcp_accept_socket;
-SOCKET udp_socket;
+SOCKET udp_audio_socket;
 
 SOCKET RequestSocket;
 
@@ -45,7 +45,7 @@ WSAEVENT AcceptEvent;
 WSAEVENT RequestReceivedEvent;
 
 DWORD serverThreads[20];
-int threadCount = 0;
+int svr_threadCount = 0;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_server
@@ -85,13 +85,13 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 
 	//open udp socket
 	initialize_wsa(udp_port, &InternetAddr);
-	open_socket(&udp_socket, SOCK_DGRAM, IPPROTO_UDP);
+	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 	
 	initialize_events();
 
 	start_request_receiver();
 	start_request_handler();
-	start_broadcast(&udp_socket, udp_port);
+	start_broadcast(&udp_audio_socket, udp_port);
 
 	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&tcp_accept_socket, 0, &ThreadId)) == NULL)
 	{
@@ -117,6 +117,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 --	RETURNS:		void
 --
 --	NOTES:
+--	DEPRECATED - USE function in general_functions
 --	Call this function to intialize the events used by server
 --------------------------------------------------------------------------------------*/
 void initialize_events()
@@ -382,11 +383,12 @@ DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
 --	RETURNS:		void
 --
 --	NOTES:
+--	DEPRECATED - USE function in general_functions
 --	Call this function to add a new thread to maintain the list of active threads
 --------------------------------------------------------------------------------------*/
 void add_new_thread(DWORD threadId) 
 {
-	serverThreads[threadCount++] = threadId;
+	serverThreads[svr_threadCount++] = threadId;
 }
 
 /*-------------------------------------------------------------------------------------
