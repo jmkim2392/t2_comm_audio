@@ -15,7 +15,6 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	initialize_wsa(tcp_port, &cl_addr);
 	open_socket(&cl_tcp_req_socket, SOCK_STREAM, IPPROTO_TCP);
 
-
 	setup_svr_addr(&server_addr, tcp_port, svr_ip_addr);
 
 	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr, sizeof(sockaddr)) == -1)
@@ -28,8 +27,8 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	//open udp socket
 	initialize_wsa(udp_port, &cl_addr);
 	open_socket(&cl_udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
-}
 
+}
 
 void setup_svr_addr(SOCKADDR_IN* svr_addr , LPCWSTR tcp_port, LPCWSTR svr_ip_addr)
 {
@@ -40,14 +39,11 @@ void setup_svr_addr(SOCKADDR_IN* svr_addr , LPCWSTR tcp_port, LPCWSTR svr_ip_add
 	struct hostent	*hp;
 
 	wcstombs_s(&i, port_num, MAX_INPUT_LENGTH, tcp_port, MAX_INPUT_LENGTH);
-
 	wcstombs_s(&i, ip, MAX_INPUT_LENGTH, svr_ip_addr, MAX_INPUT_LENGTH);
 
 	port = atoi(port_num);
 
-
 	// Initialize and set up the address structure
-	memset((char *)&svr_addr, 0, sizeof(SOCKADDR_IN));
 	svr_addr->sin_family = AF_INET;
 	svr_addr->sin_port = htons(port);
 
@@ -59,15 +55,36 @@ void setup_svr_addr(SOCKADDR_IN* svr_addr , LPCWSTR tcp_port, LPCWSTR svr_ip_add
 
 	// Copy the server address
 	memcpy((char *)&svr_addr->sin_addr, hp->h_addr, hp->h_length);
+
 }
 
-void send_request()
+void send_request(int type, LPCWSTR request)
 {
+	size_t i;
+	DWORD SendBytes;
+	WSABUF DataBuf;
+	OVERLAPPED Overlapped;
+	char* req_msg = (char *)malloc(MAX_INPUT_LENGTH);
+	std::string packet;
 
+	wcstombs_s(&i, req_msg, MAX_INPUT_LENGTH, request, MAX_INPUT_LENGTH);
+
+	packet = generateRequestPacket(type, req_msg);
+	DataBuf.buf = (char*) packet.c_str();
+	DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+
+	ZeroMemory(&Overlapped, sizeof(WSAOVERLAPPED));
+
+	if (WSASend(cl_tcp_req_socket, &DataBuf, 1, &SendBytes, 0,
+		&Overlapped, NULL) == SOCKET_ERROR)
+	{
+		if (WSAGetLastError() != WSA_IO_PENDING)
+		{
+			printf("WSASend() failed with error %d\n", WSAGetLastError());
+			return;
+		}
+	}
 }
-
-
-
 
 void terminate_client()
 {

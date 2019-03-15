@@ -12,6 +12,7 @@
 #include "constants.h"
 #include "server.h"
 #include "circular_buffer.h"
+#include "client.h"
 
 static HINSTANCE hInstance;
 static WNDCLASSEX Wcl;

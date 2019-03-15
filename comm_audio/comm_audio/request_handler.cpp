@@ -248,15 +248,15 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 		parseRequest(&parsedPacket,request);
 
 		switch (parsedPacket.type) {
-		case 1:
+		case WAV_FILE_REQUEST_TYPE:
 			// audio file request
 			// parsedPacket.message should contain the file name
 			break;
-		case 2:
+		case AUDIO_STREAM_REQUEST_TYPE:
 			// audio file stream request
 			// parsedPacket.message should contain the file name
 			break;
-		case 3:
+		case VOIP_REQUEST_TYPE:
 			// voip request
 			// parsedPacket.message should contain the client info
 			break;
@@ -267,7 +267,7 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 
 void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet) 
 {
-	parsedPacket->type = packet.at(0);
+	parsedPacket->type = packet.at(0) - '0';
 	parsedPacket->message = packet.substr(1);
 }
 
@@ -297,4 +297,9 @@ void TriggerEvent(WSAEVENT event)
 		printf("WSASetEvent failed with error %d\n", WSAGetLastError());
 		return;
 	}
+}
+
+std::string generateRequestPacket(int type, std::string message)
+{
+	return std::to_string(type) + message;
 }

@@ -1,23 +1,7 @@
-﻿  main.cpp
-c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\request_handler.h(23): error C2144: syntax error: 'void' should be preceded by ';'
-c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\main.cpp(31): error C2440: 'initializing': cannot convert from 'TCHAR *' to 'LPCWSTR'
-  c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\main.cpp(31): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or function-style cast
-c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\main.cpp(68): warning C4244: 'return': conversion from 'WPARAM' to 'int', possible loss of data
-c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\main.cpp(115): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\main.cpp(160): error C2440: '=': cannot convert from 'const LPCWSTR' to 'LPCSTR'
-  c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\main.cpp(160): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or function-style cast
-c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\main.cpp(162): error C2440: '=': cannot convert from 'const LPCWSTR' to 'LPCSTR'
-  c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\main.cpp(162): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or function-style cast
-c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\main.cpp(169): error C2664: 'HWND CreateWindowExA(DWORD,LPCSTR,LPCSTR,DWORD,int,int,int,int,HWND,HMENU,HINSTANCE,LPVOID)': cannot convert argument 2 from 'const LPCWSTR' to 'LPCSTR'
-  c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\main.cpp(169): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or function-style cast
-  request_handler.cpp
-c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\request_handler.h(23): error C2144: syntax error: 'void' should be preceded by ';'
+﻿  request_handler.cpp
 c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\request_handler.cpp(162): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'SOCKET'
   c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\request_handler.cpp(162): note: consider using '%lld' in the format string
   c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\request_handler.cpp(162): note: consider using '%Id' in the format string
   c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\request_handler.cpp(162): note: consider using '%I64d' in the format string
-  server.cpp
-c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\request_handler.h(23): error C2144: syntax error: 'void' should be preceded by ';'
-  winsock_handler.cpp
-c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\request_handler.h(23): error C2144: syntax error: 'void' should be preceded by ';'
-  Generating Code...
+c:\users\jmkim\documents\projects\gitroot\comm_audio\comm_audio\comm_audio\request_handler.cpp(236): warning C4101: 'temp': unreferenced local variable
+  comm_audio.vcxproj -> C:\Users\jmkim\Documents\Projects\gitroot\comm_audio\comm_audio\x64\Debug\comm_audio.exe
