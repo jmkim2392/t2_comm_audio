@@ -3,11 +3,11 @@
 #include "main.h"
 #include <string>
 
-typedef struct _REQUEST_HANDLER_INFO {
+typedef struct _TCP_SOCKET_INFO {
 	WSAEVENT event;
-	SOCKET req_sock;
+	SOCKET tcp_socket;
 	WSAEVENT CompleteEvent;
-} REQUEST_HANDLER_INFO, *LPREQUEST_HANDLER_INFO;
+} TCP_SOCKET_INFO, *LPTCP_SOCKET_INFO;
 
 typedef struct _REQUEST_PACKET {
 	int type;

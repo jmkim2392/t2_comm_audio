@@ -34,7 +34,7 @@ HANDLE RequestReceiverThread;
 HANDLE RequestHandlerThread;
 HANDLE BroadCastThread;
 
-REQUEST_HANDLER_INFO req_handler_info;
+TCP_SOCKET_INFO tcp_socket_info;
 BROADCAST_INFO broadcast_info;
 
 SOCKADDR_IN InternetAddr;
@@ -159,11 +159,11 @@ void start_request_receiver()
 {
 	DWORD ThreadId;
 
-	req_handler_info.event = AcceptEvent;
-	req_handler_info.req_sock = RequestSocket;
-	req_handler_info.CompleteEvent = RequestReceivedEvent;
+	tcp_socket_info.event = AcceptEvent;
+	tcp_socket_info.tcp_socket = RequestSocket;
+	tcp_socket_info.CompleteEvent = RequestReceivedEvent;
 
-	if ((RequestReceiverThread = CreateThread(NULL, 0, RequestReceiverThreadFunc, (LPVOID)&req_handler_info, 0, &ThreadId)) == NULL)
+	if ((RequestReceiverThread = CreateThread(NULL, 0, RequestReceiverThreadFunc, (LPVOID)&tcp_socket_info, 0, &ThreadId)) == NULL)
 	{
 		printf("CreateThread failed with error %d\n", GetLastError());
 		return;
@@ -277,7 +277,7 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 	
 	while (isAcceptingConnections)
 	{
-		req_handler_info.req_sock = accept(*socket, NULL, NULL);
+		tcp_socket_info.tcp_socket = accept(*socket, NULL, NULL);
 
 		if (WSASetEvent(AcceptEvent) == FALSE)
 		{
@@ -391,6 +391,12 @@ DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
 void add_new_thread(DWORD threadId) 
 {
 	serverThreads[svr_threadCount++] = threadId;
+}
+
+void start_ftp(std::string filename) {
+	initialize_ftp(&tcp_socket_info.tcp_socket);
+	read_file(filename);
+	start_sending_file();
 }
 
 /*-------------------------------------------------------------------------------------

@@ -8,6 +8,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <vector>
+#include <fstream>
 #include "resource.h"
 #include "constants.h"
 #include "server.h"
