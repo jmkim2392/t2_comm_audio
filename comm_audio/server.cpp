@@ -88,8 +88,6 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	initialize_wsa(udp_port, &InternetAddr);
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 	
-	
-
 	start_request_receiver();
 	start_request_handler();
 	start_broadcast(&udp_audio_socket, udp_port);

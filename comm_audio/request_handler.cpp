@@ -186,15 +186,15 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 		{
 			packet += SI->DataBuf.buf;
 			request_buffer.update(packet);
-			SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE - BytesTransferred;
+			if (packet.length() == DEFAULT_REQUEST_PACKET_SIZE) {
+				//full packet  
+				SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+				TriggerEvent(SI->CompletedEvent);
+			}
+			else {
+				SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE - packet.length();
+			}
 		} 
-		
-		if (packet.length() == DEFAULT_REQUEST_PACKET_SIZE)
-		{
-			//full packet  
-			SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
-			TriggerEvent(SI->CompletedEvent);
-		}
 	}
 
 	SI->DataBuf.buf = SI->Buffer;
@@ -242,31 +242,49 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 
 	while (isAcceptingRequests)
 	{
-		Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
-		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
+		while (isAcceptingRequests)
+		{
+			Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
 
-		request = request_buffer.get();
+			if (Index == WSA_WAIT_FAILED)
+			{
+				printf("WSAWaitForMultipleEvents failed with error %d\n", WSAGetLastError());
+				terminate_connection();
+				return FALSE;
+			}
 
-		if (!request.empty()) {
-			parseRequest(&parsedPacket, request);
-
-			switch (parsedPacket.type) {
-			case WAV_FILE_REQUEST_TYPE:
-				// audio file request
-				// parsedPacket.message should contain the file name
-				start_ftp(parsedPacket.message);
-				break;
-			case AUDIO_STREAM_REQUEST_TYPE:
-				// audio file stream request
-				// parsedPacket.message should contain the file name
-				break;
-			case VOIP_REQUEST_TYPE:
-				// voip request
-				// parsedPacket.message should contain the client info
+			if (Index != WAIT_IO_COMPLETION)
+			{
+				// An accept() call event is ready - break the wait loop
 				break;
 			}
 		}
+		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
+
+		if (!request_buffer.empty()) {
+			request = request_buffer.get();
+			if (!request.empty()) {
+				parseRequest(&parsedPacket, request);
+
+				switch (parsedPacket.type) {
+				case WAV_FILE_REQUEST_TYPE:
+					// audio file request
+					// parsedPacket.message should contain the file name
+					start_ftp(parsedPacket.message);
+					break;
+				case AUDIO_STREAM_REQUEST_TYPE:
+					// audio file stream request
+					// parsedPacket.message should contain the file name
+					break;
+				case VOIP_REQUEST_TYPE:
+					// voip request
+					// parsedPacket.message should contain the client info
+					break;
+				}
+			}
+		}
 	}
+	
 	return 0;
 }
 

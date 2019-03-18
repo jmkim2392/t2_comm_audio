@@ -35,6 +35,7 @@ int cl_threadCount;
 BOOL isConnected = FALSE;
 
 WSAEVENT FtpPacketReceivedEvent;
+WSAEVENT FtpCompleted;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_client
@@ -169,7 +170,7 @@ void send_request(int type, LPCWSTR request)
 	switch (type)
 	{
 	case WAV_FILE_REQUEST_TYPE:
-		WSASend(cl_tcp_req_socket, &DataBuf, 1, &SendBytes, 0, &Overlapped, FTP_ReceiveRoutine);
+		WSASend(cl_tcp_req_socket, &DataBuf, 1, &SendBytes, 0, &Overlapped, NULL);
 		//start_receiving_file();
 		break;
 	}
@@ -192,36 +193,28 @@ void request_wav_file(LPCWSTR filename) {
 	DWORD ThreadId;
 	TCP_SOCKET_INFO req_handler_info;
 	initialize_events_gen(&FtpPacketReceivedEvent);
+	initialize_events_gen(&FtpCompleted);
+
 	initialize_ftp(&cl_tcp_req_socket, FtpPacketReceivedEvent);
 
-	req_handler_info.CompleteEvent = FtpPacketReceivedEvent;
-	req_handler_info.tcp_socket = cl_tcp_req_socket;
+	create_new_file("receivedWav.txt");
 
-	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFile, (LPVOID)&req_handler_info, 0, &ThreadId)) == NULL)
+	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFileThreadFunc, (LPVOID)FtpCompleted, 0, &ThreadId)) == NULL)
 	{
 		printf("CreateThread failed with error %d\n", GetLastError());
 		return;
 	}
+
+	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFile, (LPVOID)FtpPacketReceivedEvent, 0, &ThreadId)) == NULL)
+	{
+		printf("CreateThread failed with error %d\n", GetLastError());
+		return;
+	}
+
 	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
 
-
-
-	create_new_file("receivedWav.wav");
-	send_request(WAV_FILE_REQUEST_TYPE, filename);
-
-	/*SI.DataBuf.buf = ftp_packet_buf;
-	SI.DataBuf.len = FTP_PACKET_SIZE;
-	ZeroMemory(&(SI.Overlapped), sizeof(WSAOVERLAPPED));
-	if (WSARecv(cl_tcp_req_socket, &(SI.DataBuf), 1, &RecvBytes, &Flags, &(SI.Overlapped), FTP_ReceiveRoutine) == SOCKET_ERROR)
-	{
-		if (WSAGetLastError() != WSA_IO_PENDING)
-		{
-			printf("WSARecv() failed with error %d\n", WSAGetLastError());
-			return;
-		}
-	}*/
-
 	
+	//send_request(WAV_FILE_REQUEST_TYPE, filename);
 }
 
 /*-------------------------------------------------------------------------------------
