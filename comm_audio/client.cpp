@@ -27,10 +27,14 @@ SOCKET cl_udp_audio_socket;
 SOCKADDR_IN cl_addr;
 SOCKADDR_IN server_addr;
 
+HANDLE FileReceiverThread;
+
 DWORD clientThreads[20];
 int cl_threadCount;
 
 BOOL isConnected = FALSE;
+
+WSAEVENT FtpPacketReceivedEvent;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_client
@@ -162,15 +166,62 @@ void send_request(int type, LPCWSTR request)
 
 	ZeroMemory(&Overlapped, sizeof(WSAOVERLAPPED));
 
-	if (WSASend(cl_tcp_req_socket, &DataBuf, 1, &SendBytes, 0,
-		&Overlapped, NULL) == SOCKET_ERROR)
+	switch (type)
+	{
+	case WAV_FILE_REQUEST_TYPE:
+		WSASend(cl_tcp_req_socket, &DataBuf, 1, &SendBytes, 0, &Overlapped, FTP_ReceiveRoutine);
+		//start_receiving_file();
+		break;
+	}
+
+	if (WSAGetLastError() != 0 && WSAGetLastError() != WSA_IO_PENDING)
+	{
+		int temp = WSAGetLastError();
+		printf("WSASend() failed with error %d\n", WSAGetLastError());
+		return;
+	}
+}
+
+void request_wav_file(LPCWSTR filename) {
+
+	DWORD RecvBytes;
+	DWORD Flags = 0;
+	SOCKET_INFORMATION SI;
+	CHAR ftp_packet_buf[FTP_PACKET_SIZE];
+
+	DWORD ThreadId;
+	TCP_SOCKET_INFO req_handler_info;
+	initialize_events_gen(&FtpPacketReceivedEvent);
+	initialize_ftp(&cl_tcp_req_socket, FtpPacketReceivedEvent);
+
+	req_handler_info.CompleteEvent = FtpPacketReceivedEvent;
+	req_handler_info.tcp_socket = cl_tcp_req_socket;
+
+	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFile, (LPVOID)&req_handler_info, 0, &ThreadId)) == NULL)
+	{
+		printf("CreateThread failed with error %d\n", GetLastError());
+		return;
+	}
+	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
+
+
+
+	create_new_file("receivedWav.wav");
+	send_request(WAV_FILE_REQUEST_TYPE, filename);
+
+	/*SI.DataBuf.buf = ftp_packet_buf;
+	SI.DataBuf.len = FTP_PACKET_SIZE;
+	ZeroMemory(&(SI.Overlapped), sizeof(WSAOVERLAPPED));
+	if (WSARecv(cl_tcp_req_socket, &(SI.DataBuf), 1, &RecvBytes, &Flags, &(SI.Overlapped), FTP_ReceiveRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
-			printf("WSASend() failed with error %d\n", WSAGetLastError());
+			printf("WSARecv() failed with error %d\n", WSAGetLastError());
 			return;
 		}
-	}
+	}*/
+
+	
 }
 
 /*-------------------------------------------------------------------------------------

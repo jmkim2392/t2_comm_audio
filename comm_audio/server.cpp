@@ -73,6 +73,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 
 	//open tcp socket 
 	initialize_wsa(tcp_port, &InternetAddr);
+	initialize_events();
 	open_socket(&tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
 
 	if (bind(tcp_accept_socket, (PSOCKADDR)&InternetAddr,
@@ -87,7 +88,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	initialize_wsa(udp_port, &InternetAddr);
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 	
-	initialize_events();
+	
 
 	start_request_receiver();
 	start_request_handler();
@@ -394,7 +395,7 @@ void add_new_thread(DWORD threadId)
 }
 
 void start_ftp(std::string filename) {
-	initialize_ftp(&tcp_socket_info.tcp_socket);
+	initialize_ftp(&tcp_socket_info.tcp_socket, NULL);
 	read_file(filename);
 	start_sending_file();
 }
