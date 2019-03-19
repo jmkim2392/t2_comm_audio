@@ -107,7 +107,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 			initialize_client(L"4985", L"4986", L"localhost");
 			break;
 		case IDM_UPLOAD:
-			request_wav_file(L"received.txt");
+			request_wav_file(L"Tester.wav");
 			break;
 		case IDM_EXIT:
 			PostQuitMessage(0);

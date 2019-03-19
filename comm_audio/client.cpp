@@ -28,6 +28,7 @@ SOCKADDR_IN cl_addr;
 SOCKADDR_IN server_addr;
 
 HANDLE FileReceiverThread;
+FTP_INFO ftp_info;
 
 DWORD clientThreads[20];
 int cl_threadCount;
@@ -185,21 +186,18 @@ void send_request(int type, LPCWSTR request)
 
 void request_wav_file(LPCWSTR filename) {
 
-	DWORD RecvBytes;
-	DWORD Flags = 0;
-	SOCKET_INFORMATION SI;
-	CHAR ftp_packet_buf[FTP_PACKET_SIZE];
-
 	DWORD ThreadId;
-	TCP_SOCKET_INFO req_handler_info;
 	initialize_events_gen(&FtpPacketReceivedEvent);
 	initialize_events_gen(&FtpCompleted);
 
 	initialize_ftp(&cl_tcp_req_socket, FtpPacketReceivedEvent);
 
-	create_new_file("receivedWav.txt");
+	ftp_info.packetRecvEvent = FtpCompleted;
+	ftp_info.filename = filename;
 
-	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFileThreadFunc, (LPVOID)FtpCompleted, 0, &ThreadId)) == NULL)
+	create_new_file("receivedWav.wav");
+
+	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFileThreadFunc, (LPVOID)&ftp_info, 0, &ThreadId)) == NULL)
 	{
 		printf("CreateThread failed with error %d\n", GetLastError());
 		return;
