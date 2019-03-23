@@ -5,6 +5,7 @@ using namespace std;
 ifstream fin;
 ofstream fout;
 FILE* requested_file;
+FILE* file_output;
 DWORD SendBytes;
 LPSOCKET_INFORMATION SocketInfo;
 BOOL isReceivingFile = FALSE;
@@ -14,8 +15,8 @@ char buffer[FTP_PACKET_SIZE];
 char *buf;
 circular_buffer<std::string> ftp_buffer(30);
 
-void initialize_ftp(SOCKET* socket, WSAEVENT ftp_packet_recved) {
-
+void initialize_ftp(SOCKET* socket, WSAEVENT ftp_packet_recved) 
+{
 	buf = (char*)malloc(FTP_PACKET_SIZE);
 	// Create a socket information structure to associate with the accepted socket.
 	if ((SocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
@@ -33,14 +34,15 @@ void initialize_ftp(SOCKET* socket, WSAEVENT ftp_packet_recved) {
 	SocketInfo->BytesRECV = 0;
 	SocketInfo->DataBuf.len = FTP_PACKET_SIZE;
 	SocketInfo->DataBuf.buf = buffer;
-	if (ftp_packet_recved != NULL) {
+	if (ftp_packet_recved != NULL) 
+	{
 		SocketInfo->CompletedEvent = ftp_packet_recved;
 	}
 	
 }
 
+// deprecate and use fopen_s instead
 void read_file(std::string filename) {
-
 	fin.open(filename, ios::in );
 	open_file(filename);
 }
@@ -56,6 +58,7 @@ void create_new_file(std::string filename) {
 void close_file() {
 
 }
+// deprecated and use fwrite instead 
 void write_file(std::string data) {
 	fout.write(data.c_str(), data.length());
 }
@@ -63,7 +66,6 @@ void write_file(std::string data) {
 void start_sending_file() {
 
 	//TODO: check if file exists first 
-
 	memset(buf, 0, strlen(buf));
 	fread(buf, 1, FTP_PACKET_SIZE, requested_file);
 	SocketInfo->DataBuf.buf = buf;
@@ -130,7 +132,6 @@ DWORD WINAPI ReceiveFileThreadFunc(LPVOID lpParameter)
 
 			if (Index != WAIT_IO_COMPLETION)
 			{
-				// An accept() call event is ready - break the wait loop
 				break;
 			}
 		}
@@ -187,6 +188,7 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred,
 {
 	DWORD RecvBytes;
 	DWORD Flags;
+	// need to change to char* ? might not be an issue
 	std::string packet;
 
 	// Reference the WSAOVERLAPPED structure as a SOCKET_INFORMATION structure
@@ -204,7 +206,6 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred,
 		TriggerEvent(SI->CompletedEvent);
 		return;
 	}
-
 
 	Flags = 0;
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
@@ -253,7 +254,6 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred,
 	// Reference the WSAOVERLAPPED structure as a SOCKET_INFORMATION structure
 	LPSOCKET_INFORMATION SI = (LPSOCKET_INFORMATION)Overlapped;
 	
-
 	if (Error != 0)
 	{
 		printf("I/O operation failed with error %d\n", Error);
@@ -291,7 +291,8 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred,
 			}
 		}
 	}
-	else {
+	else 
+	{
 		// Need to implement file transfer completed protocol
 		SI->DataBuf.buf = end_ftp_buf;
 		SI->DataBuf.len = 1;
