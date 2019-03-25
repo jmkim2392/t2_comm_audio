@@ -1,4 +1,4 @@
-#include "pstream_handler.h"
+#include "astream_handler.h"
 
 // buffer to store file
 extern char *buf;
@@ -12,9 +12,9 @@ extern void close_file();
 // TODO: Discuss with Jason those handlers should be in the same file
 
 // headers
-void start_receiving_pstream(int type, LPCWSTR request);
-void initialize_pstream(SOCKET* socket, WSAEVENT pstreamCompletedEvent);
-DWORD WINAPI ReceivePStreamThreadFunc(LPVOID lpParameter);
+void start_receiving_astream(int type, LPCWSTR request);
+void initialize_astream(SOCKET* socket, WSAEVENT astreamCompletedEvent);
+DWORD WINAPI ReceiveAStreamThreadFunc(LPVOID lpParameter);
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_ftp
@@ -37,11 +37,11 @@ DWORD WINAPI ReceivePStreamThreadFunc(LPVOID lpParameter);
 --	NOTES:
 --	Call this function to intialize the ftp feature on client side
 --------------------------------------------------------------------------------------*/
-void initialize_pstream(SOCKET* socket, WSAEVENT pstreamCompletedEvent)
+void initialize_astream(SOCKET* socket, WSAEVENT astreamCompletedEvent)
 {
 	// UDP init? -> nope. this is for req message -> nope. this is for reading file
 	// Seems this init function called by both client mode and server mode
-	buf = (char*)malloc(PSTREAM_PACKET_SIZE);
+	buf = (char*)malloc(ASTREAM_PACKET_SIZE);
 
 	
 	// Create a socket information structure to associate with the accepted socket.
@@ -58,14 +58,14 @@ void initialize_pstream(SOCKET* socket, WSAEVENT pstreamCompletedEvent)
 	ZeroMemory(&(SocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
 	SocketInfo->BytesSEND = 0;
 	SocketInfo->BytesRECV = 0;
-	SocketInfo->DataBuf.len = PSTREAM_PACKET_SIZE;
+	SocketInfo->DataBuf.len = ASTREAM_PACKET_SIZE;
 	// TODO: Discuss with Jason whether the SOCKET_INFOMATION structure
 	// should be common or dedicated -> possibly there is a need to use
 	// different packet size among services (File receive vs Audio stream receive)
 	SocketInfo->DataBuf.buf = SocketInfo->FTP_BUFFER;
-	if (pstreamCompletedEvent != NULL)
+	if (astreamCompletedEvent != NULL)
 	{
-		SocketInfo->CompletedEvent = pstreamCompletedEvent;
+		SocketInfo->CompletedEvent = astreamCompletedEvent;
 	}
 
 }
@@ -88,7 +88,7 @@ void initialize_pstream(SOCKET* socket, WSAEVENT pstreamCompletedEvent)
 --	NOTES:
 --	Call this function to begin the completion routine for receiving file from server
 --------------------------------------------------------------------------------------*/
-void start_receiving_pstream(int type, LPCWSTR request) 
+void start_receiving_astream(int type, LPCWSTR request) 
 {
 	size_t i;
 	DWORD RecvBytes;
@@ -138,7 +138,7 @@ void start_receiving_pstream(int type, LPCWSTR request)
 --	NOTES:
 --	Thread function to initiate and complete the client side file transfer 
 --------------------------------------------------------------------------------------*/
-DWORD WINAPI ReceivePStreamThreadFunc(LPVOID lpParameter)
+DWORD WINAPI ReceiveAStreamThreadFunc(LPVOID lpParameter)
 {
 	DWORD Index;
 	WSAEVENT EventArray[1];
@@ -148,7 +148,7 @@ DWORD WINAPI ReceivePStreamThreadFunc(LPVOID lpParameter)
 
 	// TODO: keishi replace 
 	//start_receiving_file(WAV_FILE_REQUEST_TYPE, info->filename);
-	start_receiving_pstream(AUDIO_STREAM_REQUEST_TYPE, info->filename);
+	start_receiving_astream(AUDIO_STREAM_REQUEST_TYPE, info->filename);
 
 	while (isReceivingFile)
 	{

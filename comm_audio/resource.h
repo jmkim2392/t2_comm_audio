@@ -13,4 +13,4 @@
 #define IDM_SETTINGS	111
 #define IDM_UPLOAD		112
 #define IDM_CLIENT		113
-#define IDM_PSTREAM		114 // TODO: Need to care conflict when merge
+#define IDM_ASTREAM		114 // TODO: Need to care conflict when merge

@@ -22,7 +22,7 @@
     <ClCompile Include="ftp_handler.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="pstream_handler.cpp">
+    <ClCompile Include="astream_handler.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
@@ -57,7 +57,7 @@
     <ClInclude Include="ftp_handler.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="pstream_handler.h">
+    <ClInclude Include="astream_handler.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

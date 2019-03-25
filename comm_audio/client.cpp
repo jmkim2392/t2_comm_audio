@@ -29,9 +29,9 @@ SOCKADDR_IN cl_addr;
 SOCKADDR_IN server_addr;
 
 HANDLE FileReceiverThread;
-HANDLE PStreamReceiverThread;
+HANDLE AStreamReceiverThread;
 FTP_INFO ftp_info;
-PSTREAM_INFO pstream_info;
+ASTREAM_INFO astream_info;
 
 DWORD clientThreads[20];
 int cl_threadCount;
@@ -39,7 +39,7 @@ int cl_threadCount;
 BOOL isConnected = FALSE;
 
 WSAEVENT FtpCompleted;
-WSAEVENT PStreamCompleted;
+WSAEVENT AStreamCompleted;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_client
@@ -225,7 +225,7 @@ void request_wav_file(LPCWSTR filename) {
 }
 
 /*-------------------------------------------------------------------------------------
---	FUNCTION:	request_pstream
+--	FUNCTION:	request_astream
 --
 --	DATE:			March 24, 2019
 --
@@ -243,21 +243,21 @@ void request_wav_file(LPCWSTR filename) {
 --	NOTES:
 --	Call this function to request a wav file from server
 --------------------------------------------------------------------------------------*/
-void request_pstream(LPCWSTR filename) 
+void request_astream(LPCWSTR filename) 
 {
 	// UDP are already listening here at 4986
 	DWORD ThreadId;
-	initialize_events_gen(&PStreamCompleted);
+	initialize_events_gen(&AStreamCompleted);
 
 	// This should be used for request
 	// TODO: FTP's this init function call taking complex include path I guess
 	// like client.h -> main.h -> server.h -> ftp_handler.h
-	initialize_pstream(&cl_tcp_req_socket, PStreamCompleted);
+	initialize_astream(&cl_tcp_req_socket, AStreamCompleted);
 
-	pstream_info.filename = filename;
-	pstream_info.PStreamCompleteEvent = PStreamCompleted;
+	astream_info.filename = filename;
+	astream_info.AStreamCompleteEvent = AStreamCompleted;
 
-	if ((PStreamReceiverThread = CreateThread(NULL, 0, ReceivePStreamThreadFunc, (LPVOID)&pstream_info, 0, &ThreadId)) == NULL)
+	if ((AStreamReceiverThread = CreateThread(NULL, 0, ReceiveAStreamThreadFunc, (LPVOID)&astream_info, 0, &ThreadId)) == NULL)
 	{
 		printf("CreateThread failed with error %d\n", GetLastError());
 		return;
