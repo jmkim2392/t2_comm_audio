@@ -392,13 +392,30 @@ void add_new_thread(DWORD threadId)
 	serverThreads[svr_threadCount++] = threadId;
 }
 
-void start_ftp(std::string filename) {
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_ftp
+--
+--	DATE:			March 24, 2019
+--
+--	REVISIONS:		March 24, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void start_ftp(std::string filename)
+--								std::string filename - name of the file to send to client
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to check if file requested by client exists and begin sending file
+--	if doesn't exist, send file_not_found packet
+--------------------------------------------------------------------------------------*/
+void start_ftp(std::string filename) 
+{
 	initialize_ftp(&tcp_socket_info.tcp_socket, NULL);
-	//read_file(filename);
-	open_file(filename);
-	start_sending_file();
-	//open_file_win32(filename);
-	//start_sending_file_win32();
+	(open_file(filename) == 0) ? start_sending_file() : send_file_not_found_packet();
 }
 
 /*-------------------------------------------------------------------------------------

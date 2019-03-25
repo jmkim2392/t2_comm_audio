@@ -37,7 +37,8 @@ DWORD SendBytes;
 LPSOCKET_INFORMATION SocketInfo;
 BOOL isReceivingFile = FALSE;
 
-char end_ftp_buf[1];
+char ftp_complete_packet[1];
+char file_not_found_packet[1];
 char *buf;
 
 /*-------------------------------------------------------------------------------------
@@ -64,6 +65,10 @@ char *buf;
 void initialize_ftp(SOCKET* socket, WSAEVENT ftpCompletedEvent)
 {
 	buf = (char*)malloc(FTP_PACKET_SIZE);
+
+	ftp_complete_packet[0] = FTP_COMPLETE;
+	file_not_found_packet[0] = FILE_NOT_FOUND;
+
 	// Create a socket information structure to associate with the accepted socket.
 	if ((SocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
 		sizeof(SOCKET_INFORMATION))) == NULL)
@@ -106,9 +111,9 @@ void initialize_ftp(SOCKET* socket, WSAEVENT ftpCompletedEvent)
 --	NOTES:
 --	Call this function to open a file for reading in binary
 --------------------------------------------------------------------------------------*/
-void open_file(std::string filename) 
+int open_file(std::string filename) 
 {
-	fopen_s(&requested_file, filename.c_str(), "rb");
+	return fopen_s(&requested_file, filename.c_str(), "rb");
 }
 
 /*-------------------------------------------------------------------------------------
@@ -213,6 +218,23 @@ void start_sending_file()
 
 	if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
 		&(SocketInfo->Overlapped), FTP_SendRoutine) == SOCKET_ERROR)
+	{
+		if (WSAGetLastError() != WSA_IO_PENDING)
+		{
+			int temp = WSAGetLastError();
+			printf("WSASend() failed with error %d\n", WSAGetLastError());
+			return;
+		}
+	}
+}
+
+void send_file_not_found_packet()
+{
+	memcpy(SocketInfo->DataBuf.buf, file_not_found_packet, 1);
+	SocketInfo->DataBuf.len = 1;
+
+	if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
+		&(SocketInfo->Overlapped), NULL) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
@@ -364,6 +386,14 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 
 	if (BytesTransferred == 0 || BytesTransferred == 1)
 	{
+		if (strncmp(SI->DataBuf.buf, file_not_found_packet, 1) == 0)
+		{
+			//FILE NOT FOUND PROCESS
+		}
+		else if (strncmp(SI->DataBuf.buf, ftp_complete_packet, 1) == 0)
+		{
+			//FTP COMPLETE PROCESS
+		}
 		printf("Closing socket %d\n", SI->Socket);
 		isReceivingFile = FALSE;
 		TriggerEvent(SI->CompletedEvent);
@@ -466,7 +496,7 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPP
 	}
 	else
 	{
-		SI->DataBuf.buf = end_ftp_buf;
+		SI->DataBuf.buf = ftp_complete_packet;
 		SI->DataBuf.len = 1;
 		if (WSASend(SI->Socket, &(SI->DataBuf), 1, &SendBytes, 0,
 			&(SI->Overlapped), NULL) == SOCKET_ERROR)
