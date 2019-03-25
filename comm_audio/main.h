@@ -8,6 +8,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <vector>
+#include <fstream>
 #include "resource.h"
 #include "constants.h"
 #include "server.h"
@@ -21,6 +22,7 @@ typedef struct _SOCKET_INFORMATION {
 	OVERLAPPED Overlapped;
 	SOCKET Socket;
 	CHAR Buffer[DEFAULT_REQUEST_PACKET_SIZE];
+	CHAR FTP_BUFFER[FTP_PACKET_SIZE];
 	WSABUF DataBuf;
 	WSAEVENT CompletedEvent;
 	DWORD BytesSEND;

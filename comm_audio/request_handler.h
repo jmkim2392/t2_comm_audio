@@ -3,11 +3,11 @@
 #include "main.h"
 #include <string>
 
-typedef struct _REQUEST_HANDLER_INFO {
+typedef struct _TCP_SOCKET_INFO {
 	WSAEVENT event;
-	SOCKET req_sock;
+	SOCKET tcp_socket;
 	WSAEVENT CompleteEvent;
-} REQUEST_HANDLER_INFO, *LPREQUEST_HANDLER_INFO;
+} TCP_SOCKET_INFO, *LPTCP_SOCKET_INFO;
 
 typedef struct _REQUEST_PACKET {
 	int type;
@@ -19,4 +19,4 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 DWORD WINAPI HandleRequest(LPVOID lpParameter);
 void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet);
 void TriggerEvent(WSAEVENT event);
-std::string generateRequestPacket(int type, std::string message);
+std::string generateRequestPacket(int type, std::string message);	

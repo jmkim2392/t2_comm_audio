@@ -34,7 +34,7 @@ HANDLE RequestReceiverThread;
 HANDLE RequestHandlerThread;
 HANDLE BroadCastThread;
 
-REQUEST_HANDLER_INFO req_handler_info;
+TCP_SOCKET_INFO tcp_socket_info;
 BROADCAST_INFO broadcast_info;
 
 SOCKADDR_IN InternetAddr;
@@ -73,6 +73,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 
 	//open tcp socket 
 	initialize_wsa(tcp_port, &InternetAddr);
+	initialize_events();
 	open_socket(&tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
 
 	if (bind(tcp_accept_socket, (PSOCKADDR)&InternetAddr,
@@ -87,8 +88,6 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	initialize_wsa(udp_port, &InternetAddr);
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 	
-	initialize_events();
-
 	start_request_receiver();
 	start_request_handler();
 	start_broadcast(&udp_audio_socket, udp_port);
@@ -159,11 +158,11 @@ void start_request_receiver()
 {
 	DWORD ThreadId;
 
-	req_handler_info.event = AcceptEvent;
-	req_handler_info.req_sock = RequestSocket;
-	req_handler_info.CompleteEvent = RequestReceivedEvent;
+	tcp_socket_info.event = AcceptEvent;
+	tcp_socket_info.tcp_socket = RequestSocket;
+	tcp_socket_info.CompleteEvent = RequestReceivedEvent;
 
-	if ((RequestReceiverThread = CreateThread(NULL, 0, RequestReceiverThreadFunc, (LPVOID)&req_handler_info, 0, &ThreadId)) == NULL)
+	if ((RequestReceiverThread = CreateThread(NULL, 0, RequestReceiverThreadFunc, (LPVOID)&tcp_socket_info, 0, &ThreadId)) == NULL)
 	{
 		printf("CreateThread failed with error %d\n", GetLastError());
 		return;
@@ -277,7 +276,7 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 	
 	while (isAcceptingConnections)
 	{
-		req_handler_info.req_sock = accept(*socket, NULL, NULL);
+		tcp_socket_info.tcp_socket = accept(*socket, NULL, NULL);
 
 		if (WSASetEvent(AcceptEvent) == FALSE)
 		{
@@ -391,6 +390,15 @@ DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
 void add_new_thread(DWORD threadId) 
 {
 	serverThreads[svr_threadCount++] = threadId;
+}
+
+void start_ftp(std::string filename) {
+	initialize_ftp(&tcp_socket_info.tcp_socket, NULL);
+	//read_file(filename);
+	open_file(filename);
+	start_sending_file();
+	//open_file_win32(filename);
+	//start_sending_file_win32();
 }
 
 /*-------------------------------------------------------------------------------------

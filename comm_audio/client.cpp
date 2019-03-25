@@ -12,6 +12,7 @@
 --	DATE:			March 14, 2019
 --
 --	REVISIONS:		March 14, 2019
+--					March 24, 2019 - JK - Added FTP Feature
 --
 --	DESIGNER:		Jason Kim
 --
@@ -27,10 +28,15 @@ SOCKET cl_udp_audio_socket;
 SOCKADDR_IN cl_addr;
 SOCKADDR_IN server_addr;
 
+HANDLE FileReceiverThread;
+FTP_INFO ftp_info;
+
 DWORD clientThreads[20];
 int cl_threadCount;
 
 BOOL isConnected = FALSE;
+
+WSAEVENT FtpCompleted;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_client
@@ -171,6 +177,48 @@ void send_request(int type, LPCWSTR request)
 			return;
 		}
 	}
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	request_wav_file
+--
+--	DATE:			March 24, 2019
+--
+--	REVISIONS:		March 24, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void request_wav_file(LPCWSTR filename)
+--									LPCWSTR filename - the name of file to request from server
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to request a wav file from server
+--------------------------------------------------------------------------------------*/
+void request_wav_file(LPCWSTR filename) {
+
+	DWORD ThreadId;
+	initialize_events_gen(&FtpCompleted);
+
+	initialize_ftp(&cl_tcp_req_socket, FtpCompleted);
+
+	ftp_info.filename = filename;
+	ftp_info.FtpCompleteEvent = FtpCompleted;
+
+	create_new_file("receivedWav.wav");
+
+	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFileThreadFunc, (LPVOID)&ftp_info, 0, &ThreadId)) == NULL)
+	{
+		printf("CreateThread failed with error %d\n", GetLastError());
+		return;
+	}
+
+	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
+
+	send_request(WAV_FILE_REQUEST_TYPE, filename);
 }
 
 /*-------------------------------------------------------------------------------------

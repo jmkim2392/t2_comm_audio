@@ -19,6 +19,9 @@
     <ClCompile Include="general_functions.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="ftp_handler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="constants.h">
@@ -46,6 +49,9 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="general_functions.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ftp_handler.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

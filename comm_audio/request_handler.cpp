@@ -50,7 +50,7 @@ circular_buffer<std::string> request_buffer(10);
 DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 {
 	LPSOCKET_INFORMATION SocketInfo;
-	LPREQUEST_HANDLER_INFO req_handler_info;
+	LPTCP_SOCKET_INFO req_handler_info;
 	WSAEVENT EventArray[1];
 	DWORD Index;
 	DWORD RecvBytes;
@@ -58,7 +58,7 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 	DWORD BytesSent = 0;
 	DWORD Flags = 0;
 
-	req_handler_info = (LPREQUEST_HANDLER_INFO)lpParameter;
+	req_handler_info = (LPTCP_SOCKET_INFO)lpParameter;
 
 	// Save the accept event in the event array.
 	EventArray[0] = req_handler_info->event;
@@ -97,7 +97,7 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 		}
 
 		// Fill in the details of our accepted socket.
-		SocketInfo->Socket = req_handler_info->req_sock;
+		SocketInfo->Socket = req_handler_info->tcp_socket;
 		ZeroMemory(&(SocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
 		SocketInfo->BytesSEND = 0;
 		SocketInfo->BytesRECV = 0;
@@ -186,15 +186,15 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 		{
 			packet += SI->DataBuf.buf;
 			request_buffer.update(packet);
-			SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE - BytesTransferred;
+			if (packet.length() == DEFAULT_REQUEST_PACKET_SIZE) {
+				//full packet  
+				SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+				TriggerEvent(SI->CompletedEvent);
+			}
+			else {
+				SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE - packet.length();
+			}
 		} 
-		
-		if (packet.length() == DEFAULT_REQUEST_PACKET_SIZE)
-		{
-			//full packet  
-			SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
-			TriggerEvent(SI->CompletedEvent);
-		}
 	}
 
 	SI->DataBuf.buf = SI->Buffer;
@@ -242,28 +242,49 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 
 	while (isAcceptingRequests)
 	{
-		Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+		while (isAcceptingRequests)
+		{
+			Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+
+			if (Index == WSA_WAIT_FAILED)
+			{
+				printf("WSAWaitForMultipleEvents failed with error %d\n", WSAGetLastError());
+				terminate_connection();
+				return FALSE;
+			}
+
+			if (Index != WAIT_IO_COMPLETION)
+			{
+				// An accept() call event is ready - break the wait loop
+				break;
+			}
+		}
 		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
 
-		request = request_buffer.get();
+		if (!request_buffer.empty()) {
+			request = request_buffer.get();
+			if (!request.empty()) {
+				parseRequest(&parsedPacket, request);
 
-		parseRequest(&parsedPacket,request);
-
-		switch (parsedPacket.type) {
-		case WAV_FILE_REQUEST_TYPE:
-			// audio file request
-			// parsedPacket.message should contain the file name
-			break;
-		case AUDIO_STREAM_REQUEST_TYPE:
-			// audio file stream request
-			// parsedPacket.message should contain the file name
-			break;
-		case VOIP_REQUEST_TYPE:
-			// voip request
-			// parsedPacket.message should contain the client info
-			break;
+				switch (parsedPacket.type) {
+				case WAV_FILE_REQUEST_TYPE:
+					// audio file request
+					// parsedPacket.message should contain the file name
+					start_ftp(parsedPacket.message);
+					break;
+				case AUDIO_STREAM_REQUEST_TYPE:
+					// audio file stream request
+					// parsedPacket.message should contain the file name
+					break;
+				case VOIP_REQUEST_TYPE:
+					// voip request
+					// parsedPacket.message should contain the client info
+					break;
+				}
+			}
 		}
 	}
+	
 	return 0;
 }
 

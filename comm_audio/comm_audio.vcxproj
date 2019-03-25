@@ -116,6 +116,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="client.cpp" />
+    <ClCompile Include="ftp_handler.cpp" />
     <ClCompile Include="general_functions.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="request_handler.cpp" />
@@ -125,6 +126,7 @@
   <ItemGroup>
     <ClInclude Include="circular_buffer.h" />
     <ClInclude Include="client.h" />
+    <ClInclude Include="ftp_handler.h" />
     <ClInclude Include="general_functions.h" />
     <ClInclude Include="request_handler.h" />
     <ClInclude Include="server.h" />
