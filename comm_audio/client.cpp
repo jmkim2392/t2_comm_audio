@@ -265,7 +265,7 @@ void request_pstream(LPCWSTR filename)
 
 	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
 
-	//send_request(WAV_FILE_REQUEST_TYPE, filename);
+	send_request(AUDIO_STREAM_REQUEST_TYPE, filename);
 
 	// TODO: keishi in ftp_handler, FTP_SendRoutine is a good example of sending file with CR and TCP
 	// should be able to modify it for just UDP

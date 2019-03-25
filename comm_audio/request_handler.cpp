@@ -274,6 +274,7 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 					break;
 				case AUDIO_STREAM_REQUEST_TYPE:
 					// TODO: keishi implement here
+					OutputDebugStringA("kita-!");
 					// audio file stream request
 					// parsedPacket.message should contain the file name
 					break;

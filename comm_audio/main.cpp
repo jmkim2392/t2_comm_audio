@@ -110,7 +110,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 			request_wav_file(L"Tester.wav");
 			break;
 		case IDM_PSTREAM:
-			request_wav_file(L"Tester.wav");
+			request_pstream(L"Tester.wav");
 			break;
 		case IDM_EXIT:
 			PostQuitMessage(0);
