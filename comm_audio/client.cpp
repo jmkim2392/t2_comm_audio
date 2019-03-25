@@ -12,6 +12,7 @@
 --	DATE:			March 14, 2019
 --
 --	REVISIONS:		March 14, 2019
+--					March 24, 2019 - JK - Added FTP Feature
 --
 --	DESIGNER:		Jason Kim
 --
@@ -35,7 +36,6 @@ int cl_threadCount;
 
 BOOL isConnected = FALSE;
 
-WSAEVENT FtpPacketReceivedEvent;
 WSAEVENT FtpCompleted;
 
 /*-------------------------------------------------------------------------------------
@@ -168,32 +168,45 @@ void send_request(int type, LPCWSTR request)
 
 	ZeroMemory(&Overlapped, sizeof(WSAOVERLAPPED));
 
-	switch (type)
+	if (WSASend(cl_tcp_req_socket, &DataBuf, 1, &SendBytes, 0,
+		&Overlapped, NULL) == SOCKET_ERROR)
 	{
-	case WAV_FILE_REQUEST_TYPE:
-		WSASend(cl_tcp_req_socket, &DataBuf, 1, &SendBytes, 0, &Overlapped, NULL);
-		//start_receiving_file();
-		break;
-	}
-
-	if (WSAGetLastError() != 0 && WSAGetLastError() != WSA_IO_PENDING)
-	{
-		int temp = WSAGetLastError();
-		printf("WSASend() failed with error %d\n", WSAGetLastError());
-		return;
+		if (WSAGetLastError() != WSA_IO_PENDING)
+		{
+			printf("WSASend() failed with error %d\n", WSAGetLastError());
+			return;
+		}
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	request_wav_file
+--
+--	DATE:			March 24, 2019
+--
+--	REVISIONS:		March 24, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void request_wav_file(LPCWSTR filename)
+--									LPCWSTR filename - the name of file to request from server
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to request a wav file from server
+--------------------------------------------------------------------------------------*/
 void request_wav_file(LPCWSTR filename) {
 
 	DWORD ThreadId;
-	initialize_events_gen(&FtpPacketReceivedEvent);
 	initialize_events_gen(&FtpCompleted);
 
-	initialize_ftp(&cl_tcp_req_socket, FtpPacketReceivedEvent);
+	initialize_ftp(&cl_tcp_req_socket, FtpCompleted);
 
-	ftp_info.packetRecvEvent = FtpCompleted;
 	ftp_info.filename = filename;
+	ftp_info.FtpCompleteEvent = FtpCompleted;
 
 	create_new_file("receivedWav.wav");
 
@@ -203,16 +216,9 @@ void request_wav_file(LPCWSTR filename) {
 		return;
 	}
 
-	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFile, (LPVOID)FtpPacketReceivedEvent, 0, &ThreadId)) == NULL)
-	{
-		printf("CreateThread failed with error %d\n", GetLastError());
-		return;
-	}
-
 	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
 
-	
-	//send_request(WAV_FILE_REQUEST_TYPE, filename);
+	send_request(WAV_FILE_REQUEST_TYPE, filename);
 }
 
 /*-------------------------------------------------------------------------------------

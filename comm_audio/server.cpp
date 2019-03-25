@@ -394,8 +394,11 @@ void add_new_thread(DWORD threadId)
 
 void start_ftp(std::string filename) {
 	initialize_ftp(&tcp_socket_info.tcp_socket, NULL);
-	read_file(filename);
+	//read_file(filename);
+	open_file(filename);
 	start_sending_file();
+	//open_file_win32(filename);
+	//start_sending_file_win32();
 }
 
 /*-------------------------------------------------------------------------------------
