@@ -119,6 +119,7 @@
     <ClCompile Include="ftp_handler.cpp" />
     <ClCompile Include="general_functions.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="pstream_handler.cpp" />
     <ClCompile Include="request_handler.cpp" />
     <ClCompile Include="server.cpp" />
     <ClCompile Include="winsock_handler.cpp" />
@@ -128,6 +129,7 @@
     <ClInclude Include="client.h" />
     <ClInclude Include="ftp_handler.h" />
     <ClInclude Include="general_functions.h" />
+    <ClInclude Include="pstream_handler.h" />
     <ClInclude Include="request_handler.h" />
     <ClInclude Include="server.h" />
     <ClInclude Include="winsock_handler.h" />

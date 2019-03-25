@@ -273,6 +273,7 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 					start_ftp(parsedPacket.message);
 					break;
 				case AUDIO_STREAM_REQUEST_TYPE:
+					// TODO: keishi implement here
 					// audio file stream request
 					// parsedPacket.message should contain the file name
 					break;

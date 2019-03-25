@@ -3,6 +3,7 @@
 #include "winsock_handler.h"
 #include "request_handler.h"
 #include "ftp_handler.h"
+#include "pstream_handler.h"
 
 typedef struct _TCP_SOCKET_INFO TCP_SOCKET_INFO, *LPTCP_SOCKET_INFO;
 typedef struct _BROADCAST_INFO BROADCAST_INFO, *LPBROADCAST_INFO;

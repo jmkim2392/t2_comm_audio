@@ -29,7 +29,9 @@ SOCKADDR_IN cl_addr;
 SOCKADDR_IN server_addr;
 
 HANDLE FileReceiverThread;
+HANDLE PStreamReceiverThread;
 FTP_INFO ftp_info;
+PSTREAM_INFO pstream_info;
 
 DWORD clientThreads[20];
 int cl_threadCount;
@@ -37,6 +39,7 @@ int cl_threadCount;
 BOOL isConnected = FALSE;
 
 WSAEVENT FtpCompleted;
+WSAEVENT PStreamCompleted;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_client
@@ -220,6 +223,57 @@ void request_wav_file(LPCWSTR filename) {
 
 	send_request(WAV_FILE_REQUEST_TYPE, filename);
 }
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	request_pstream
+--
+--	DATE:			March 24, 2019
+--
+--	REVISIONS:		March 24, 2019
+--
+--	DESIGNER:		Keishi Asai
+--
+--	PROGRAMMER:		Keishi Asai
+--
+--	INTERFACE:		void request_wav_file(LPCWSTR filename)
+--									LPCWSTR filename - the name of file to request from server
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to request a wav file from server
+--------------------------------------------------------------------------------------*/
+void request_pstream(LPCWSTR filename) 
+{
+	// UDP are already listening here at 4986
+	DWORD ThreadId;
+	initialize_events_gen(&PStreamCompleted);
+
+	// This should be used for request
+	// TODO: FTP's this init function call taking complex include path I guess
+	// like client.h -> main.h -> server.h -> ftp_handler.h
+	initialize_pstream(&cl_tcp_req_socket, PStreamCompleted);
+
+	pstream_info.filename = filename;
+	pstream_info.PStreamCompleteEvent = PStreamCompleted;
+
+	if ((PStreamReceiverThread = CreateThread(NULL, 0, ReceivePStreamThreadFunc, (LPVOID)&pstream_info, 0, &ThreadId)) == NULL)
+	{
+		printf("CreateThread failed with error %d\n", GetLastError());
+		return;
+	}
+
+	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
+
+	//send_request(WAV_FILE_REQUEST_TYPE, filename);
+
+	// TODO: keishi in ftp_handler, FTP_SendRoutine is a good example of sending file with CR and TCP
+	// should be able to modify it for just UDP
+}
+
+
+
+
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminate_client

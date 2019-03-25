@@ -8,6 +8,7 @@ typedef struct _FTP_INFO {
 
 void initialize_ftp(SOCKET* socket, WSAEVENT ftp_packet_recved);
 void open_file(std::string filename);
+void close_file();
 void create_new_file(std::string filename);
 void write_file(char* data, int length);
 void start_sending_file();
