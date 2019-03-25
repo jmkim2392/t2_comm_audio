@@ -271,10 +271,6 @@ void request_pstream(LPCWSTR filename)
 	// should be able to modify it for just UDP
 }
 
-
-
-
-
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminate_client
 --

@@ -267,7 +267,6 @@ void start_receiving_file(int type, LPCWSTR request)
 			return;
 		}
 	}
-
 }
 
 /*-------------------------------------------------------------------------------------

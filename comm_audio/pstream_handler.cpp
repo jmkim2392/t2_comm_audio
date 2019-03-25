@@ -11,6 +11,10 @@ extern void close_file();
 
 // TODO: Discuss with Jason those handlers should be in the same file
 
+// headers
+void start_receiving_pstream(int type, LPCWSTR request);
+void initialize_pstream(SOCKET* socket, WSAEVENT pstreamCompletedEvent);
+DWORD WINAPI ReceivePStreamThreadFunc(LPVOID lpParameter);
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_ftp
@@ -66,6 +70,54 @@ void initialize_pstream(SOCKET* socket, WSAEVENT pstreamCompletedEvent)
 
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_receiving_file
+--
+--	DATE:			March 24, 2019
+--
+--	REVISIONS:		March 24, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void start_receiving_file(int type, LPCWSTR request)
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to begin the completion routine for receiving file from server
+--------------------------------------------------------------------------------------*/
+void start_receiving_pstream(int type, LPCWSTR request) 
+{
+	size_t i;
+	DWORD RecvBytes;
+
+	DWORD Flags = 0;
+
+	char* req_msg = (char *)malloc(MAX_INPUT_LENGTH);
+
+	wcstombs_s(&i, req_msg, MAX_INPUT_LENGTH, request, MAX_INPUT_LENGTH);
+
+	ZeroMemory(&(SocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
+	SocketInfo->DataBuf.buf = SocketInfo->FTP_BUFFER;
+	SocketInfo->DataBuf.len = FTP_PACKET_SIZE;
+
+	Flags = 0;
+
+	if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes, &Flags, &(SocketInfo->Overlapped), FTP_ReceiveRoutine) == SOCKET_ERROR)
+	{
+		if (WSAGetLastError() != WSA_IO_PENDING)
+		{
+			int temp = WSAGetLastError();
+			printf("WSARecv() failed with error %d\n", WSAGetLastError());
+			return;
+		}
+	}
+}
+
+
+
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	ReceiveFileThreadFunc
@@ -94,7 +146,9 @@ DWORD WINAPI ReceivePStreamThreadFunc(LPVOID lpParameter)
 	LPFTP_INFO info = (LPFTP_INFO)lpParameter;
 	EventArray[0] = info->FtpCompleteEvent;
 
-	start_receiving_file(WAV_FILE_REQUEST_TYPE, info->filename);
+	// TODO: keishi replace 
+	//start_receiving_file(WAV_FILE_REQUEST_TYPE, info->filename);
+	start_receiving_pstream(AUDIO_STREAM_REQUEST_TYPE, info->filename);
 
 	while (isReceivingFile)
 	{
@@ -102,7 +156,7 @@ DWORD WINAPI ReceivePStreamThreadFunc(LPVOID lpParameter)
 		{
 			Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
 
-			if (Index == WSA_WAIT_FAILED)
+			if (Index == WSA_WAIT_FAILED) 
 			{
 				int temp = WSAGetLastError();
 				printf("WSAWaitForMultipleEvents failed with error %d\n", WSAGetLastError());
