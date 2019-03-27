@@ -9,11 +9,11 @@
 #include <stdio.h>
 #include <vector>
 #include <fstream>
-#include "resource.h"
 #include "constants.h"
 #include "server.h"
 #include "circular_buffer.h"
 #include "client.h"
+#include "gui_resource.h"
 
 static HINSTANCE hInstance;
 static WNDCLASSEX Wcl;
@@ -34,12 +34,22 @@ typedef struct _BROADCAST_INFO {
 	int portNum;
 } BROADCAST_INFO, *LPBROADCAST_INFO;
 
-static HWND parent_hwnd, child_hwnd;
+static HWND parent_hwnd, child_hwnd, control_panel_hwnd;
 
-int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
-	LPSTR lspszCmdParam, int nCmdShow);
-
-LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
-	WPARAM wParam, LPARAM lParam);
+int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance, LPSTR lspszCmdParam, int nCmdShow);
 
 void InitializeWindow(HINSTANCE hInst, int nCmdShow);
+
+void show_dialog(int type, HWND p_hwnd);
+
+void show_control_panel(int type)
+
+void enableButtons(bool isOn);
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK ServerDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);

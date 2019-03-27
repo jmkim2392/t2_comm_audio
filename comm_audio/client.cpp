@@ -221,6 +221,16 @@ void request_wav_file(LPCWSTR filename) {
 	send_request(WAV_FILE_REQUEST_TYPE, filename);
 }
 
+void finalize_ftp() 
+{
+	enableButtons(TRUE);
+}
+
+void update_window_ui()
+{
+
+}
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminate_client
 --

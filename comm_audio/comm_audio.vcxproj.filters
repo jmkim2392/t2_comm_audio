@@ -33,9 +33,6 @@
     <ClInclude Include="main.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="winsock_handler.h">
       <Filter>Headers</Filter>
     </ClInclude>
@@ -54,6 +51,9 @@
     <ClInclude Include="ftp_handler.h">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="gui_resource.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">
@@ -68,6 +68,24 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="menu.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="ServerDialogBox.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="ClientDialogBox.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="ServerControlPanel.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="ClientControlPanel.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FileReqDialogBox.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="StreamingDialogBox.rc">
       <Filter>Resource</Filter>
     </ResourceCompile>
   </ItemGroup>

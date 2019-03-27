@@ -30,6 +30,7 @@
 
 LPCWSTR mode = new TCHAR[MAX_INPUT_LENGTH];
 std::vector<std::wstring> messages;
+int selectedFeatureType;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	WinMain
@@ -98,16 +99,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
-		case IDM_CONNECT:
-			//temporary server button for testing - To be refactored with new UI
-			initialize_server(L"4985",L"4986");
+		case IDM_SERVER:
+			show_dialog(IDM_SERVER, hwnd);
 			break;
 		case IDM_CLIENT:
-			//temporary client button for testing - To be refactored with new UI
-			initialize_client(L"4985", L"4986", L"localhost");
-			break;
-		case IDM_UPLOAD:
-			request_wav_file(L"Time.wav");
+			show_dialog(IDM_CLIENT, hwnd);
 			break;
 		case IDM_EXIT:
 			PostQuitMessage(0);
@@ -178,3 +174,415 @@ void InitializeWindow(HINSTANCE hInst, int nCmdShow) {
 	UpdateWindow(parent_hwnd);
 	return;
 }
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	show_dialog
+--
+--	DATE:			March 26, 2019
+--
+--	REVISIONS:		March 26, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void show_dialog(int type, HWND p_hwnd)
+--									int type - the type of dialog to display
+--									HWND p_hwnd - the parent window
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to show a dialog box of the specified type
+--------------------------------------------------------------------------------------*/
+void show_dialog(int type, HWND p_hwnd)
+{
+	EnableWindow(p_hwnd, FALSE);
+	HWND hwndDlg = NULL;
+
+	switch (type)
+	{
+	case IDM_SERVER:
+		hwndDlg = CreateDialog(hInstance, ServerDialogName, p_hwnd, (DLGPROC)ServerDialogProc);
+		break;
+	case IDM_CLIENT:
+		hwndDlg = CreateDialog(hInstance, ClientDialogName, p_hwnd, (DLGPROC)ClientDialogProc);
+		break;
+	case IDM_FILE_REQUEST_TYPE:
+		hwndDlg = CreateDialog(hInstance, FileReqDialogName, p_hwnd, (DLGPROC)FileReqProc);
+		break;
+	case IDM_FILE_STREAM_TYPE:
+		hwndDlg = CreateDialog(hInstance, FileReqDialogName, p_hwnd, (DLGPROC)FileReqProc);
+		break;
+	case IDM_VOIP_TYPE:
+		hwndDlg = CreateDialog(hInstance, StreamingDialogName, p_hwnd, (DLGPROC)StreamProc);
+		break;
+	case IDM_MULTICAST_TYPE:
+		hwndDlg = CreateDialog(hInstance, StreamingDialogName, p_hwnd, (DLGPROC)StreamProc);
+		break;
+	}
+	ShowWindow(hwndDlg, SW_SHOW);
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	show_control_panel
+--
+--	DATE:			March 26, 2019
+--
+--	REVISIONS:		March 26, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void show_control_panel(int type)
+--									int type - Either IDM_SERVER || IDM_CLIENT
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to show a control panel of the specified type
+--------------------------------------------------------------------------------------*/
+void show_control_panel(int type)
+{
+	EnableWindow(parent_hwnd, FALSE);
+
+	switch (type)
+	{
+	case IDM_SERVER:
+		control_panel_hwnd = CreateDialog(hInstance, ServerControlPanelName, parent_hwnd, (DLGPROC)ServerControlPanelProc);
+		break;
+	case IDM_CLIENT:
+		control_panel_hwnd = CreateDialog(hInstance, ClientControlPanelName, parent_hwnd, (DLGPROC)ClientControlPanelProc);
+		break;
+	}
+
+	ShowWindow(control_panel_hwnd, SW_SHOW);
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	enableButtons
+--
+--	DATE:			March 26, 2019
+--
+--	REVISIONS:		March 26, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void enableButtons(bool isOn) 
+--									bool isOn - TRUE to enable, FALSE to disable
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to with 'TRUE' to enable all feature buttons,
+--	'FALSE' to disable all feature buttons
+--------------------------------------------------------------------------------------*/
+void enableButtons(bool isOn) 
+{
+	int features[4] = { IDM_FILE_REQUEST_TYPE, IDM_FILE_STREAM_TYPE, IDM_VOIP_TYPE, IDM_MULTICAST_TYPE };
+
+	for (int feature : features) 
+	{
+		EnableWindow(GetDlgItem(control_panel_hwnd, feature), isOn);
+	}
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	ServerDialogProc
+--
+--	DATE:			March 26, 2019
+--
+--	REVISIONS:		March 26, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		LRESULT CALLBACK ServerDialogProc(HWND hwnd, UINT Message, WPARAM wParam,
+--											LPARAM lParam)
+--
+--	RETURNS:		LRESULT
+--
+--	NOTES:
+--	The Server Connection Dialog function to handle the messages
+--------------------------------------------------------------------------------------*/
+LRESULT CALLBACK ServerDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	LPWSTR tcp_port_num = new TCHAR[MAX_INPUT_LENGTH];
+	LPWSTR udp_port_num = new TCHAR[MAX_INPUT_LENGTH];
+
+	memset(tcp_port_num, 0, MAX_INPUT_LENGTH);
+	memset(udp_port_num, 0, MAX_INPUT_LENGTH);
+
+	switch (Message)
+	{
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDOK:
+			// get input and initialize server
+			GetDlgItemText(hwnd, IDM_TCP_PORT, tcp_port_num, MAX_INPUT_LENGTH);
+			GetDlgItemText(hwnd, IDM_UDP_PORT, udp_port_num, MAX_INPUT_LENGTH);
+
+			//TODO: to uncomment after testing features
+			//initialize_server(tcp_port_num, udp_port_num);
+
+			//TODO: to remove after testing 
+			initialize_server(L"4985", L"4986");
+
+			EnableWindow(parent_hwnd, TRUE);
+			EndDialog(hwnd, wParam);
+			show_control_panel(IDM_SERVER);
+			break;
+		case IDCANCEL:
+			EnableWindow(parent_hwnd, TRUE);
+			EndDialog(hwnd, wParam);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	ClientDialogProc
+--
+--	DATE:			March 26, 2019
+--
+--	REVISIONS:		March 26, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam,
+--											LPARAM lParam)
+--
+--	RETURNS:		LRESULT
+--
+--	NOTES:
+--	The Client Connection Dialog function to handle the messages
+--------------------------------------------------------------------------------------*/
+LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	LPWSTR tcp_port_num = new TCHAR[MAX_INPUT_LENGTH];
+	LPWSTR udp_port_num = new TCHAR[MAX_INPUT_LENGTH];
+	LPWSTR server_ip = new TCHAR[MAX_INPUT_LENGTH];
+
+	memset(tcp_port_num, 0, MAX_INPUT_LENGTH);
+	memset(udp_port_num, 0, MAX_INPUT_LENGTH);
+	memset(server_ip, 0, MAX_INPUT_LENGTH);
+
+	switch (Message)
+	{
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDOK:
+			// get input and initialize client
+			GetDlgItemText(hwnd, IDM_TCP_PORT, tcp_port_num, MAX_INPUT_LENGTH);
+			GetDlgItemText(hwnd, IDM_UDP_PORT, udp_port_num, MAX_INPUT_LENGTH);
+			GetDlgItemText(hwnd, IDM_IP_ADDRESS, server_ip, MAX_INPUT_LENGTH);
+
+			//TODO: to uncomment after testing features
+			//initialize_client(tcp_port_num, udp_port_num, server_ip);
+
+			//TODO: to remove after testing 
+			initialize_client(L"4985", L"4986", L"localhost");
+
+			EnableWindow(parent_hwnd, TRUE);
+			EndDialog(hwnd, wParam);
+			show_control_panel(IDM_CLIENT);
+			break;
+		case IDCANCEL:
+			EnableWindow(parent_hwnd, TRUE);
+			EndDialog(hwnd, wParam);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	ServerControlPanelProc
+--
+--	DATE:			March 26, 2019
+--
+--	REVISIONS:		March 26, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam,
+--											LPARAM lParam)
+--
+--	RETURNS:		LRESULT
+--
+--	NOTES:
+--	THe Server Control Panel Process to handle its messages
+--------------------------------------------------------------------------------------*/
+LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	switch (Message)
+	{
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDCANCEL:
+			EnableWindow(parent_hwnd, TRUE);
+			EndDialog(hwnd, wParam);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	ClientControlPanelProc
+--
+--	DATE:			March 26, 2019
+--
+--	REVISIONS:		March 26, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam,
+--											LPARAM lParam)
+--
+--	RETURNS:		LRESULT
+--
+--	NOTES:
+--	The Client Control Panel Process to handle its messages
+--------------------------------------------------------------------------------------*/
+LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	switch (Message)
+	{
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDM_FILE_REQUEST_TYPE:
+			selectedFeatureType = IDM_FILE_REQUEST_TYPE;
+			show_dialog(IDM_FILE_REQUEST_TYPE, hwnd);
+			enableButtons(FALSE);
+			break;
+		case IDM_FILE_STREAM_TYPE:
+			selectedFeatureType = IDM_FILE_STREAM_TYPE;
+			show_dialog(IDM_FILE_STREAM_TYPE, hwnd);
+			break;
+		case IDM_VOIP_TYPE:
+			show_dialog(IDM_VOIP_TYPE, hwnd);
+			break;
+		case IDM_MULTICAST_TYPE:
+			show_dialog(IDM_MULTICAST_TYPE, hwnd);
+			break;
+		case IDCANCEL:
+			// Disconnect process
+			EnableWindow(parent_hwnd, TRUE);
+			EndDialog(hwnd, wParam);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	FileReqProc
+--
+--	DATE:			March 26, 2019
+--
+--	REVISIONS:		March 26, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam,
+--											LPARAM lParam)
+--
+--	RETURNS:		LRESULT
+--
+--	NOTES:
+--	The File Request Dialog Box Process to handle its messages
+--------------------------------------------------------------------------------------*/
+LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	LPWSTR filename = new TCHAR[MAX_INPUT_LENGTH];
+
+	memset(filename, 0, MAX_INPUT_LENGTH);
+
+	switch (Message)
+	{
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDOK:
+			// get the input and initialize filereq/filestream
+			GetDlgItemText(hwnd, IDM_FILENAME, filename, MAX_INPUT_LENGTH);
+			
+			EnableWindow(control_panel_hwnd, TRUE);
+			EndDialog(hwnd, wParam);
+			if (selectedFeatureType == IDM_FILE_REQUEST_TYPE)
+			{
+				//TODO: to uncomment after testing features
+				//request_wav_file(filename);
+
+				//TODO: to remove after testing 
+				request_wav_file(L"Time.wav");
+			}
+			else {
+				show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
+			}
+
+			break;
+		case IDCANCEL:
+			// Disconnect process
+			EnableWindow(control_panel_hwnd, TRUE);
+			EndDialog(hwnd, wParam);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	StreamProc
+--
+--	DATE:			March 26, 2019
+--
+--	REVISIONS:		March 26, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam,
+--											LPARAM lParam)
+--
+--	RETURNS:		LRESULT
+--
+--	NOTES:
+--	The Streaming Dialog Box Process to handle its messages
+--------------------------------------------------------------------------------------*/
+LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	switch (Message)
+	{
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDCANCEL:
+			// Disconnect process
+			EnableWindow(control_panel_hwnd, TRUE);
+			EndDialog(hwnd, wParam);
+			return 1;
+		}
+	}
+	return 0;
+}
+

@@ -128,15 +128,21 @@
     <ClInclude Include="client.h" />
     <ClInclude Include="ftp_handler.h" />
     <ClInclude Include="general_functions.h" />
+    <ClInclude Include="gui_resource.h" />
     <ClInclude Include="request_handler.h" />
     <ClInclude Include="server.h" />
     <ClInclude Include="winsock_handler.h" />
     <ClInclude Include="constants.h" />
     <ClInclude Include="main.h" />
-    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <ResourceCompile Include="ClientControlPanel.rc" />
+    <ResourceCompile Include="ClientDialogBox.rc" />
+    <ResourceCompile Include="FileReqDialogBox.rc" />
     <ResourceCompile Include="menu.rc" />
+    <ResourceCompile Include="ServerControlPanel.rc" />
+    <ResourceCompile Include="ServerDialogBox.rc" />
+    <ResourceCompile Include="StreamingDialogBox.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
