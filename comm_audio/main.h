@@ -42,7 +42,7 @@ void InitializeWindow(HINSTANCE hInst, int nCmdShow);
 
 void show_dialog(int type, HWND p_hwnd);
 
-void show_control_panel(int type)
+void show_control_panel(int type);
 
 void enableButtons(bool isOn);
 

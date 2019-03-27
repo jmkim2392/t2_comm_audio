@@ -12,6 +12,10 @@
 #define AUDIO_STREAM_REQUEST_TYPE 2
 #define VOIP_REQUEST_TYPE 3
 
+// Control Packets
+#define FILE_NOT_FOUND 17 // DC1
+#define FTP_COMPLETE 18 // DC2
+
 // Window GUI strings
 const LPCWSTR Name = L"Comm Audio";
 const LPCWSTR MenuName = L"SERVICEMENU";
