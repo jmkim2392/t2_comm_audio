@@ -73,7 +73,7 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 
 			if (Index == WSA_WAIT_FAILED)
 			{
-				printf("WSAWaitForMultipleEvents failed with error %d\n", WSAGetLastError());
+				update_server_msgs("WSAWaitForMultipleEvents failed in Request Handler with error " + WSAGetLastError());
 				terminate_connection();
 				return FALSE;
 			}
@@ -87,11 +87,13 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 
 		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
 
+		update_server_msgs("Client connected");
+
 		// Create a socket information structure to associate with the accepted socket.
 		if ((SocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
 			sizeof(SOCKET_INFORMATION))) == NULL)
 		{
-			printf("GlobalAlloc() failed with error %d\n", GetLastError());
+			update_server_msgs("GlobalAlloc() failed in Request Handler with error " + GetLastError());
 			terminate_connection();
 			return FALSE;
 		}
@@ -111,7 +113,7 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 
 		if (retVal == SOCKET_ERROR) {
 			if (WSAGetLastError() != WSA_IO_PENDING) {
-				wprintf(L"WSARecvFrom failed with error: %ld\n", WSAGetLastError());
+				update_server_msgs("WSARecv failed in Request Handler with error " + WSAGetLastError());
 				terminate_connection();
 
 				return FALSE;
@@ -157,11 +159,12 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	if (Error != 0)
 	{
 		printf("I/O operation failed with error %d\n", Error);
+		update_server_msgs("I/O operation failed in Request Handler with error " + Error);
 	}
 
 	if (BytesTransferred == 0)
 	{
-		printf("Closing socket %d\n", SI->Socket);
+		update_server_msgs("Closing request socket " + SI->Socket);
 	}
 
 	if (Error != 0 || BytesTransferred == 0)
@@ -203,7 +206,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
-			printf("WSARecv() failed with error %d\n", WSAGetLastError());
+			update_server_msgs("WSARecv() failed in Request Handler with error " + WSAGetLastError());
 			return;
 		}
 	}
@@ -248,7 +251,7 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 
 			if (Index == WSA_WAIT_FAILED)
 			{
-				printf("WSAWaitForMultipleEvents failed with error %d\n", WSAGetLastError());
+				update_server_msgs("WSAWaitForMultipleEvents failed in Request Handler with error " + WSAGetLastError());
 				terminate_connection();
 				return FALSE;
 			}
@@ -270,9 +273,11 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 				case WAV_FILE_REQUEST_TYPE:
 					// audio file request
 					// parsedPacket.message should contain the file name
+					update_server_msgs("Received file transfer request for " + parsedPacket.message);
 					start_ftp(parsedPacket.message);
 					break;
 				case AUDIO_STREAM_REQUEST_TYPE:
+					update_server_msgs("Received file stream request for " + parsedPacket.message);
 					// audio file stream request
 					// parsedPacket.message should contain the file name
 					break;
@@ -337,7 +342,7 @@ void TriggerEvent(WSAEVENT event)
 {
 	if (WSASetEvent(event) == FALSE)
 	{
-		printf("WSASetEvent failed with error %d\n", WSAGetLastError());
+		update_server_msgs("WSASetEvent failed in Request Handler with error " + WSAGetLastError());
 		return;
 	}
 }

@@ -36,3 +36,7 @@ const std::string FileStreamType = "FileStream";
 const std::string VoipType = "Voip";
 const std::string MulticastType = "Multicast";
 const std::string StreamingType = "Stream";
+
+// String constants
+const std::string disconnectedMsg = "Disconnected";
+const std::string connectedMsg = "Connected";

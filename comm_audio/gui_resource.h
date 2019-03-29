@@ -27,3 +27,4 @@
 #define IDM_VOIP_TYPE				125
 #define IDM_MULTICAST_TYPE			126
 #define IDM_FILENAME				127
+#define IDM_FEATURE_MSG				128

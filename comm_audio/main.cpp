@@ -327,6 +327,8 @@ LRESULT CALLBACK ServerDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 			GetDlgItemText(hwnd, IDM_TCP_PORT, tcp_port_num, MAX_INPUT_LENGTH);
 			GetDlgItemText(hwnd, IDM_UDP_PORT, udp_port_num, MAX_INPUT_LENGTH);
 
+			show_control_panel(IDM_SERVER);
+
 			//TODO: to uncomment after testing features
 			//initialize_server(tcp_port_num, udp_port_num);
 
@@ -335,7 +337,6 @@ LRESULT CALLBACK ServerDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
-			show_control_panel(IDM_SERVER);
 			break;
 		case IDCANCEL:
 			EnableWindow(parent_hwnd, TRUE);
@@ -386,6 +387,9 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 			GetDlgItemText(hwnd, IDM_UDP_PORT, udp_port_num, MAX_INPUT_LENGTH);
 			GetDlgItemText(hwnd, IDM_IP_ADDRESS, server_ip, MAX_INPUT_LENGTH);
 
+
+			show_control_panel(IDM_CLIENT);
+
 			//TODO: to uncomment after testing features
 			//initialize_client(tcp_port_num, udp_port_num, server_ip);
 
@@ -394,7 +398,6 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
-			show_control_panel(IDM_CLIENT);
 			break;
 		case IDCANCEL:
 			EnableWindow(parent_hwnd, TRUE);
@@ -533,7 +536,7 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 				//request_wav_file(filename);
 
 				//TODO: to remove after testing 
-				request_wav_file(L"Time.wav");
+				request_wav_file(L"Tester.wav");
 			}
 			else {
 				show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
@@ -586,3 +589,34 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 	return 0;
 }
 
+void update_status(std::string newStatus) 
+{
+	HWND status_message = GetDlgItem(control_panel_hwnd, IDM_STATUS);
+	LPWSTR widestr = new WCHAR[newStatus.length() + 1];
+
+	::MultiByteToWideChar(CP_ACP, 0, newStatus.c_str(), newStatus.size(), widestr, newStatus.length());
+
+	widestr[newStatus.length()] = 0;
+
+	SetWindowText(status_message, widestr);
+	delete[] widestr;
+}
+
+void update_messages(std::vector<std::string> messages)  
+{
+	HWND messageOutput = GetDlgItem(control_panel_hwnd, IDM_FEATURE_MSG);
+	LPWSTR output;
+	std::string outputString;
+
+	for (auto const& msg : messages)
+	{
+		outputString += (msg + "\n");
+	}
+	output = new WCHAR[outputString.length() + 1];
+	::MultiByteToWideChar(CP_ACP, 0, outputString.c_str(), outputString.size(), output, outputString.length());
+
+	output[outputString.length()] = 0;
+
+	SetWindowText(messageOutput, output);
+	delete[] output;
+}
