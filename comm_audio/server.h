@@ -17,3 +17,4 @@ DWORD WINAPI broadcast_audio(LPVOID broadcastInfo);
 void add_new_thread(DWORD threadId);
 void start_ftp(std::string filename);
 void terminate_server();
+void update_server_msgs(std::string message);

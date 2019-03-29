@@ -31,6 +31,8 @@ SOCKADDR_IN server_addr;
 HANDLE FileReceiverThread;
 FTP_INFO ftp_info;
 
+std::vector<std::string> client_msgs;
+
 DWORD clientThreads[20];
 int cl_threadCount;
 
@@ -73,14 +75,16 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 
 	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr, sizeof(sockaddr)) == -1)
 	{
-		fprintf(stderr, "Can't connect to server\n");
 		isConnected = FALSE;
-		perror("connect");
+
+		update_status(disconnectedMsg);
+		update_client_msgs("Failed to connect to server");
 		exit(1);
 	}
 
 	isConnected = TRUE;
-
+	update_client_msgs("Connected to server");
+	update_status(connectedMsg);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -123,7 +127,8 @@ void setup_svr_addr(SOCKADDR_IN* svr_addr, LPCWSTR svr_port, LPCWSTR svr_ip_addr
 
 	if ((hp = gethostbyname(ip)) == NULL)
 	{
-		fprintf(stderr, "Unknown server address\n");
+		update_client_msgs("Server address unknown");
+		update_status(disconnectedMsg);
 		exit(1);
 	}
 
@@ -173,7 +178,8 @@ void send_request(int type, LPCWSTR request)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
-			printf("WSASend() failed with error %d\n", WSAGetLastError());
+			update_client_msgs("WSASend() failed with error " + WSAGetLastError());
+			update_status(disconnectedMsg);
 			return;
 		}
 	}
@@ -204,15 +210,18 @@ void request_wav_file(LPCWSTR filename) {
 	initialize_events_gen(&FtpCompleted);
 
 	initialize_ftp(&cl_tcp_req_socket, FtpCompleted);
-
+	update_client_msgs("Requesting file from server...");
 	ftp_info.filename = filename;
 	ftp_info.FtpCompleteEvent = FtpCompleted;
 
 	create_new_file("receivedWav.wav");
 
+	update_client_msgs("Creating new file, receivedWav.wav");
+
 	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFileThreadFunc, (LPVOID)&ftp_info, 0, &ThreadId)) == NULL)
 	{
-		printf("CreateThread failed with error %d\n", GetLastError());
+		update_client_msgs("Failed creating File Receiver Thread with error " + GetLastError());
+		update_status(disconnectedMsg);
 		return;
 	}
 
@@ -220,6 +229,14 @@ void request_wav_file(LPCWSTR filename) {
 
 	send_request(WAV_FILE_REQUEST_TYPE, filename);
 }
+
+void finalize_ftp(std::string msg)
+{
+	enableButtons(TRUE);
+	update_client_msgs(msg);
+}
+
+
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminate_client
@@ -242,4 +259,14 @@ void request_wav_file(LPCWSTR filename) {
 void terminate_client()
 {
 
+}
+
+void update_client_msgs(std::string message)
+{
+	if (client_msgs.size() >= 6) {
+		client_msgs.erase(client_msgs.begin());
+	}
+
+	client_msgs.push_back(message);
+	update_messages(client_msgs);
 }

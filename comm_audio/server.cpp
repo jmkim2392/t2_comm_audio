@@ -47,6 +47,8 @@ WSAEVENT RequestReceivedEvent;
 DWORD serverThreads[20];
 int svr_threadCount = 0;
 
+std::vector<std::string> server_msgs;
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_server
 --
@@ -98,6 +100,8 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 		return;
 	}
 	add_new_thread(ThreadId);
+	update_server_msgs("Server online..");
+	update_status(connectedMsg);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -414,6 +418,7 @@ void add_new_thread(DWORD threadId)
 --------------------------------------------------------------------------------------*/
 void start_ftp(std::string filename) 
 {
+	update_server_msgs("Starting File Transfer");
 	initialize_ftp(&tcp_socket_info.tcp_socket, NULL);
 	(open_file(filename) == 0) ? start_sending_file() : send_file_not_found_packet();
 }
@@ -439,4 +444,13 @@ void start_ftp(std::string filename)
 void terminate_server()
 {
 	isAcceptingConnections = FALSE;
+}
+
+void update_server_msgs(std::string message)
+{
+	if (server_msgs.size() >= 10) {
+		server_msgs.erase(server_msgs.begin());
+	}
+	server_msgs.push_back(message);
+	update_messages(server_msgs);
 }
