@@ -263,10 +263,11 @@ void terminate_client()
 
 void update_client_msgs(std::string message)
 {
+	std::string cur_time = get_current_time();
 	if (client_msgs.size() >= 6) {
 		client_msgs.erase(client_msgs.begin());
 	}
 
-	client_msgs.push_back(message);
+	client_msgs.push_back(cur_time + message);
 	update_messages(client_msgs);
 }

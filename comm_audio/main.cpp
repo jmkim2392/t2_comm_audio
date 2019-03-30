@@ -66,7 +66,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance, LPSTR lspszCmdParam
 		DispatchMessage(&Msg);
 	}
 
-	return Msg.wParam;
+	return (int)Msg.wParam;
 }
 
 /*-------------------------------------------------------------------------------------
@@ -90,8 +90,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance, LPSTR lspszCmdParam
 --------------------------------------------------------------------------------------*/
 LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
-	HDC hdc;
-	PAINTSTRUCT paintstruct;
 	static int y = 0;
 
 	switch (Message)
@@ -111,17 +109,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 		}
 		break;
 	case WM_PAINT:
-		hdc = BeginPaint(hwnd, &paintstruct);
-		if (messages.size() != 0) {
-			for (auto msg : messages)
-			{
-				TextOutW(hdc, 0, y, msg.c_str(), msg.length());
-				y += 20;
-			}
-		}
-		y = 0;
-		EndPaint(hwnd, &paintstruct);
-		ReleaseDC(hwnd, hdc);
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
