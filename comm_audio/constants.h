@@ -7,7 +7,8 @@
 #define FTP_PACKET_SIZE 4096
 #define MAX_INPUT_LENGTH 64
 #define AUDIO_BLOCK_SIZE 8192
-#define BLOCK_COUNT 20
+#define AUDIO_PACKET_SIZE 8192
+#define BLOCK_COUNT 500
 
 // Request types
 #define WAV_FILE_REQUEST_TYPE 1

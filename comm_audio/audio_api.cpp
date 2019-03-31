@@ -7,6 +7,8 @@ static volatile int waveFreeBlockCount;
 static WAVEHDR* waveBlocks;
 static int waveCurrentBlock;
 
+int callcount = 0;
+
 void initialize_audio_device() {
 	/*
 	 * initialise the module variables
@@ -55,10 +57,17 @@ static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance,
 	 * ignore calls that occur due to openining and closing the
 	 * device.
 	 */
+
 	if (uMsg != WOM_DONE)
 		return;
+
+	OutputDebugStringA("Hello\n");
 	EnterCriticalSection(&waveCriticalSection);
-	(*freeBlockCounter)++;
+	waveFreeBlockCount++;
+//	char debug_buf[512];
+//	sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", callcount++);
+//	OutputDebugStringA(debug_buf);
+//	(*freeBlockCounter)++;
 	LeaveCriticalSection(&waveCriticalSection);
 }
 
@@ -67,6 +76,11 @@ void writeAudio(LPSTR data, int size)
 	WAVEHDR* current;
 	int remain;
 	current = &waveBlocks[waveCurrentBlock];
+
+	char debug_buf[512];
+	sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", waveFreeBlockCount);
+	OutputDebugStringA(debug_buf);
+
 	while (size > 0) {
 		/*
 		 * first make sure the header we're going to use is unprepared
@@ -85,6 +99,7 @@ void writeAudio(LPSTR data, int size)
 		current->dwBufferLength = AUDIO_BLOCK_SIZE;
 		
 		waveOutPrepareHeader(hWaveOut, current, sizeof(WAVEHDR));
+		OutputDebugStringA("Write Audio\n");
 		waveOutWrite(hWaveOut, current, sizeof(WAVEHDR));
 		
 		EnterCriticalSection(&waveCriticalSection);

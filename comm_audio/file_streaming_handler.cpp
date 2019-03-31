@@ -15,10 +15,12 @@ char fileStream_complete[1];
 char fileStream_not_found[1];
 char *file_stream_buf;
 
+int num_packet = 0;
+
 void initialize_file_stream(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT fileStreamCompletedEvent)
 {
 
-	file_stream_buf = (char*)malloc(AUDIO_BLOCK_SIZE);
+	file_stream_buf = (char*)malloc(AUDIO_PACKET_SIZE);
 
 	// Create a socket information structure
 	if ((FileStreamSocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
@@ -36,7 +38,7 @@ void initialize_file_stream(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT fileStre
 	if (addr != NULL) {
 		FileStreamSocketInfo->Sock_addr = *addr;
 	}
-	FileStreamSocketInfo->DataBuf.len = AUDIO_BLOCK_SIZE;
+	FileStreamSocketInfo->DataBuf.len = AUDIO_PACKET_SIZE;
 	FileStreamSocketInfo->DataBuf.buf = FileStreamSocketInfo->AUDIO_BUFFER;
 	if (fileStreamCompletedEvent != NULL)
 	{
@@ -52,8 +54,8 @@ void close_file_streaming() {
 }
 void start_sending_file_stream()
 {
-	memset(file_stream_buf, 0, AUDIO_BLOCK_SIZE);
-	int bytes_read = fread(file_stream_buf, 1, AUDIO_BLOCK_SIZE, requested_file_stream);
+	memset(file_stream_buf, 0, AUDIO_PACKET_SIZE);
+	int bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, requested_file_stream);
 
 	memcpy(FileStreamSocketInfo->DataBuf.buf, file_stream_buf, bytes_read);
 	FileStreamSocketInfo->DataBuf.len = bytes_read;
@@ -115,10 +117,11 @@ void start_receiving_stream()
 
 	ZeroMemory(&(FileStreamSocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
 	FileStreamSocketInfo->DataBuf.buf = FileStreamSocketInfo->AUDIO_BUFFER;
-	FileStreamSocketInfo->DataBuf.len = AUDIO_BLOCK_SIZE;
+	FileStreamSocketInfo->DataBuf.len = AUDIO_PACKET_SIZE;
 
 	Flags = 0;
 
+	OutputDebugStringA("Run 1st\n");
 	if (WSARecvFrom(FileStreamSocketInfo->Socket, &(FileStreamSocketInfo->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& client, &client_len, &(FileStreamSocketInfo->Overlapped), FileStream_ReceiveRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
@@ -139,6 +142,11 @@ void CALLBACK FileStream_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPW
 	{
 		update_client_msgs("I/O operation failed with error " + std::to_string(Error));
 	}
+
+	OutputDebugStringA("Coming\n");
+	char debug_buf[512];
+	sprintf_s(debug_buf, sizeof(debug_buf), "BytesTransferred: %d\n", BytesTransferred);
+	OutputDebugStringA(debug_buf);
 
 	if (BytesTransferred == 0 || BytesTransferred == 1)
 	{
@@ -169,12 +177,15 @@ void CALLBACK FileStream_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPW
 			finalize_ftp("File transfer completed.");
 		}
 	}*/
+	if (BytesTransferred != AUDIO_PACKET_SIZE) {
+		return;
+	}
 
 	Flags = 0;
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 
 	//write_file(SI->DataBuf.buf, BytesTransferred);
-	//writeAudio(SI->DataBuf.buf, BytesTransferred);
+	writeAudio(SI->DataBuf.buf, BytesTransferred);
 
 	SI->DataBuf.buf = SI->AUDIO_BUFFER;
 	if (WSARecvFrom(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& client, &client_len, &(SI->Overlapped), FileStream_ReceiveRoutine) == SOCKET_ERROR)
@@ -191,6 +202,9 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 	size_t bytes_read;
 	// Reference the WSAOVERLAPPED structure as a SOCKET_INFORMATION structure
 	LPSOCKET_INFORMATION SI = (LPSOCKET_INFORMATION)Overlapped;
+	
+	num_packet++;
+	update_server_msgs("PacketSent: " + std::to_string(num_packet));
 
 	if (Error != 0)
 	{
@@ -213,7 +227,7 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 	if (!feof(requested_file_stream))
 	{
 		memset(file_stream_buf, 0, strlen(file_stream_buf));
-		bytes_read = fread(file_stream_buf, 1, AUDIO_BLOCK_SIZE, requested_file_stream);
+		bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, requested_file_stream);
 
 		memcpy(SI->DataBuf.buf, file_stream_buf, bytes_read);
 		SI->DataBuf.len = (ULONG)bytes_read;
