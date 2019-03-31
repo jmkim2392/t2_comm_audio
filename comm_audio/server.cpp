@@ -38,6 +38,7 @@ TCP_SOCKET_INFO tcp_socket_info;
 BROADCAST_INFO broadcast_info;
 
 SOCKADDR_IN InternetAddr;
+SOCKADDR_IN client_addr_udp;
 
 BOOL isAcceptingConnections = FALSE;
 BOOL isBroadcasting = FALSE;
@@ -89,7 +90,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	//open udp socket
 	initialize_wsa(udp_port, &InternetAddr);
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
-	
+
 	start_request_receiver();
 	start_request_handler();
 	start_broadcast(&udp_audio_socket, udp_port);
@@ -102,6 +103,37 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	add_new_thread(ThreadId);
 	update_server_msgs("Server online..");
 	update_status(connectedMsg);
+}
+
+void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr)
+{
+	size_t i;
+	int port;
+	char* port_num = (char *)malloc(MAX_INPUT_LENGTH);
+	char* ip = (char *)malloc(MAX_INPUT_LENGTH);
+	struct hostent	*hp;
+
+	//wcstombs_s(&i, port_num, MAX_INPUT_LENGTH, client_port, MAX_INPUT_LENGTH);
+	//wcstombs_s(&i, ip, MAX_INPUT_LENGTH, client_ip_addr, MAX_INPUT_LENGTH);
+	port_num = (char*) client_port.c_str();
+	ip = (char*) client_ip_addr.c_str();
+
+	port = atoi(port_num);
+
+	// Initialize and set up the address structure
+	client_addr->sin_family = AF_INET;
+	client_addr->sin_port = htons(port);
+
+	if ((hp = gethostbyname(ip)) == NULL)
+	{
+		update_client_msgs("Server address unknown");
+		update_status(disconnectedMsg);
+		exit(1);
+	}
+
+	// Copy the server address
+	memcpy((char *)&client_addr->sin_addr, hp->h_addr, hp->h_length);
+
 }
 
 /*-------------------------------------------------------------------------------------
@@ -421,6 +453,28 @@ void start_ftp(std::string filename)
 	update_server_msgs("Starting File Transfer");
 	initialize_ftp(&tcp_socket_info.tcp_socket, NULL);
 	(open_file(filename) == 0) ? start_sending_file() : send_file_not_found_packet();
+}
+
+void start_file_stream(std::string filename, std::string client_port_num, std::string client_ip_addr)
+{
+	BOOL bOptVal = FALSE;
+	int bOptLen = sizeof(BOOL);
+
+	update_server_msgs("Starting File Stream");
+
+	setup_client_addr(&client_addr_udp, client_port_num, client_ip_addr);
+
+	/*if (bind(udp_audio_socket, (struct sockaddr *)&client_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
+		update_status(disconnectedMsg);
+		update_server_msgs("Failed binding to udp socket" + std::to_string(WSAGetLastError()));
+	}
+	if (setsockopt(udp_audio_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_server_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}*/
+
+	initialize_file_stream(&udp_audio_socket, &client_addr_udp, NULL);
+
+	(open_file_to_stream(filename) == 0) ? start_sending_file_stream() : send_file_not_found_packet_udp();
 }
 
 /*-------------------------------------------------------------------------------------

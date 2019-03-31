@@ -14,6 +14,7 @@
 #include "circular_buffer.h"
 #include "client.h"
 #include "gui_resource.h"
+#include "audio_api.h"
 
 static HINSTANCE hInstance;
 static WNDCLASSEX Wcl;
@@ -23,8 +24,10 @@ typedef struct _SOCKET_INFORMATION {
 	SOCKET Socket;
 	CHAR Buffer[DEFAULT_REQUEST_PACKET_SIZE];
 	CHAR FTP_BUFFER[FTP_PACKET_SIZE];
+	CHAR AUDIO_BUFFER[AUDIO_BLOCK_SIZE];
 	WSABUF DataBuf;
 	WSAEVENT CompletedEvent;
+	SOCKADDR_IN Sock_addr;
 	DWORD BytesSEND;
 	DWORD BytesRECV;
 } SOCKET_INFORMATION, *LPSOCKET_INFORMATION;

@@ -277,9 +277,13 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 					start_ftp(parsedPacket.message);
 					break;
 				case AUDIO_STREAM_REQUEST_TYPE:
-					update_server_msgs("Received file stream request for " + parsedPacket.message);
 					// audio file stream request
 					// parsedPacket.message should contain the file name
+					update_server_msgs("Received file stream request for " + parsedPacket.message);
+
+					// TODO: change hardcoded ip string with received client address
+					start_file_stream(parsedPacket.message, "4986", "localhost");
+				
 					break;
 				case VOIP_REQUEST_TYPE:
 					// voip request

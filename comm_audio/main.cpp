@@ -539,6 +539,7 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 				request_wav_file(L"Tester.wav");
 			}
 			else {
+				request_file_stream(L"Time.wav");
 				show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
 			}
 

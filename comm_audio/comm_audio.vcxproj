@@ -115,22 +115,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="audio_api.cpp" />
     <ClCompile Include="client.cpp" />
+    <ClCompile Include="file_streaming_handler.cpp" />
     <ClCompile Include="ftp_handler.cpp" />
     <ClCompile Include="general_functions.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="request_handler.cpp" />
     <ClCompile Include="server.cpp" />
+    <ClCompile Include="audio_api.h" />
     <ClCompile Include="winsock_handler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="circular_buffer.h" />
     <ClInclude Include="client.h" />
+    <ClInclude Include="file_streaming_handler.h" />
     <ClInclude Include="ftp_handler.h" />
     <ClInclude Include="general_functions.h" />
     <ClInclude Include="gui_resource.h" />
     <ClInclude Include="request_handler.h" />
-    <ClInclude Include="resource.h" />
     <ClInclude Include="server.h" />
     <ClInclude Include="winsock_handler.h" />
     <ClInclude Include="constants.h" />
