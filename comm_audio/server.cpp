@@ -448,9 +448,10 @@ void terminate_server()
 
 void update_server_msgs(std::string message)
 {
-	if (server_msgs.size() >= 10) {
+	std::string cur_time = get_current_time();
+	if (server_msgs.size() >= 9) {
 		server_msgs.erase(server_msgs.begin());
 	}
-	server_msgs.push_back(message);
+	server_msgs.push_back(cur_time + message);
 	update_messages(server_msgs);
 }

@@ -53,6 +53,12 @@ void add_new_thread_gen(DWORD threadList[], DWORD threadId, int threadCount)
 	threadList[threadCount] = threadId;
 }
 
-//std::string get_current_time() {
-//
-//}
+std::string get_current_time() {
+	char str[70];
+	struct tm buf;
+	time_t cur_time = time(nullptr);
+	localtime_s(&buf, &cur_time);
+	strftime(str, 100, "%Y-%m-%d %X - ", &buf);
+	std::string time_str(str);
+	return time_str;
+}
