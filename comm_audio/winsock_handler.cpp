@@ -87,7 +87,7 @@ void initialize_wsa(LPCWSTR port_number, SOCKADDR_IN* InternetAddr)
 --	NOTES:
 --	Call this function to open a socket with the specified type
 --------------------------------------------------------------------------------------*/
-void open_socket(SOCKET* socket, int socket_type, int protocol_type) 
+void open_socket(SOCKET* socket, int socket_type, int protocol_type)
 {
 	if ((*socket = WSASocket(AF_INET, socket_type, protocol_type, NULL, 0,
 		WSA_FLAG_OVERLAPPED)) == INVALID_SOCKET)

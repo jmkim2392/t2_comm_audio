@@ -32,17 +32,23 @@ SOCKET RequestSocket;
 HANDLE AcceptThread;
 HANDLE RequestReceiverThread;
 HANDLE RequestHandlerThread;
+HANDLE StreamingThread;
 HANDLE BroadCastThread;
 
 TCP_SOCKET_INFO tcp_socket_info;
 BROADCAST_INFO broadcast_info;
 
 SOCKADDR_IN InternetAddr;
+SOCKADDR_IN client_addr_udp;
 
 BOOL isAcceptingConnections = FALSE;
 BOOL isBroadcasting = FALSE;
 WSAEVENT AcceptEvent;
 WSAEVENT RequestReceivedEvent;
+
+WSAEVENT StreamCompletedEvent;
+
+HANDLE ResumeSendEvent;
 
 DWORD serverThreads[20];
 int svr_threadCount = 0;
@@ -76,6 +82,9 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	//open tcp socket 
 	initialize_wsa(tcp_port, &InternetAddr);
 	initialize_events();
+	initialize_events_gen(&ResumeSendEvent, L"ResumeSend");
+	initialize_wsa_events(&StreamCompletedEvent);
+
 	open_socket(&tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
 
 	if (bind(tcp_accept_socket, (PSOCKADDR)&InternetAddr,
@@ -89,7 +98,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	//open udp socket
 	initialize_wsa(udp_port, &InternetAddr);
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
-	
+
 	start_request_receiver();
 	start_request_handler();
 	start_broadcast(&udp_audio_socket, udp_port);
@@ -102,6 +111,37 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	add_new_thread(ThreadId);
 	update_server_msgs("Server online..");
 	update_status(connectedMsg);
+}
+
+void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr)
+{
+	size_t i;
+	int port;
+	char* port_num = (char *)malloc(MAX_INPUT_LENGTH);
+	char* ip = (char *)malloc(MAX_INPUT_LENGTH);
+	struct hostent	*hp;
+
+	//wcstombs_s(&i, port_num, MAX_INPUT_LENGTH, client_port, MAX_INPUT_LENGTH);
+	//wcstombs_s(&i, ip, MAX_INPUT_LENGTH, client_ip_addr, MAX_INPUT_LENGTH);
+	port_num = (char*) client_port.c_str();
+	ip = (char*) client_ip_addr.c_str();
+
+	port = atoi(port_num);
+
+	// Initialize and set up the address structure
+	client_addr->sin_family = AF_INET;
+	client_addr->sin_port = htons(port);
+
+	if ((hp = gethostbyname(ip)) == NULL)
+	{
+		update_client_msgs("Server address unknown");
+		update_status(disconnectedMsg);
+		exit(1);
+	}
+
+	// Copy the server address
+	memcpy((char *)&client_addr->sin_addr, hp->h_addr, hp->h_length);
+
 }
 
 /*-------------------------------------------------------------------------------------
@@ -424,6 +464,64 @@ void start_ftp(std::string filename)
 }
 
 /*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_file_stream
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void start_file_stream(std::string filename, std::string client_port_num, std::string client_ip_addr)
+--										std::string filename - name of the file to send
+--										std::string client_port_num - client's port number
+--										std::string client_ip_addr - client's ip address
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to start the file streaming process
+--------------------------------------------------------------------------------------*/
+void start_file_stream(std::string filename, std::string client_port_num, std::string client_ip_addr)
+{
+	DWORD ThreadId;
+	BOOL bOptVal = FALSE;
+	int bOptLen = sizeof(BOOL);
+
+	update_server_msgs("Starting File Stream");
+
+	setup_client_addr(&client_addr_udp, client_port_num, client_ip_addr);
+
+	// TODO: May or may not need to bind to socket to receive from client when VOIP connected, 
+	//	 but when testing with localhost, binding to same address causes issues even with SO_REUSEADDR
+	//	SO_REUSEADDR implementation may be flawed or can simply open a new port+socket to handle this in VOIP
+
+	/*if (bind(udp_audio_socket, (struct sockaddr *)&client_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
+		update_status(disconnectedMsg);
+		update_server_msgs("Failed binding to udp socket" + std::to_string(WSAGetLastError()));
+	}
+	if (setsockopt(udp_audio_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_server_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}*/
+
+	initialize_file_stream(&udp_audio_socket, &client_addr_udp, NULL, ResumeSendEvent);
+	
+	if (open_file_to_stream(filename) == 0) {
+		if ((StreamingThread = CreateThread(NULL, 0, SendStreamThreadFunc, (LPVOID)StreamCompletedEvent, 0, &ThreadId)) == NULL)
+		{
+			printf("StreamingThread failed with error %d\n", GetLastError());
+			return;
+		}
+		add_new_thread(ThreadId);
+	}
+	else {
+		send_file_not_found_packet_udp();
+	}
+}
+
+/*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminate_server
 --
 --	DATE:			March 8, 2019
@@ -446,6 +544,25 @@ void terminate_server()
 	isAcceptingConnections = FALSE;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	update_server_msgs
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void update_server_msgs(std::string message)
+--										std::string message - name of the file to send
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to update the server's messages on control panel
+--------------------------------------------------------------------------------------*/
 void update_server_msgs(std::string message)
 {
 	std::string cur_time = get_current_time();
@@ -454,4 +571,26 @@ void update_server_msgs(std::string message)
 	}
 	server_msgs.push_back(cur_time + message);
 	update_messages(server_msgs);
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	resume_streaming
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void resume_streaming()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to trigger the SendFileStream Completion routine to resume
+--------------------------------------------------------------------------------------*/
+void resume_streaming() {
+	TriggerEvent(ResumeSendEvent);
 }

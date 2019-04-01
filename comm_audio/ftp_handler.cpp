@@ -34,7 +34,7 @@ FILE* requested_file;
 FILE* file_output;
 DWORD SendBytes;
 
-LPSOCKET_INFORMATION SocketInfo;
+LPSOCKET_INFORMATION FtpSocketInfo;
 BOOL isReceivingFile = FALSE;
 
 char ftp_complete_packet[1];
@@ -70,7 +70,7 @@ void initialize_ftp(SOCKET* socket, WSAEVENT ftpCompletedEvent)
 	file_not_found_packet[0] = FILE_NOT_FOUND;
 
 	// Create a socket information structure to associate with the accepted socket.
-	if ((SocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
+	if ((FtpSocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
 		sizeof(SOCKET_INFORMATION))) == NULL)
 	{
 		update_client_msgs("GlobalAlloc failed with error");
@@ -79,15 +79,15 @@ void initialize_ftp(SOCKET* socket, WSAEVENT ftpCompletedEvent)
 	}
 
 	// Fill in the details of the server socket to receive file from
-	SocketInfo->Socket = *socket;
-	ZeroMemory(&(SocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
-	SocketInfo->BytesSEND = 0;
-	SocketInfo->BytesRECV = 0;
-	SocketInfo->DataBuf.len = FTP_PACKET_SIZE;
-	SocketInfo->DataBuf.buf = SocketInfo->FTP_BUFFER;
+	FtpSocketInfo->Socket = *socket;
+	ZeroMemory(&(FtpSocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
+	FtpSocketInfo->BytesSEND = 0;
+	FtpSocketInfo->BytesRECV = 0;
+	FtpSocketInfo->DataBuf.len = FTP_PACKET_SIZE;
+	FtpSocketInfo->DataBuf.buf = FtpSocketInfo->FTP_BUFFER;
 	if (ftpCompletedEvent != NULL)
 	{
-		SocketInfo->CompletedEvent = ftpCompletedEvent;
+		FtpSocketInfo->CompletedEvent = ftpCompletedEvent;
 	}
 }
 
@@ -211,15 +211,15 @@ void start_sending_file()
 	memset(buf, 0, FTP_PACKET_SIZE);
 	size_t bytes_read = fread(buf, 1, FTP_PACKET_SIZE, requested_file);
 
-	memcpy(SocketInfo->DataBuf.buf, buf, bytes_read);
-	SocketInfo->DataBuf.len = (ULONG) bytes_read;
+	memcpy(FtpSocketInfo->DataBuf.buf, buf, bytes_read);
+	FtpSocketInfo->DataBuf.len = (ULONG) bytes_read;
 
-	if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
-		&(SocketInfo->Overlapped), FTP_SendRoutine) == SOCKET_ERROR)
+	if (WSASend(FtpSocketInfo->Socket, &(FtpSocketInfo->DataBuf), 1, &SendBytes, 0,
+		&(FtpSocketInfo->Overlapped), FTP_SendRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
-			update_server_msgs("WSASend() failed with error " + WSAGetLastError());
+			update_server_msgs("WSASend() failed with error " + std::to_string(WSAGetLastError()));
 			return;
 		}
 	}
@@ -227,16 +227,16 @@ void start_sending_file()
 
 void send_file_not_found_packet()
 {
-	memcpy(SocketInfo->DataBuf.buf, file_not_found_packet, 1);
-	SocketInfo->DataBuf.len = 1;
+	memcpy(FtpSocketInfo->DataBuf.buf, file_not_found_packet, 1);
+	FtpSocketInfo->DataBuf.len = 1;
 
 	update_server_msgs("Requested file not found");
-	if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
-		&(SocketInfo->Overlapped), NULL) == SOCKET_ERROR)
+	if (WSASend(FtpSocketInfo->Socket, &(FtpSocketInfo->DataBuf), 1, &SendBytes, 0,
+		&(FtpSocketInfo->Overlapped), NULL) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
-			update_server_msgs("WSASend() failed with error " + WSAGetLastError());
+			update_server_msgs("WSASend() failed with error " + std::to_string(WSAGetLastError()));
 			return;
 		}
 	}
@@ -267,22 +267,18 @@ void start_receiving_file(int type, LPCWSTR request)
 
 	DWORD Flags = 0;
 
-	char* req_msg = (char *)malloc(MAX_INPUT_LENGTH);
-
-	wcstombs_s(&i, req_msg, MAX_INPUT_LENGTH, request, MAX_INPUT_LENGTH);
-
-	ZeroMemory(&(SocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
-	SocketInfo->DataBuf.buf = SocketInfo->FTP_BUFFER;
-	SocketInfo->DataBuf.len = FTP_PACKET_SIZE;
+	ZeroMemory(&(FtpSocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
+	FtpSocketInfo->DataBuf.buf = FtpSocketInfo->FTP_BUFFER;
+	FtpSocketInfo->DataBuf.len = FTP_PACKET_SIZE;
 
 	Flags = 0;
 
-	if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes, &Flags, &(SocketInfo->Overlapped), FTP_ReceiveRoutine) == SOCKET_ERROR)
+	if (WSARecv(FtpSocketInfo->Socket, &(FtpSocketInfo->DataBuf), 1, &RecvBytes, &Flags, &(FtpSocketInfo->Overlapped), FTP_ReceiveRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
 			int temp = WSAGetLastError();
-			update_client_msgs("WSARecv() failed with error");
+			update_client_msgs("WSARecv() failed with error " + std::to_string(WSAGetLastError()));
 			return;
 		}
 	}
@@ -326,7 +322,7 @@ DWORD WINAPI ReceiveFileThreadFunc(LPVOID lpParameter)
 
 			if (Index == WSA_WAIT_FAILED)
 			{
-				update_client_msgs("WSAWaitForMultipleEvents failed with error");
+				update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
 				terminate_connection();
 				return FALSE;
 			}
@@ -395,7 +391,7 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 		update_client_msgs("Closing ftp socket ");
 		
 		isReceivingFile = FALSE;
-		TriggerEvent(SI->CompletedEvent);
+		TriggerWSAEvent(SI->CompletedEvent);
 		return;
 	}
 
@@ -430,7 +426,7 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
-			update_client_msgs("WSARecv() failed with error");
+			update_client_msgs("WSARecv() failed with error " + std::to_string(WSAGetLastError()));
 			return;
 		}
 	}
@@ -496,7 +492,7 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPP
 		{
 			if (WSAGetLastError() != WSA_IO_PENDING)
 			{
-				update_server_msgs("WSASend() failed with error " + WSAGetLastError());
+				update_server_msgs("WSASend() failed with error " + std::to_string(WSAGetLastError()));
 				return;
 			}
 		}
@@ -511,7 +507,7 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPP
 		{
 			if (WSAGetLastError() != WSA_IO_PENDING)
 			{
-				update_server_msgs("WSASend() failed with error " + WSAGetLastError());
+				update_server_msgs("WSASend() failed with error " + std::to_string(WSAGetLastError()));
 				return;
 			}
 		}

@@ -526,6 +526,8 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 				request_wav_file(L"Tester.wav");
 			}
 			else {
+				request_file_stream(filename);
+				//request_file_stream(L"koto.wav");
 				show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
 			}
 
@@ -576,6 +578,25 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 	return 0;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	update_status
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void update_status(std::string newStatus) 
+--									std::string newStatus - the new status message to show
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to change the status message on the control panel
+--------------------------------------------------------------------------------------*/
 void update_status(std::string newStatus) 
 {
 	HWND status_message = GetDlgItem(control_panel_hwnd, IDM_STATUS);
@@ -589,6 +610,25 @@ void update_status(std::string newStatus)
 	delete[] widestr;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	update_messages
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void update_messages(std::vector<std::string> messages)  
+--									std::vector<std::string> messages - new messages to show
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to output messages on the control panel
+--------------------------------------------------------------------------------------*/
 void update_messages(std::vector<std::string> messages)  
 {
 	HWND messageOutput = GetDlgItem(control_panel_hwnd, IDM_FEATURE_MSG);

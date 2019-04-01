@@ -9,7 +9,7 @@
 --												LPWSAOVERLAPPED Overlapped, DWORD InFlags);
 --					DWORD WINAPI HandleRequest(LPVOID lpParameter);
 --					void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet);
---					void TriggerEvent(WSAEVENT event);
+--					void TriggerWSAEvent(WSAEVENT event);
 --					std::string generateRequestPacket(int type, std::string message);
 --
 --	DATE:			March 8, 2019
@@ -179,7 +179,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	{
 		request_buffer.put(SI->DataBuf.buf);
  		SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
-		TriggerEvent(SI->CompletedEvent);
+		TriggerWSAEvent(SI->CompletedEvent);
 	}
 	else if (BytesTransferred > 0) 
 	{
@@ -191,7 +191,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 			if (packet.length() == DEFAULT_REQUEST_PACKET_SIZE) {
 				//full packet  
 				SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
-				TriggerEvent(SI->CompletedEvent);
+				TriggerWSAEvent(SI->CompletedEvent);
 			}
 			else {
 				SI->DataBuf.len = (ULONG) (DEFAULT_REQUEST_PACKET_SIZE - packet.length());
@@ -275,13 +275,22 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 					start_ftp(parsedPacket.message);
 					break;
 				case AUDIO_STREAM_REQUEST_TYPE:
-					update_server_msgs("Received file stream request for " + parsedPacket.message);
 					// audio file stream request
 					// parsedPacket.message should contain the file name
+					update_server_msgs("Received file stream request for " + parsedPacket.message);
+
+					// TODO: change hardcoded ip string with received client address
+					start_file_stream(parsedPacket.message, "4986", "localhost");
+				
 					break;
 				case VOIP_REQUEST_TYPE:
 					// voip request
 					// parsedPacket.message should contain the client info
+					break;
+				case AUDIO_BUFFER_FULL_TYPE:
+					break;
+				case AUDIO_BUFFER_RDY_TYPE:
+					resume_streaming();
 					break;
 				}
 			}
@@ -315,34 +324,6 @@ void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 {
 	parsedPacket->type = packet.at(0) - '0';
 	parsedPacket->message = packet.substr(1);
-}
-
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	TriggerEvent
---
---	DATE:			March 8, 2019
---
---	REVISIONS:		March 8, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void TriggerEvent(WSAEVENT event) 
---									WSAEVENT event - event to trigger
---
---	RETURNS:		void
---
---	NOTES:
---	Call this function to trigger an event
---------------------------------------------------------------------------------------*/
-void TriggerEvent(WSAEVENT event) 
-{
-	if (WSASetEvent(event) == FALSE)
-	{
-		update_server_msgs("WSASetEvent failed in Request Handler with error");
-		return;
-	}
 }
 
 /*-------------------------------------------------------------------------------------

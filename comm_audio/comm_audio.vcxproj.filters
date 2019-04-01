@@ -22,6 +22,15 @@
     <ClCompile Include="ftp_handler.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="file_streaming_handler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="audio_api.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="audio_api.h">
+      <Filter>Headers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="constants.h">
@@ -54,7 +63,9 @@
     <ClInclude Include="gui_resource.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h" />
+    <ClInclude Include="file_streaming_handler.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">

@@ -18,5 +18,4 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter);
 void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags);
 DWORD WINAPI HandleRequest(LPVOID lpParameter);
 void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet);
-void TriggerEvent(WSAEVENT event);
 std::string generateRequestPacket(int type, std::string message);	

@@ -25,10 +25,16 @@
 SOCKET cl_tcp_req_socket;
 SOCKET cl_udp_audio_socket;
 
+LPCWSTR tcp_port_num;
+LPCWSTR udp_port_num;
+
 SOCKADDR_IN cl_addr;
-SOCKADDR_IN server_addr;
+SOCKADDR_IN server_addr_tcp;
+SOCKADDR_IN server_addr_udp;
+int server_len;
 
 HANDLE FileReceiverThread;
+HANDLE FileStreamerThread;
 FTP_INFO ftp_info;
 
 std::vector<std::string> client_msgs;
@@ -39,6 +45,7 @@ int cl_threadCount;
 BOOL isConnected = FALSE;
 
 WSAEVENT FtpCompleted;
+WSAEVENT FileStreamCompleted;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_client
@@ -63,17 +70,24 @@ WSAEVENT FtpCompleted;
 --------------------------------------------------------------------------------------*/
 void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 {
+
+	BOOL bOptVal = FALSE;
+	int bOptLen = sizeof(BOOL);
+
 	//open udp socket
+	udp_port_num = udp_port;
 	initialize_wsa(udp_port, &cl_addr);
 	open_socket(&cl_udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 
 	//open tcp socket 
+	tcp_port_num = tcp_port;
 	initialize_wsa(tcp_port, &cl_addr);
 	open_socket(&cl_tcp_req_socket, SOCK_STREAM, IPPROTO_TCP);
 
-	setup_svr_addr(&server_addr, tcp_port, svr_ip_addr);
+	setup_svr_addr(&server_addr_tcp, tcp_port, svr_ip_addr);
+	setup_svr_addr(&server_addr_udp, udp_port, svr_ip_addr);
 
-	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr, sizeof(sockaddr)) == -1)
+	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr_tcp, sizeof(sockaddr)) == -1)
 	{
 		isConnected = FALSE;
 
@@ -81,6 +95,20 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 		update_client_msgs("Failed to connect to server");
 		exit(1);
 	}
+
+	if (bind(cl_udp_audio_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
+		isConnected = FALSE;
+
+		update_status(disconnectedMsg);
+		update_client_msgs("Failed to connect to server");
+		exit(1);
+	}
+
+	if (setsockopt(cl_udp_audio_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
+
+	initialize_audio_device();
 
 	isConnected = TRUE;
 	update_client_msgs("Connected to server");
@@ -134,6 +162,7 @@ void setup_svr_addr(SOCKADDR_IN* svr_addr, LPCWSTR svr_port, LPCWSTR svr_ip_addr
 
 	// Copy the server address
 	memcpy((char *)&svr_addr->sin_addr, hp->h_addr, hp->h_length);
+	server_len = sizeof(&svr_addr);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -207,7 +236,7 @@ void send_request(int type, LPCWSTR request)
 void request_wav_file(LPCWSTR filename) {
 
 	DWORD ThreadId;
-	initialize_events_gen(&FtpCompleted);
+	initialize_wsa_events(&FtpCompleted);
 
 	initialize_ftp(&cl_tcp_req_socket, FtpCompleted);
 	update_client_msgs("Requesting file from server...");
@@ -220,7 +249,7 @@ void request_wav_file(LPCWSTR filename) {
 
 	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFileThreadFunc, (LPVOID)&ftp_info, 0, &ThreadId)) == NULL)
 	{
-		update_client_msgs("Failed creating File Receiver Thread with error " + GetLastError());
+		update_client_msgs("Failed creating File Receiver Thread with error " + std::to_string(GetLastError()));
 		update_status(disconnectedMsg);
 		return;
 	}
@@ -230,13 +259,69 @@ void request_wav_file(LPCWSTR filename) {
 	send_request(WAV_FILE_REQUEST_TYPE, filename);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	finalize_ftp
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void finalize_ftp(std::string msg)
+--									std::string msg - msg to output
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to finalize ftp process
+--------------------------------------------------------------------------------------*/
 void finalize_ftp(std::string msg)
 {
 	enableButtons(TRUE);
 	update_client_msgs(msg);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	request_file_stream
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void request_file_stream(LPCWSTR filename) 
+--									LPCWSTR filename - name of the file
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to request a file stream and start the file stream process
+--------------------------------------------------------------------------------------*/
+void request_file_stream(LPCWSTR filename) 
+{
+	DWORD ThreadId;
+	initialize_wsa_events(&FileStreamCompleted);
 
+	initialize_file_stream(&cl_udp_audio_socket, NULL, FileStreamCompleted, NULL);
+	update_client_msgs("Requesting file stream from server...");
+
+	if ((FileStreamerThread = CreateThread(NULL, 0, ReceiveStreamThreadFunc, (LPVOID)FileStreamCompleted, 0, &ThreadId)) == NULL)
+	{
+		update_client_msgs("Failed creating File Streamer Thread with error " + std::to_string(GetLastError()));
+		update_status(disconnectedMsg);
+		return;
+	}
+
+	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
+
+	send_request(AUDIO_STREAM_REQUEST_TYPE, filename);
+}
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminate_client
@@ -261,13 +346,31 @@ void terminate_client()
 
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	update_client_msgs
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void update_client_msgs(std::string message)
+--									std::string message - message to output
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to output new messages to the Client's Control Panel
+--------------------------------------------------------------------------------------*/
 void update_client_msgs(std::string message)
 {
 	std::string cur_time = get_current_time();
 	if (client_msgs.size() >= 6) {
 		client_msgs.erase(client_msgs.begin());
 	}
-
 	client_msgs.push_back(cur_time + message);
 	update_messages(client_msgs);
 }
