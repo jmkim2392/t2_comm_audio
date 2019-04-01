@@ -278,11 +278,7 @@ void start_receiving_file(int type, LPCWSTR request)
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
 			int temp = WSAGetLastError();
-<<<<<<< HEAD
 			update_client_msgs("WSARecv() failed with error " + std::to_string(WSAGetLastError()));
-=======
-			update_client_msgs("WSARecv() failed with error");
->>>>>>> 8bc8cac81d924d8bd281530d1c92e2c93be55817
 			return;
 		}
 	}
@@ -326,11 +322,7 @@ DWORD WINAPI ReceiveFileThreadFunc(LPVOID lpParameter)
 
 			if (Index == WSA_WAIT_FAILED)
 			{
-<<<<<<< HEAD
 				update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
-=======
-				update_client_msgs("WSAWaitForMultipleEvents failed with error");
->>>>>>> 8bc8cac81d924d8bd281530d1c92e2c93be55817
 				terminate_connection();
 				return FALSE;
 			}
@@ -434,11 +426,7 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
-<<<<<<< HEAD
 			update_client_msgs("WSARecv() failed with error " + std::to_string(WSAGetLastError()));
-=======
-			update_client_msgs("WSARecv() failed with error");
->>>>>>> 8bc8cac81d924d8bd281530d1c92e2c93be55817
 			return;
 		}
 	}

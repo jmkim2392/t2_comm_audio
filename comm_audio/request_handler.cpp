@@ -326,39 +326,6 @@ void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 	parsedPacket->message = packet.substr(1);
 }
 
-<<<<<<< HEAD
-
-
-=======
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	TriggerEvent
---
---	DATE:			March 8, 2019
---
---	REVISIONS:		March 8, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void TriggerEvent(WSAEVENT event) 
---									WSAEVENT event - event to trigger
---
---	RETURNS:		void
---
---	NOTES:
---	Call this function to trigger an event
---------------------------------------------------------------------------------------*/
-void TriggerEvent(WSAEVENT event) 
-{
-	if (WSASetEvent(event) == FALSE)
-	{
-		update_server_msgs("WSASetEvent failed in Request Handler with error");
-		return;
-	}
-}
->>>>>>> 8bc8cac81d924d8bd281530d1c92e2c93be55817
-
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	generateRequestPacket
 --

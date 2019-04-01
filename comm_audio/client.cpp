@@ -371,11 +371,6 @@ void update_client_msgs(std::string message)
 	if (client_msgs.size() >= 6) {
 		client_msgs.erase(client_msgs.begin());
 	}
-<<<<<<< HEAD
-	client_msgs.push_back(message);
-=======
-
 	client_msgs.push_back(cur_time + message);
->>>>>>> 8bc8cac81d924d8bd281530d1c92e2c93be55817
 	update_messages(client_msgs);
 }
