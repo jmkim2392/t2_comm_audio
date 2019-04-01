@@ -10,6 +10,9 @@
 #include <stdio.h>
 #include <vector>
 #include <fstream>
+#include <iomanip>
+#include <time.h>
+#include <sstream>
 #include "constants.h"
 #include "server.h"
 #include "circular_buffer.h"

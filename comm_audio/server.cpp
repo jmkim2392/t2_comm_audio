@@ -85,13 +85,6 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	initialize_events_gen(&ResumeSendEvent, L"ResumeSend");
 	initialize_wsa_events(&StreamCompletedEvent);
 
-	//ResumeSendEvent = CreateEventW(
-	//	NULL,               // default security attributes
-	//	TRUE,               // manual-reset event
-	//	FALSE,              // initial state is nonsignaled
-	//	L"ResumeSend"  // object name
-	//);
-
 	open_socket(&tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
 
 	if (bind(tcp_accept_socket, (PSOCKADDR)&InternetAddr,
@@ -572,10 +565,11 @@ void terminate_server()
 --------------------------------------------------------------------------------------*/
 void update_server_msgs(std::string message)
 {
-	if (server_msgs.size() >= 10) {
+	std::string cur_time = get_current_time();
+	if (server_msgs.size() >= 9) {
 		server_msgs.erase(server_msgs.begin());
 	}
-	server_msgs.push_back(message);
+	server_msgs.push_back(cur_time + message);
 	update_messages(server_msgs);
 }
 
