@@ -1,3 +1,27 @@
+/*-------------------------------------------------------------------------------------
+--	SOURCE FILE: general_functions.cpp - Contains generic functions for comm_audio
+--
+--	PROGRAM:		Comm_Audio
+--
+--	FUNCTIONS:
+--					void initialize_wsa_events(WSAEVENT* eventToInit);
+--					void initialize_events_gen(HANDLE* eventToInit, LPCWSTR eventName);
+--					void add_new_thread_gen(DWORD threadList[], DWORD threadId, int threadCount);
+--					void TriggerWSAEvent(WSAEVENT event);
+--					void TriggerEvent(HANDLE event);
+--					std::string get_current_time();
+--
+--	DATE:			March 14, 2019
+--
+--	REVISIONS:		March 14, 2019
+--					March 31, 2019 - added event functions for non wsa events
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--
+--------------------------------------------------------------------------------------*/
 #include "general_functions.h"
 
 /*-------------------------------------------------------------------------------------

@@ -1,3 +1,27 @@
+/*-------------------------------------------------------------------------------------
+--	SOURCE FILE: audio_api.cpp - Contains audio playing functions for Comm_Audio
+--
+--	PROGRAM:		Comm_Audio
+--
+--	FUNCTIONS:
+--					void initialize_audio_device();
+--					void CALLBACK waveOutProc(HWAVEOUT, UINT, DWORD, DWORD, DWORD);
+--					WAVEHDR* allocateBlocks(int size, int count);
+--					void freeBlocks(WAVEHDR* blockArray);
+--					void writeToAudioBuffer(LPSTR data);
+--					DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter);
+--					DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter);
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai, Jason Kim
+--
+--	PROGRAMMER:		Keishi Asai, Jason Kim
+--
+--
+--------------------------------------------------------------------------------------*/
 #include "audio_api.h"
 
 HWAVEOUT hWaveOut; /* device handle */
