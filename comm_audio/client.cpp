@@ -70,6 +70,7 @@ WSAEVENT FileStreamCompleted;
 --------------------------------------------------------------------------------------*/
 void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 {
+
 	BOOL bOptVal = FALSE;
 	int bOptLen = sizeof(BOOL);
 
@@ -108,6 +109,7 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	}
 
 	initialize_audio_device();
+
 	isConnected = TRUE;
 	update_client_msgs("Connected to server");
 	update_status(connectedMsg);
@@ -234,7 +236,7 @@ void send_request(int type, LPCWSTR request)
 void request_wav_file(LPCWSTR filename) {
 
 	DWORD ThreadId;
-	initialize_events_gen(&FtpCompleted);
+	initialize_wsa_events(&FtpCompleted);
 
 	initialize_ftp(&cl_tcp_req_socket, FtpCompleted);
 	update_client_msgs("Requesting file from server...");
@@ -257,18 +259,56 @@ void request_wav_file(LPCWSTR filename) {
 	send_request(WAV_FILE_REQUEST_TYPE, filename);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	finalize_ftp
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void finalize_ftp(std::string msg)
+--									std::string msg - msg to output
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to finalize ftp process
+--------------------------------------------------------------------------------------*/
 void finalize_ftp(std::string msg)
 {
 	enableButtons(TRUE);
 	update_client_msgs(msg);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	request_file_stream
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void request_file_stream(LPCWSTR filename) 
+--									LPCWSTR filename - name of the file
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to request a file stream and start the file stream process
+--------------------------------------------------------------------------------------*/
 void request_file_stream(LPCWSTR filename) 
 {
 	DWORD ThreadId;
-	initialize_events_gen(&FileStreamCompleted);
+	initialize_wsa_events(&FileStreamCompleted);
 
-	initialize_file_stream(&cl_udp_audio_socket, NULL, FileStreamCompleted);
+	initialize_file_stream(&cl_udp_audio_socket, NULL, FileStreamCompleted, NULL);
 	update_client_msgs("Requesting file stream from server...");
 
 	if ((FileStreamerThread = CreateThread(NULL, 0, ReceiveStreamThreadFunc, (LPVOID)FileStreamCompleted, 0, &ThreadId)) == NULL)
@@ -306,12 +346,30 @@ void terminate_client()
 
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	update_client_msgs
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void update_client_msgs(std::string message)
+--									std::string message - message to output
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to output new messages to the Client's Control Panel
+--------------------------------------------------------------------------------------*/
 void update_client_msgs(std::string message)
 {
 	if (client_msgs.size() >= 6) {
 		client_msgs.erase(client_msgs.begin());
 	}
-
 	client_msgs.push_back(message);
 	update_messages(client_msgs);
 }

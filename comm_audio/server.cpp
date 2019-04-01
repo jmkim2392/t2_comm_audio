@@ -32,6 +32,7 @@ SOCKET RequestSocket;
 HANDLE AcceptThread;
 HANDLE RequestReceiverThread;
 HANDLE RequestHandlerThread;
+HANDLE StreamingThread;
 HANDLE BroadCastThread;
 
 TCP_SOCKET_INFO tcp_socket_info;
@@ -44,6 +45,10 @@ BOOL isAcceptingConnections = FALSE;
 BOOL isBroadcasting = FALSE;
 WSAEVENT AcceptEvent;
 WSAEVENT RequestReceivedEvent;
+
+WSAEVENT StreamCompletedEvent;
+
+HANDLE ResumeSendEvent;
 
 DWORD serverThreads[20];
 int svr_threadCount = 0;
@@ -77,6 +82,16 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	//open tcp socket 
 	initialize_wsa(tcp_port, &InternetAddr);
 	initialize_events();
+	initialize_events_gen(&ResumeSendEvent, L"ResumeSend");
+	initialize_wsa_events(&StreamCompletedEvent);
+
+	//ResumeSendEvent = CreateEventW(
+	//	NULL,               // default security attributes
+	//	TRUE,               // manual-reset event
+	//	FALSE,              // initial state is nonsignaled
+	//	L"ResumeSend"  // object name
+	//);
+
 	open_socket(&tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
 
 	if (bind(tcp_accept_socket, (PSOCKADDR)&InternetAddr,
@@ -455,14 +470,40 @@ void start_ftp(std::string filename)
 	(open_file(filename) == 0) ? start_sending_file() : send_file_not_found_packet();
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_file_stream
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void start_file_stream(std::string filename, std::string client_port_num, std::string client_ip_addr)
+--										std::string filename - name of the file to send
+--										std::string client_port_num - client's port number
+--										std::string client_ip_addr - client's ip address
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to start the file streaming process
+--------------------------------------------------------------------------------------*/
 void start_file_stream(std::string filename, std::string client_port_num, std::string client_ip_addr)
 {
+	DWORD ThreadId;
 	BOOL bOptVal = FALSE;
 	int bOptLen = sizeof(BOOL);
 
 	update_server_msgs("Starting File Stream");
 
 	setup_client_addr(&client_addr_udp, client_port_num, client_ip_addr);
+
+	// TODO: May or may not need to bind to socket to receive from client when VOIP connected, 
+	//	 but when testing with localhost, binding to same address causes issues even with SO_REUSEADDR
+	//	SO_REUSEADDR implementation may be flawed or can simply open a new port+socket to handle this in VOIP
 
 	/*if (bind(udp_audio_socket, (struct sockaddr *)&client_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
 		update_status(disconnectedMsg);
@@ -472,9 +513,19 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 		update_server_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}*/
 
-	initialize_file_stream(&udp_audio_socket, &client_addr_udp, NULL);
-
-	(open_file_to_stream(filename) == 0) ? start_sending_file_stream() : send_file_not_found_packet_udp();
+	initialize_file_stream(&udp_audio_socket, &client_addr_udp, NULL, ResumeSendEvent);
+	
+	if (open_file_to_stream(filename) == 0) {
+		if ((StreamingThread = CreateThread(NULL, 0, SendStreamThreadFunc, (LPVOID)StreamCompletedEvent, 0, &ThreadId)) == NULL)
+		{
+			printf("StreamingThread failed with error %d\n", GetLastError());
+			return;
+		}
+		add_new_thread(ThreadId);
+	}
+	else {
+		send_file_not_found_packet_udp();
+	}
 }
 
 /*-------------------------------------------------------------------------------------
@@ -500,6 +551,25 @@ void terminate_server()
 	isAcceptingConnections = FALSE;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	update_server_msgs
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void update_server_msgs(std::string message)
+--										std::string message - name of the file to send
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to update the server's messages on control panel
+--------------------------------------------------------------------------------------*/
 void update_server_msgs(std::string message)
 {
 	if (server_msgs.size() >= 10) {
@@ -507,4 +577,26 @@ void update_server_msgs(std::string message)
 	}
 	server_msgs.push_back(message);
 	update_messages(server_msgs);
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	resume_streaming
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void resume_streaming()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to trigger the SendFileStream Completion routine to resume
+--------------------------------------------------------------------------------------*/
+void resume_streaming() {
+	TriggerEvent(ResumeSendEvent);
 }

@@ -1,4 +1,5 @@
 #pragma once
+
 #pragma comment(lib, "Ws2_32.lib")
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define DEFAULT_PORT 4985
@@ -27,6 +28,7 @@ typedef struct _SOCKET_INFORMATION {
 	CHAR AUDIO_BUFFER[AUDIO_BLOCK_SIZE];
 	WSABUF DataBuf;
 	WSAEVENT CompletedEvent;
+	HANDLE EventTrigger;
 	SOCKADDR_IN Sock_addr;
 	DWORD BytesSEND;
 	DWORD BytesRECV;

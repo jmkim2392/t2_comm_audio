@@ -20,3 +20,4 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 void terminate_server();
 void update_server_msgs(std::string message);
 void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr);
+void resume_streaming();

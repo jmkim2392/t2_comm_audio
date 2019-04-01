@@ -391,7 +391,7 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 		update_client_msgs("Closing ftp socket " + SI->Socket);
 		
 		isReceivingFile = FALSE;
-		TriggerEvent(SI->CompletedEvent);
+		TriggerWSAEvent(SI->CompletedEvent);
 		return;
 	}
 

@@ -1,7 +1,7 @@
 #include "general_functions.h"
 
 /*-------------------------------------------------------------------------------------
---	FUNCTION:	initialize_events
+--	FUNCTION:	initialize_wsa_events
 --
 --	DATE:			March 14, 2019
 --
@@ -17,14 +17,96 @@
 --	RETURNS:		void
 --
 --	NOTES:
---	Call this function to intialize an event for synchronization
+--	Call this function to intialize a WSA event for synchronization
 --------------------------------------------------------------------------------------*/
-void initialize_events_gen(WSAEVENT* eventToInit)
+void initialize_wsa_events(WSAEVENT* eventToInit)
 {
 	if ((*eventToInit = WSACreateEvent()) == WSA_INVALID_EVENT)
 	{
 		return;
 	}
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	initialize_events
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void initialize_events(HANDLE* eventToInit, LPCWSTR eventName)
+--									HANDLE* eventToInit - the event to initialize
+--									LPCWSTR eventName - name of the event
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to intialize an event for synchronization
+--------------------------------------------------------------------------------------*/
+void initialize_events_gen(HANDLE* eventToInit, LPCWSTR eventName)
+{
+	*eventToInit = CreateEventW(
+		NULL,               // default security attributes
+		TRUE,               // manual-reset event
+		FALSE,              // initial state is nonsignaled
+		eventName  // object name
+	);
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	TriggerWSAEvent
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void TriggerWSAEvent(WSAEVENT event)
+--									WSAEVENT event - event to trigger
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to trigger a WSAevent
+--------------------------------------------------------------------------------------*/
+void TriggerWSAEvent(WSAEVENT event) 
+{
+	if (WSASetEvent(event) == FALSE)
+	{
+		update_server_msgs("WSASetEvent failed in Request Handler with error " + WSAGetLastError());
+		return;
+	}
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	TriggerEvent
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void TriggerEvent(HANDLE event)
+--									HANDLE event - event to trigger
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to trigger an event
+--------------------------------------------------------------------------------------*/
+void TriggerEvent(HANDLE event)
+{
+	SetEvent(event);
 }
 
 /*-------------------------------------------------------------------------------------

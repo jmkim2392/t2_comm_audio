@@ -4,20 +4,51 @@ HWAVEOUT hWaveOut; /* device handle */
 WAVEFORMATEX wfx; /* look this up in your documentation */
 static CRITICAL_SECTION waveCriticalSection;
 static volatile int waveFreeBlockCount;
+static volatile int numFreed = MAX_NUM_STREAM_PACKETS;
 static WAVEHDR* waveBlocks;
-static int waveCurrentBlock;
+static int waveHeadBlock;
+static int waveTailBlock;
 
-int callcount = 0;
+HANDLE ReadyToPlayEvent;
+HANDLE AudioPlayerThread;
+HANDLE BufRdySignalerThread;
 
-void initialize_audio_device() {
+BOOL isPlayingAudio = FALSE;
+HANDLE BufferOpenToWriteEvent;
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	initialize_audio_device
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai, Jason Kim
+--
+--	PROGRAMMER:		Keishi Asai, Jason Kim
+--
+--	INTERFACE:		void initialize_audio_device()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to setup the audio device and audio playing feature
+--------------------------------------------------------------------------------------*/
+void initialize_audio_device()
+{
+	DWORD ThreadId;
+
 	/*
 	 * initialise the module variables
 	 */
 	waveBlocks = allocateBlocks(AUDIO_BLOCK_SIZE, BLOCK_COUNT);
 	waveFreeBlockCount = BLOCK_COUNT;
-	waveCurrentBlock = 0;
+	waveHeadBlock = 0;
+	waveTailBlock = 0;
 	InitializeCriticalSection(&waveCriticalSection);
 
+	initialize_events_gen(&ReadyToPlayEvent, L"AudioPlayReady");
+	initialize_events_gen(&BufferOpenToWriteEvent, L"BufferReadyToWrite");
 	/*
 	 * set up the WAVEFORMATEX structure.
 	 */
@@ -45,8 +76,36 @@ void initialize_audio_device() {
 		//fprintf(stderr, "%s: unable to open wave mapper device\n", argv[0]);
 		ExitProcess(1);
 	}
+	if ((AudioPlayerThread = CreateThread(NULL, 0, playAudioThreadFunc, (LPVOID)ReadyToPlayEvent, 0, &ThreadId)) == NULL)
+	{
+		update_client_msgs("Failed creating AudioPlayerThread with error " + std::to_string(GetLastError()));
+		return;
+	}
+	if ((BufRdySignalerThread = CreateThread(NULL, 0, bufReadySignalingThreadFunc, (LPVOID)BufferOpenToWriteEvent, 0, &ThreadId)) == NULL)
+	{
+		update_client_msgs("Failed creating BufRdySignalerThread with error " + std::to_string(GetLastError()));
+		return;
+	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	waveOutProc
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai, Jason Kim
+--
+--	PROGRAMMER:		Keishi Asai, Jason Kim
+--
+--	INTERFACE:		static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Callback function to be called when audio device finishes playing a block
+--------------------------------------------------------------------------------------*/
 static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
 {
 	/*
@@ -58,68 +117,161 @@ static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance,
 	 * device.
 	 */
 
-	if (uMsg != WOM_DONE)
+	if (uMsg != WOM_DONE) {
 		return;
-
-	OutputDebugStringA("Hello\n");
+	}
+	numFreed++;
+	//OutputDebugStringA("Hello\n");
 	EnterCriticalSection(&waveCriticalSection);
 	waveFreeBlockCount++;
-//	char debug_buf[512];
-//	sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", callcount++);
-//	OutputDebugStringA(debug_buf);
-//	(*freeBlockCounter)++;
-	LeaveCriticalSection(&waveCriticalSection);
-}
-
-void writeAudio(LPSTR data, int size)
-{
-	WAVEHDR* current;
-	int remain;
-	current = &waveBlocks[waveCurrentBlock];
-
 	char debug_buf[512];
 	sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", waveFreeBlockCount);
 	OutputDebugStringA(debug_buf);
-
-	while (size > 0) {
-		/*
-		 * first make sure the header we're going to use is unprepared
-		 */
-		if (current->dwFlags & WHDR_PREPARED)
-			waveOutUnprepareHeader(hWaveOut, current, sizeof(WAVEHDR));
-		if (size < (int)(AUDIO_BLOCK_SIZE - current->dwUser)) {
-			memcpy(current->lpData + current->dwUser, data, size);
-			current->dwUser += size;
-			break;
-		}
-		remain = AUDIO_BLOCK_SIZE - current->dwUser;
-		memcpy(current->lpData + current->dwUser, data, remain);
-		size -= remain;
-		data += remain;
-		current->dwBufferLength = AUDIO_BLOCK_SIZE;
-		
-		waveOutPrepareHeader(hWaveOut, current, sizeof(WAVEHDR));
-		OutputDebugStringA("Write Audio\n");
-		waveOutWrite(hWaveOut, current, sizeof(WAVEHDR));
-		
-		EnterCriticalSection(&waveCriticalSection);
-		waveFreeBlockCount--;
-		LeaveCriticalSection(&waveCriticalSection);
-		/*
-		 * wait for a block to become free
-		 */
-		while (!waveFreeBlockCount)
-			Sleep(10);
-		/*
-		 * point to the next block
-		 */
-		waveCurrentBlock++;
-		waveCurrentBlock %= BLOCK_COUNT;
-		current = &waveBlocks[waveCurrentBlock];
-		current->dwUser = 0;
+	//	(*freeBlockCounter)++;
+	LeaveCriticalSection(&waveCriticalSection);
+	TriggerEvent(ReadyToPlayEvent);
+	if (numFreed >= MAX_NUM_STREAM_PACKETS && waveFreeBlockCount >= MAX_NUM_STREAM_PACKETS) {
+		numFreed = 1;
+		TriggerEvent(BufferOpenToWriteEvent);
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	writeToAudioBuffer
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai, Jason Kim
+--
+--	PROGRAMMER:		Keishi Asai, Jason Kim
+--
+--	INTERFACE:		void writeToAudioBuffer(LPSTR data)
+--									LPSTR data - the audio data to write to block
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to write data into the audio circular buffer and begin playing audio
+--------------------------------------------------------------------------------------*/
+void writeToAudioBuffer(LPSTR data)
+{
+	WAVEHDR* head;
+	head = &waveBlocks[waveHeadBlock];
+
+	if (head->dwFlags & WHDR_PREPARED)
+	{
+		waveOutUnprepareHeader(hWaveOut, head, sizeof(WAVEHDR));
+	}
+
+	memcpy(head->lpData + head->dwUser, data, AUDIO_BLOCK_SIZE);
+	head->dwBufferLength = AUDIO_BLOCK_SIZE;
+
+	EnterCriticalSection(&waveCriticalSection);
+	waveFreeBlockCount--;
+	LeaveCriticalSection(&waveCriticalSection);
+	waveHeadBlock++;
+	waveHeadBlock %= BLOCK_COUNT;
+	head->dwUser = 0;
+	TriggerEvent(ReadyToPlayEvent);
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	playAudioThreadFunc
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai, Jason Kim
+--
+--	PROGRAMMER:		Keishi Asai, Jason Kim
+--
+--	INTERFACE:		DWORD WINAPI writeToAudioBuffer(LPVOID lpParameter)
+--									LPSTR data - the audio data to write to block
+--
+--	RETURNS:		DWORD
+--
+--	NOTES:
+--	Thread function to read from audio circular buffer and play the data block
+--------------------------------------------------------------------------------------*/
+DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter) 
+{
+	WAVEHDR* tail;
+	DWORD Index;
+	isPlayingAudio = TRUE;
+	HANDLE readyEvent = (HANDLE)lpParameter;
+
+	while (isPlayingAudio)
+	{
+		WaitForSingleObject(readyEvent, INFINITE);
+		ResetEvent(readyEvent);
+		while (waveTailBlock != waveHeadBlock) 
+		{
+			tail = &waveBlocks[waveTailBlock];
+			waveOutPrepareHeader(hWaveOut, tail, sizeof(WAVEHDR));
+			waveOutWrite(hWaveOut, tail, sizeof(WAVEHDR));
+			waveTailBlock++;
+			waveTailBlock %= BLOCK_COUNT;
+		}
+	}
+	return 0;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	bufReadySignalingThreadFunc
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter)
+--									LPVOID lpParameter - event to listen
+--
+--	RETURNS:		DWORD
+--
+--	NOTES:
+--	Thread function to signal the server to send next set of blocks to stream
+--------------------------------------------------------------------------------------*/
+DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter)
+{
+	isPlayingAudio = TRUE;
+	HANDLE readyEvent = (HANDLE)lpParameter;
+
+	while (isPlayingAudio)
+	{
+		WaitForSingleObject(readyEvent, INFINITE);
+		ResetEvent(readyEvent);
+		send_request(AUDIO_BUFFER_RDY_TYPE, L"RDY");
+	}
+	return 0;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	allocateBlocks
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai
+--
+--	PROGRAMMER:		Keishi Asai
+--
+--	INTERFACE:		WAVEHDR* allocateBlocks(int size, int count)
+--									int size - the size of the data buffer
+--									int count - the size of the circular buffer
+--
+--	RETURNS:		WAVEHDR*
+--
+--	NOTES:
+--	Call this function to allocate a memory for the audio circular buffer
+--------------------------------------------------------------------------------------*/
 WAVEHDR* allocateBlocks(int size, int count)
 {
 	unsigned char* buffer;
@@ -151,6 +303,25 @@ WAVEHDR* allocateBlocks(int size, int count)
 	return blocks;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	freeBlocks
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai
+--
+--	PROGRAMMER:		Keishi Asai
+--
+--	INTERFACE:		void freeBlocks(WAVEHDR* blockArray)
+--									WAVEHDR* blockArray - the circular buffer to free
+--
+--	RETURNS:		WAVEHDR*
+--
+--	NOTES:
+--	Call this function to deallocate audio circular buffer's memory
+--------------------------------------------------------------------------------------*/
 void freeBlocks(WAVEHDR* blockArray)
 {
 	/*
@@ -159,6 +330,25 @@ void freeBlocks(WAVEHDR* blockArray)
 	HeapFree(GetProcessHeap(), 0, blockArray);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	terminate_audio_api
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void terminate_audio_api()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to terminate the audio api
+--	TODO: may need to implement later, for now nothing
+--------------------------------------------------------------------------------------*/
 void terminate_audio_api() {
 
 }

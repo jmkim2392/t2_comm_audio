@@ -2,6 +2,7 @@
 #include "main.h"
 #include "general_functions.h"
 #include "file_streaming_handler.h"
+#include "audio_api.h"
 
 typedef struct _REQUEST_PACKET REQUEST_PACKET, *LPREQUEST_PACKET;
 

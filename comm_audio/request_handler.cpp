@@ -9,7 +9,7 @@
 --												LPWSAOVERLAPPED Overlapped, DWORD InFlags);
 --					DWORD WINAPI HandleRequest(LPVOID lpParameter);
 --					void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet);
---					void TriggerEvent(WSAEVENT event);
+--					void TriggerWSAEvent(WSAEVENT event);
 --					std::string generateRequestPacket(int type, std::string message);
 --
 --	DATE:			March 8, 2019
@@ -180,7 +180,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	{
 		request_buffer.put(SI->DataBuf.buf);
  		SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
-		TriggerEvent(SI->CompletedEvent);
+		TriggerWSAEvent(SI->CompletedEvent);
 	}
 	else if (BytesTransferred > 0) 
 	{
@@ -192,7 +192,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 			if (packet.length() == DEFAULT_REQUEST_PACKET_SIZE) {
 				//full packet  
 				SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
-				TriggerEvent(SI->CompletedEvent);
+				TriggerWSAEvent(SI->CompletedEvent);
 			}
 			else {
 				SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE - packet.length();
@@ -289,6 +289,11 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 					// voip request
 					// parsedPacket.message should contain the client info
 					break;
+				case AUDIO_BUFFER_FULL_TYPE:
+					break;
+				case AUDIO_BUFFER_RDY_TYPE:
+					resume_streaming();
+					break;
 				}
 			}
 		}
@@ -323,33 +328,8 @@ void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 	parsedPacket->message = packet.substr(1);
 }
 
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	TriggerEvent
---
---	DATE:			March 8, 2019
---
---	REVISIONS:		March 8, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void TriggerEvent(WSAEVENT event) 
---									WSAEVENT event - event to trigger
---
---	RETURNS:		void
---
---	NOTES:
---	Call this function to trigger an event
---------------------------------------------------------------------------------------*/
-void TriggerEvent(WSAEVENT event) 
-{
-	if (WSASetEvent(event) == FALSE)
-	{
-		update_server_msgs("WSASetEvent failed in Request Handler with error " + WSAGetLastError());
-		return;
-	}
-}
+
+
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	generateRequestPacket
