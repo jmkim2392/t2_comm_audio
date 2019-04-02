@@ -78,12 +78,13 @@ std::vector<std::string> server_msgs;
 void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port) 
 {
 	DWORD ThreadId;
-
+	
 	//open tcp socket 
 	initialize_wsa(tcp_port, &InternetAddr);
-	initialize_events();
-	initialize_events_gen(&ResumeSendEvent, L"ResumeSend");
+	initialize_wsa_events(&AcceptEvent);
+	initialize_wsa_events(&RequestReceivedEvent);
 	initialize_wsa_events(&StreamCompletedEvent);
+	initialize_events_gen(&ResumeSendEvent, L"ResumeSend");
 
 	open_socket(&tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
 
@@ -91,23 +92,26 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 		sizeof(InternetAddr)) == SOCKET_ERROR)
 	{
 		printf("bind() failed with error %d\n", WSAGetLastError());
+		update_server_msgs("Failed to bind tcp " + std::to_string(WSAGetLastError()));
 		terminate_connection();
 		return;
 	}
-
 	//open udp socket
 	initialize_wsa(udp_port, &InternetAddr);
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 
 	start_request_receiver();
 	start_request_handler();
-	start_broadcast(&udp_audio_socket, udp_port);
+	//start_broadcast(&udp_audio_socket, udp_port);
 
 	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&tcp_accept_socket, 0, &ThreadId)) == NULL)
 	{
-		printf("Creating Host Thread failed with error %d\n", GetLastError());
+		update_server_msgs("Failed to create AcceptThread " + std::to_string(GetLastError()));
+
 		return;
 	}
+
+	//LPCWSTR temp = get_device_ip();
 	add_new_thread(ThreadId);
 	update_server_msgs("Server online..");
 	update_status(connectedMsg);
@@ -145,41 +149,6 @@ void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::s
 }
 
 /*-------------------------------------------------------------------------------------
---	FUNCTION:	initialize_events
---
---	DATE:			March 8, 2019
---
---	REVISIONS:		March 8, 2019
---					March 14, 2019 - JK - Set for removal to use new function - SEE NOTES
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void initialize_events()
---
---	RETURNS:		void
---
---	NOTES:
---	DEPRECATED - USE function in general_functions
---	Call this function to intialize the events used by server
---------------------------------------------------------------------------------------*/
-void initialize_events()
-{
-	if ((AcceptEvent = WSACreateEvent()) == WSA_INVALID_EVENT)
-	{
-		printf("WSACreateEvent() failed with error %d\n", WSAGetLastError());
-		return;
-	}
-
-	if ((RequestReceivedEvent = WSACreateEvent()) == WSA_INVALID_EVENT)
-	{
-		printf("WSACreateEvent() failed with error %d\n", WSAGetLastError());
-		return;
-	}
-}
-
-/*-------------------------------------------------------------------------------------
 --	FUNCTION:	start_request_receiver
 --
 --	DATE:			March 8, 2019
@@ -208,7 +177,7 @@ void start_request_receiver()
 
 	if ((RequestReceiverThread = CreateThread(NULL, 0, RequestReceiverThreadFunc, (LPVOID)&tcp_socket_info, 0, &ThreadId)) == NULL)
 	{
-		printf("CreateThread failed with error %d\n", GetLastError());
+		update_server_msgs("Failed to create RequestReceiverThread " + std::to_string(GetLastError()));
 		return;
 	}
 	add_new_thread(ThreadId);
@@ -239,7 +208,7 @@ void start_request_handler()
 
 	if ((RequestHandlerThread = CreateThread(NULL, 0, HandleRequest, (LPVOID)RequestReceivedEvent, 0, &ThreadId)) == NULL)
 	{
-		printf("CreateThread failed with error %d\n", GetLastError());
+		update_server_msgs("Failed to create RequestHandler Thread " + std::to_string(GetLastError()));
 		return;
 	}
 	add_new_thread(ThreadId);
@@ -314,7 +283,7 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 
 	if (listen(*socket, 5))
 	{
-		printf("listen() failed with error %d\n", WSAGetLastError());
+		update_server_msgs("listen() failed with error " + std::to_string(WSAGetLastError()));
 		return WSAGetLastError();
 	}
 	
@@ -324,7 +293,7 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 
 		if (WSASetEvent(AcceptEvent) == FALSE)
 		{
-			printf("WSASetEvent failed with error %d\n", WSAGetLastError());
+			update_server_msgs("WSASetEvent(AccentEvent) failed with error " + std::to_string(WSAGetLastError()));
 			return WSAGetLastError();
 		}
 	}
@@ -511,7 +480,7 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 	if (open_file_to_stream(filename) == 0) {
 		if ((StreamingThread = CreateThread(NULL, 0, SendStreamThreadFunc, (LPVOID)StreamCompletedEvent, 0, &ThreadId)) == NULL)
 		{
-			printf("StreamingThread failed with error %d\n", GetLastError());
+			update_server_msgs("Failed to create Streaming Thread " + std::to_string(WSAGetLastError()));
 			return;
 		}
 		add_new_thread(ThreadId);

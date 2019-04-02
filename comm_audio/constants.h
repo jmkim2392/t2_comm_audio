@@ -22,6 +22,9 @@
 #define FILE_NOT_FOUND 17 // DC1
 #define FTP_COMPLETE 18 // DC2
 
+#define WORKING_BUFFER_SIZE 15000
+#define MAX_TRIES 3
+
 // Window GUI strings
 const LPCWSTR Name = L"Comm Audio";
 const LPCWSTR MenuName = L"SERVICEMENU";
@@ -46,3 +49,6 @@ const std::string StreamingType = "Stream";
 // String constants
 const std::string disconnectedMsg = "Disconnected";
 const std::string connectedMsg = "Connected";
+
+const LPCWSTR packetMsgDelimiter = L"|";
+const std::string packetMsgDelimiterStr = "|";

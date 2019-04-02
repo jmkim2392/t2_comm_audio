@@ -27,6 +27,7 @@ SOCKET cl_udp_audio_socket;
 
 LPCWSTR tcp_port_num;
 LPCWSTR udp_port_num;
+std::wstring current_device_ip;
 
 SOCKADDR_IN cl_addr;
 SOCKADDR_IN server_addr_tcp;
@@ -42,7 +43,7 @@ std::vector<std::string> client_msgs;
 DWORD clientThreads[20];
 int cl_threadCount;
 
-BOOL isConnected = FALSE;
+BOOL isConnected = TRUE;
 
 WSAEVENT FtpCompleted;
 WSAEVENT FileStreamCompleted;
@@ -73,7 +74,6 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 
 	BOOL bOptVal = FALSE;
 	int bOptLen = sizeof(BOOL);
-
 	//open udp socket
 	udp_port_num = udp_port;
 	initialize_wsa(udp_port, &cl_addr);
@@ -84,24 +84,24 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	initialize_wsa(tcp_port, &cl_addr);
 	open_socket(&cl_tcp_req_socket, SOCK_STREAM, IPPROTO_TCP);
 
+
+	current_device_ip = get_device_ip();
 	setup_svr_addr(&server_addr_tcp, tcp_port, svr_ip_addr);
-	setup_svr_addr(&server_addr_udp, udp_port, svr_ip_addr);
+	setup_svr_addr(&server_addr_udp, udp_port, current_device_ip.c_str());
 
 	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr_tcp, sizeof(sockaddr)) == -1)
 	{
 		isConnected = FALSE;
 
 		update_status(disconnectedMsg);
-		update_client_msgs("Failed to connect to server");
-		exit(1);
+		update_client_msgs("Failed to connect to server " + std::to_string(WSAGetLastError()));
 	}
 
 	if (bind(cl_udp_audio_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
 		isConnected = FALSE;
 
 		update_status(disconnectedMsg);
-		update_client_msgs("Failed to connect to server");
-		exit(1);
+		update_client_msgs("Failed to bind udp socket " + std::to_string(WSAGetLastError()));
 	}
 
 	if (setsockopt(cl_udp_audio_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
@@ -110,9 +110,10 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 
 	initialize_audio_device();
 
-	isConnected = TRUE;
-	update_client_msgs("Connected to server");
-	update_status(connectedMsg);
+	if (isConnected) {
+		update_client_msgs("Connected to server");
+		update_status(connectedMsg);
+	}
 }
 
 /*-------------------------------------------------------------------------------------
@@ -157,7 +158,6 @@ void setup_svr_addr(SOCKADDR_IN* svr_addr, LPCWSTR svr_port, LPCWSTR svr_ip_addr
 	{
 		update_client_msgs("Server address unknown");
 		update_status(disconnectedMsg);
-		exit(1);
 	}
 
 	// Copy the server address
@@ -207,7 +207,7 @@ void send_request(int type, LPCWSTR request)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
-			update_client_msgs("WSASend() failed with error " + WSAGetLastError());
+			update_client_msgs("Send Request failed with error " + WSAGetLastError());
 			update_status(disconnectedMsg);
 			return;
 		}
@@ -250,7 +250,6 @@ void request_wav_file(LPCWSTR filename) {
 	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFileThreadFunc, (LPVOID)&ftp_info, 0, &ThreadId)) == NULL)
 	{
 		update_client_msgs("Failed creating File Receiver Thread with error " + std::to_string(GetLastError()));
-		update_status(disconnectedMsg);
 		return;
 	}
 
@@ -314,13 +313,15 @@ void request_file_stream(LPCWSTR filename)
 	if ((FileStreamerThread = CreateThread(NULL, 0, ReceiveStreamThreadFunc, (LPVOID)FileStreamCompleted, 0, &ThreadId)) == NULL)
 	{
 		update_client_msgs("Failed creating File Streamer Thread with error " + std::to_string(GetLastError()));
-		update_status(disconnectedMsg);
 		return;
 	}
 
 	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
 
-	send_request(AUDIO_STREAM_REQUEST_TYPE, filename);
+	std::wstring temp_msg = std::wstring(filename) + packetMsgDelimiter + current_device_ip + packetMsgDelimiter + udp_port_num + packetMsgDelimiter;
+	LPCWSTR stream_req_msg = temp_msg.c_str();
+
+	send_request(AUDIO_STREAM_REQUEST_TYPE, stream_req_msg);
 }
 
 /*-------------------------------------------------------------------------------------

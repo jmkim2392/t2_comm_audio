@@ -12,6 +12,8 @@ typedef struct _TCP_SOCKET_INFO {
 typedef struct _REQUEST_PACKET {
 	int type;
 	std::string message;
+	std::string ip_addr;
+	std::string port_num;
 } REQUEST_PACKET, *LPREQUEST_PACKET;
 
 DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter);
