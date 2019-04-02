@@ -159,7 +159,9 @@ void add_new_thread_gen(DWORD threadList[], DWORD threadId, int threadCount)
 	threadList[threadCount] = threadId;
 }
 
-std::string get_current_time() {
+
+std::string get_current_time() 
+{
 	char str[70];
 	struct tm buf;
 	time_t cur_time = time(nullptr);
@@ -167,4 +169,88 @@ std::string get_current_time() {
 	strftime(str, 100, "%Y-%m-%d %X - ", &buf);
 	std::string time_str(str);
 	return time_str;
+}
+
+std::wstring get_device_ip() 
+{
+	DWORD dwSize = 0;
+	DWORD dwRetVal = 0;
+
+	unsigned int i = 0;
+
+	// Set the flags to pass to GetAdaptersAddresses
+	ULONG flags = GAA_FLAG_INCLUDE_PREFIX;
+
+	// default to IPv4 addresses
+	ULONG family = AF_INET;
+
+	LPVOID lpMsgBuf = NULL;
+
+	PIP_ADAPTER_ADDRESSES pAddresses = NULL;
+	ULONG outBufLen = 0;
+	ULONG Iterations = 0;
+
+	PIP_ADAPTER_ADDRESSES pCurrAddresses = NULL;
+	PIP_ADAPTER_UNICAST_ADDRESS pUnicast = NULL;
+	PIP_ADAPTER_ANYCAST_ADDRESS pAnycast = NULL;
+	PIP_ADAPTER_MULTICAST_ADDRESS pMulticast = NULL;
+	IP_ADAPTER_DNS_SERVER_ADDRESS *pDnServer = NULL;
+	IP_ADAPTER_PREFIX *pPrefix = NULL;
+
+	// Allocate a 15 KB buffer to start with.
+	outBufLen = WORKING_BUFFER_SIZE;
+	wchar_t ipstringbuffer[MAX_INPUT_LENGTH+1];
+	memset(ipstringbuffer, 0, sizeof(MAX_INPUT_LENGTH+1));
+	INT iRetval;
+
+	do {
+		pAddresses = (IP_ADAPTER_ADDRESSES *)MALLOC(outBufLen);
+		if (pAddresses == NULL) {
+			printf
+			("Memory allocation failed for IP_ADAPTER_ADDRESSES struct\n");
+			exit(1);
+		}
+
+		dwRetVal =
+			GetAdaptersAddresses(family, flags, NULL, pAddresses, &outBufLen);
+
+		if (dwRetVal == ERROR_BUFFER_OVERFLOW) {
+			FREE(pAddresses);
+			pAddresses = NULL;
+		}
+		else {
+			break;
+		}
+		Iterations++;
+	} while ((dwRetVal == ERROR_BUFFER_OVERFLOW) && (Iterations < MAX_TRIES));
+
+	if (dwRetVal == NO_ERROR) {
+		// If successful, output some information from the data we received
+		pCurrAddresses = pAddresses;
+		while (pCurrAddresses) {
+			pUnicast = pCurrAddresses->FirstUnicastAddress;
+
+			DWORD ipbufferlength = MAX_INPUT_LENGTH+1;
+
+			sockaddr_in* address = (sockaddr_in*)pCurrAddresses->FirstUnicastAddress->Address.lpSockaddr;
+			uint32_t ipv4 = address->sin_addr.S_un.S_addr;
+
+			if (pCurrAddresses->OperStatus == IfOperStatusUp) {
+				iRetval =WSAAddressToString(pCurrAddresses->FirstUnicastAddress->Address.lpSockaddr, (DWORD)pCurrAddresses->FirstUnicastAddress->Address.iSockaddrLength, NULL, ipstringbuffer, &ipbufferlength);
+				std::wstring ws(ipstringbuffer);
+				//std::string str(ws.begin(), ws.end());
+				return ws;
+				/*if (iRetval != 0)
+				{
+					int temp = WSAGetLastError();
+					printf((char*)iRetval);
+				}*/
+			}
+			pCurrAddresses = pCurrAddresses->Next;
+		}
+	}
+	if (pAddresses) {
+		FREE(pAddresses);
+	}
+	return NULL;
 }

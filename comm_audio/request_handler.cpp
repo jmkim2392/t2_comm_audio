@@ -73,7 +73,7 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 
 			if (Index == WSA_WAIT_FAILED)
 			{
-				update_server_msgs("WSAWaitForMultipleEvents failed in Request Handler with error");
+				update_server_msgs("WSAWaitForMultipleEvents failed in Request Handler with error " + std::to_string(WSAGetLastError()));
 				terminate_connection();
 				return FALSE;
 			}
@@ -93,7 +93,7 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 		if ((SocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
 			sizeof(SOCKET_INFORMATION))) == NULL)
 		{
-			update_server_msgs("GlobalAlloc() failed in Request Handler with error");
+			update_server_msgs("GlobalAlloc() failed in Request Handler with error " + std::to_string(GetLastError()));
 			terminate_connection();
 			return FALSE;
 		}
@@ -113,7 +113,7 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 
 		if (retVal == SOCKET_ERROR) {
 			if (WSAGetLastError() != WSA_IO_PENDING) {
-				update_server_msgs("WSARecv failed in Request Handler with error");
+				update_server_msgs("WSARecv failed in Request Handler with error " + std::to_string(WSAGetLastError()));
 				terminate_connection();
 
 				return FALSE;
@@ -163,7 +163,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 
 	if (BytesTransferred == 0)
 	{
-		update_server_msgs("Closing request socket");
+		update_server_msgs("Closing request socket " + std::to_string(SI->Socket));
 	}
 
 	if (Error != 0 || BytesTransferred == 0)
@@ -205,7 +205,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
-			update_server_msgs("WSARecv() failed in Request Handler with error");
+			update_server_msgs("WSARecv() failed in Request Handler with error " + std::to_string(WSAGetLastError()));
 			return;
 		}
 	}
@@ -280,7 +280,7 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 					update_server_msgs("Received file stream request for " + parsedPacket.message);
 
 					// TODO: change hardcoded ip string with received client address
-					start_file_stream(parsedPacket.message, "4986", "localhost");
+					start_file_stream(parsedPacket.message, parsedPacket.port_num, parsedPacket.ip_addr);
 				
 					break;
 				case VOIP_REQUEST_TYPE:
@@ -323,7 +323,23 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet) 
 {
 	parsedPacket->type = packet.at(0) - '0';
-	parsedPacket->message = packet.substr(1);
+	std::string temp_msg = packet.substr(1);
+	size_t pos = 0;
+	int i = 0;
+	while ((pos = temp_msg.find(packetMsgDelimiterStr)) != std::string::npos) {
+		switch (i++){
+		case 0:
+			parsedPacket->message = temp_msg.substr(0, pos);
+			break;
+		case 1:
+			parsedPacket->ip_addr = temp_msg.substr(0, pos);
+			break;
+		case 2:
+			parsedPacket->port_num = temp_msg.substr(0, pos);
+			break;
+		}
+		temp_msg.erase(0, pos + packetMsgDelimiterStr.length());
+	}
 }
 
 /*-------------------------------------------------------------------------------------

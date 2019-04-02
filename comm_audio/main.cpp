@@ -378,10 +378,10 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 			show_control_panel(IDM_CLIENT);
 
 			//TODO: to uncomment after testing features
-			//initialize_client(tcp_port_num, udp_port_num, server_ip);
+			initialize_client(tcp_port_num, udp_port_num, server_ip);
 
 			//TODO: to remove after testing 
-			initialize_client(L"4985", L"4986", L"localhost");
+			//initialize_client(L"4985", L"4986", L"localhost");
 
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
@@ -520,10 +520,10 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 			if (selectedFeatureType == IDM_FILE_REQUEST_TYPE)
 			{
 				//TODO: to uncomment after testing features
-				//request_wav_file(filename);
+				request_wav_file(filename);
 
 				//TODO: to remove after testing 
-				request_wav_file(L"Tester.wav");
+				//request_wav_file(L"Tester.wav");
 			}
 			else {
 				request_file_stream(filename);

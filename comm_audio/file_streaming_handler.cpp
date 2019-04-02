@@ -147,42 +147,42 @@ void close_file_streaming() {
 
 }
 
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	start_sending_file_stream
---
---	DATE:			March 31, 2019
---
---	REVISIONS:		March 31, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void start_sending_file_stream()
---
---	RETURNS:		int - 0 for success, else file not found
---
---	NOTES:
---	Call this function to start sending the file stream
---------------------------------------------------------------------------------------*/
-void start_sending_file_stream()
-{
-	memset(file_stream_buf, 0, AUDIO_PACKET_SIZE);
-	int bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, requested_file_stream);
-
-	memcpy(FileStreamSocketInfo->DataBuf.buf, file_stream_buf, bytes_read);
-	FileStreamSocketInfo->DataBuf.len = bytes_read;
-	num_packet++;
-	total_packet++;
-	if (WSASendTo(FileStreamSocketInfo->Socket, &(FileStreamSocketInfo->DataBuf), 1, &SendBytes_FileStream, 0, (SOCKADDR *)&(FileStreamSocketInfo->Sock_addr), sizeof(FileStreamSocketInfo->Sock_addr), &(FileStreamSocketInfo->Overlapped), FileStream_SendRoutine) == SOCKET_ERROR)
-	{
-		if (WSAGetLastError() != WSA_IO_PENDING)
-		{
-			update_server_msgs("WSASend() failed with error " + std::to_string(WSAGetLastError()));
-			return;
-		}
-	}
-}
+///*-------------------------------------------------------------------------------------
+//--	FUNCTION:	start_sending_file_stream
+//--
+//--	DATE:			March 31, 2019
+//--
+//--	REVISIONS:		March 31, 2019
+//--
+//--	DESIGNER:		Jason Kim
+//--
+//--	PROGRAMMER:		Jason Kim
+//--
+//--	INTERFACE:		void start_sending_file_stream()
+//--
+//--	RETURNS:		int - 0 for success, else file not found
+//--
+//--	NOTES:
+//--	Call this function to start sending the file stream
+//--------------------------------------------------------------------------------------*/
+//void start_sending_file_stream()
+//{
+//	memset(file_stream_buf, 0, AUDIO_PACKET_SIZE);
+//	int bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, requested_file_stream);
+//
+//	memcpy(FileStreamSocketInfo->DataBuf.buf, file_stream_buf, bytes_read);
+//	FileStreamSocketInfo->DataBuf.len = bytes_read;
+//	num_packet++;
+//	total_packet++;
+//	if (WSASendTo(FileStreamSocketInfo->Socket, &(FileStreamSocketInfo->DataBuf), 1, &SendBytes_FileStream, 0, (SOCKADDR *)&(FileStreamSocketInfo->Sock_addr), sizeof(FileStreamSocketInfo->Sock_addr), &(FileStreamSocketInfo->Overlapped), FileStream_SendRoutine) == SOCKET_ERROR)
+//	{
+//		if (WSAGetLastError() != WSA_IO_PENDING)
+//		{
+//			update_server_msgs("Send first udp packet failed with error " + std::to_string(WSAGetLastError()));
+//			return;
+//		}
+//	}
+//}
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	SendStreamThreadFunc
@@ -215,11 +215,14 @@ DWORD WINAPI SendStreamThreadFunc(LPVOID lpParameter)
 
 	memcpy(FileStreamSocketInfo->DataBuf.buf, file_stream_buf, bytes_read);
 	FileStreamSocketInfo->DataBuf.len = bytes_read;
+	num_packet++;
+	total_packet++;
+
 	if (WSASendTo(FileStreamSocketInfo->Socket, &(FileStreamSocketInfo->DataBuf), 1, &SendBytes_FileStream, 0, (SOCKADDR *)&(FileStreamSocketInfo->Sock_addr), sizeof(FileStreamSocketInfo->Sock_addr), &(FileStreamSocketInfo->Overlapped), FileStream_SendRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
-			update_server_msgs("WSASendTo() failed with error " + std::to_string(WSAGetLastError()));
+			update_server_msgs("Send UDP Packet failed with error " + std::to_string(WSAGetLastError()));
 			return 0;
 		}
 	}
@@ -355,7 +358,6 @@ void start_receiving_stream()
 
 	Flags = 0;
 
-	OutputDebugStringA("Run 1st\n");
 	if (WSARecvFrom(FileStreamSocketInfo->Socket, &(FileStreamSocketInfo->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& client, &client_len, &(FileStreamSocketInfo->Overlapped), FileStream_ReceiveRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
