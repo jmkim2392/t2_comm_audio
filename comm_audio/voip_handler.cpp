@@ -24,8 +24,9 @@ DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 	// Create a datagram socket
 	if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
 	{
-		printf("%d", WSAGetLastError());
-		perror("Can't create a socket");
+		char debug_buf[512];
+		sprintf_s(debug_buf, sizeof(debug_buf), "%d\n", WSAGetLastError());
+		OutputDebugStringA(debug_buf);
 		exit(1);
 	}
 
@@ -34,9 +35,11 @@ DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 	server.sin_family = AF_INET;
 	server.sin_port = htons(RECEIVING_PORT);
 	server.sin_addr.s_addr = htonl(INADDR_ANY);
-	if (bind(sock, (struct sockaddr *)&server, sizeof(server)) == -1)
+	if (bind(sock, (struct sockaddr *)&server, sizeof(server)) == -1)		// ERROR 10048: address already in use
 	{
-		perror("Can't bind name to socket");
+		char debug_buf[512];
+		sprintf_s(debug_buf, sizeof(debug_buf), "%d\n", WSAGetLastError());
+		OutputDebugStringA(debug_buf);
 		exit(1);
 	}
 
