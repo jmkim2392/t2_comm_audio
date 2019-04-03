@@ -7,6 +7,10 @@
 // - receiving: use start_receiving_stream() as it already has a routine and plays audio
 //		-> problem: want to specify different socket and port
 
+
+
+
+
 DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 {
 	LPREQUEST_PACKET packet = (LPREQUEST_PACKET)lpParameter;

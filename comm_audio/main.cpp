@@ -466,6 +466,7 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			show_dialog(IDM_FILE_STREAM_TYPE, hwnd);
 			break;
 		case IDM_VOIP_TYPE:
+			request_voip();
 			show_dialog(IDM_VOIP_TYPE, hwnd);
 			break;
 		case IDM_MULTICAST_TYPE:

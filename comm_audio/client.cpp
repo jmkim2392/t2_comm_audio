@@ -324,6 +324,40 @@ void request_file_stream(LPCWSTR filename)
 	send_request(AUDIO_STREAM_REQUEST_TYPE, stream_req_msg);
 }
 
+void request_voip()
+{
+	// do i need to initialize a voip completed event here?
+	//initialize_wsa_events(&FileStreamCompleted);
+
+	update_client_msgs("Requesting VOIP from server...");
+
+	// is this proper message for VOIP request?
+	std::wstring temp_msg = current_device_ip + packetMsgDelimiter + udp_port_num + packetMsgDelimiter;
+	LPCWSTR stream_req_msg = temp_msg.c_str();
+
+	send_request(VOIP_REQUEST_TYPE, stream_req_msg);
+
+
+	HANDLE ReceiverThread;
+	DWORD ReceiverThreadId;
+	if ((ReceiverThread = CreateThread(NULL, 0, ReceiverThreadFunc, (LPVOID)0, 0, &ReceiverThreadId)) == NULL)
+	{
+		printf("CreateThread failed with error %d\n", GetLastError());
+		return;
+	}
+
+	HANDLE SenderThread;
+	DWORD SenderThreadId;
+	if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)0, 0, &SenderThreadId)) == NULL)
+	{
+		printf("CreateThread failed with error %d\n", GetLastError());
+		return;
+	}
+
+	// do i need to add both threads?
+	//add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
+}
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminate_client
 --
