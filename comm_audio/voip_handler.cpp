@@ -4,9 +4,13 @@
 // - ports have to be opposite for client and server
 //		-> client send = server receive
 // - both client and server could use these functions
+// - receiving: use start_receiving_stream() as it already has a routine and plays audio
+//		-> problem: want to specify different socket and port
 
 DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 {
+	LPREQUEST_PACKET packet = (LPREQUEST_PACKET)lpParameter;
+
 	SOCKET sock;
 	struct sockaddr_in server;
 	int data_size;
@@ -32,30 +36,32 @@ DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 		exit(1);
 	}
 
-	//while (TRUE)
-	//{
-	//	int client_len = sizeof(client);
-	//	if ((data_size = recvfrom(sock, buf, MAXLEN, 0, (struct sockaddr *)&client, &client_len)) < 0)
-	//	{
-	//		printf("%d\n", WSAGetLastError());
-	//		exit(1);
-	//	}
-	//	printf("Received %d bytes\t", data_size);
-	//	printf("From host: %s\n", inet_ntoa(client.sin_addr));
+	// TODO: comment after testing regular data
+	while (TRUE)
+	{
+		int client_len = sizeof(client);
+		if ((data_size = recvfrom(sock, buf, MAXLEN, 0, (struct sockaddr *)&client, &client_len)) < 0)
+		{
+			printf("%d\n", WSAGetLastError());
+			exit(1);
+		}
 
-	//	// play audio?
-	//}
+		printf("Received %d bytes\t", data_size);
+		printf("From host: %s\n", inet_ntoa(client.sin_addr));
 
+		// play audio?
+	}
 
-	// use start_receiving_stream() instead
-	// problem: want to specify socket and port myself
-	start_receiving_stream();
+	// TODO: uncomment after testing regular data
+	//start_receiving_stream();
 
 	closesocket(sock);
 }
 
 DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 {
+	LPREQUEST_PACKET packet = (LPREQUEST_PACKET)lpParameter;
+
 	SOCKET sock;
 	char buf[MAXLEN] = "hello";
 	int data_size = 64;

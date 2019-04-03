@@ -286,6 +286,21 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 				case VOIP_REQUEST_TYPE:
 					// voip request
 					// parsedPacket.message should contain the client info
+					HANDLE ReceiverThread;
+					DWORD ReceiverThreadId;
+					if ((ReceiverThread = CreateThread(NULL, 0, ReceiverThreadFunc, (LPVOID)&parsedPacket, 0, &ReceiverThreadId)) == NULL)
+					{
+						printf("CreateThread failed with error %d\n", GetLastError());
+						return 1;
+					}
+
+					HANDLE SenderThread;
+					DWORD SenderThreadId;
+					if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)&parsedPacket, 0, &SenderThreadId)) == NULL)
+					{
+						printf("CreateThread failed with error %d\n", GetLastError());
+						return 1;
+					}
 					break;
 				case AUDIO_BUFFER_FULL_TYPE:
 					break;

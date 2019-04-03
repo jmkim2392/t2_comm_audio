@@ -103,6 +103,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	start_request_receiver();
 	start_request_handler();
 	//start_broadcast(&udp_audio_socket, udp_port);
+	// start listening for VOIP requests?
 
 	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&tcp_accept_socket, 0, &ThreadId)) == NULL)
 	{
