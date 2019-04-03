@@ -286,6 +286,9 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 				case VOIP_REQUEST_TYPE:
 					// voip request
 					// parsedPacket.message should contain the client info
+
+					// specify addr and port to bind to
+
 					HANDLE ReceiverThread;
 					DWORD ReceiverThreadId;
 					if ((ReceiverThread = CreateThread(NULL, 0, ReceiverThreadFunc, (LPVOID)&parsedPacket, 0, &ReceiverThreadId)) == NULL)

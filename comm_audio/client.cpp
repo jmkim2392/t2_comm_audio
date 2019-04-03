@@ -337,6 +337,7 @@ void request_voip()
 
 	send_request(VOIP_REQUEST_TYPE, stream_req_msg);
 
+	// specify addr and port to bind to
 
 	HANDLE ReceiverThread;
 	DWORD ReceiverThreadId;

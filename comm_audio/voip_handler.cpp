@@ -60,6 +60,7 @@ DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 	}
 
 	// TODO: uncomment after testing regular data
+	// this will just use the socket in that function
 	//start_receiving_stream();
 
 	closesocket(sock);
