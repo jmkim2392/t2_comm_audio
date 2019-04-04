@@ -1,10 +1,56 @@
+/*-------------------------------------------------------------------------------------
+--	SOURCE FILE: voip_handler.cpp - Contains voip functions for Comm_Audio
+--
+--	PROGRAM:		Comm_Audio
+--
+--	FUNCTIONS:
+--					DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
+--					void start_receiving_voip(LPCWSTR udp_port)
+--					void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags)
+--					DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
+--					
+--					
+--
+--	DATE:			April 3, 2019
+--
+--	REVISIONS:		April 3, 2019
+--
+--	DESIGNER:		Dasha Strigoun
+--
+--	PROGRAMMER:		Dasha Strigoun
+--
+--
+--------------------------------------------------------------------------------------*/
 #include "voip_handler.h"
 
 
 struct sockaddr_in receiving_client;
 int receiving_client_len;
 
+// NOTES:
+// - commit 6202f72363b3804812cc719bd9d4b1a75f8b6977 has server receiving and client sending successfully
+// - this version has sending, but receiving doesn't hit completion routine for some reason
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	ReceiverThreadFunc
+--
+--	DATE:			April 3, 2019
+--
+--	REVISIONS:		April 3, 2019
+--
+--	DESIGNER:		Dasha Strigoun
+--
+--	PROGRAMMER:		Dasha Strigoun
+--
+--	INTERFACE:		DWORD WINAPI SendStreamThreadFunc(LPVOID lpParameter)
+--										LPVOID lpParameter - a LPVOIP_INFO struct that contains the event that
+--										signifies completion and the UDP port number
+--
+--	RETURNS:		DWORD - 0 Thread terminated
+--
+--	NOTES:
+--	Thread function for receiving VOIP packets
+--------------------------------------------------------------------------------------*/
 DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 {
 	LPVOIP_INFO params = (LPVOIP_INFO)lpParameter;
@@ -39,6 +85,25 @@ DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 	return 0;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_receiving_voip
+--
+--	DATE:			April 3, 2019
+--
+--	REVISIONS:		April 3, 2019
+--
+--	DESIGNER:		Dasha Strigoun
+--
+--	PROGRAMMER:		Dasha Strigoun
+--
+--	INTERFACE:		void start_receiving_voip(LPCWSTR udp_port)
+--									LPCWSTR udp_port - UDP socket port number
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to receive voip packets
+--------------------------------------------------------------------------------------*/
 void start_receiving_voip(LPCWSTR udp_port)
 {
 	DWORD RecvBytes;
@@ -88,7 +153,7 @@ void start_receiving_voip(LPCWSTR udp_port)
 	VoipSocketInfo->Socket = receiving_voip_socket;
 	VoipSocketInfo->DataBuf.buf = VoipSocketInfo->AUDIO_BUFFER;
 	VoipSocketInfo->DataBuf.len = AUDIO_PACKET_SIZE;
-	VoipSocketInfo->Sock_addr = server_addr_udp;
+	//VoipSocketInfo->Sock_addr = server_addr_udp;
 
 	if (WSARecvFrom(VoipSocketInfo->Socket, &(VoipSocketInfo->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& receiving_client, &receiving_client_len, &(VoipSocketInfo->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
 	{
@@ -100,9 +165,26 @@ void start_receiving_voip(LPCWSTR udp_port)
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	Voip_ReceiveRoutine
+--
+--	DATE:			April 3, 2019
+--
+--	REVISIONS:		April 3, 2019
+--
+--	DESIGNER:		Dasha Strigoun
+--
+--	PROGRAMMER:		Dasha Strigoun
+--
+--	INTERFACE:		void CALLBACK FileStream_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags)
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Completion routine for receiving voip packets
+--------------------------------------------------------------------------------------*/
 void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags)
 {
-	// dasha - not hitting the receive routine...
 	DWORD RecvBytes;
 	DWORD Flags;
 
@@ -141,9 +223,6 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 
 	Flags = 0;
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
-	
-	// not receiving anything anymore???
-	// maybe put sending thread in completion routine??
 
 	update_client_msgs("Received data");
 	update_server_msgs("Received data");
@@ -212,6 +291,7 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 		update_client_msgs("Sent data");
 		update_server_msgs("Sent data");
 
+		//Sleep() is for slowing it down a little; normally filling up the buffer will slow it down
 		Sleep(1000);
 	}
 
