@@ -31,6 +31,10 @@ int receiving_client_len;
 // - commit 6202f72363b3804812cc719bd9d4b1a75f8b6977 has server receiving and client sending successfully
 // - this version has sending, but receiving doesn't hit completion routine for some reason
 
+// - ^ reason was the port; hardcoded port works fine
+// - tried tracking the port on the client & server side.. looks fine to me....
+//		-> try tracking in server, client, ReceiverThread, SenderThread, start_voip, & completion routine
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	ReceiverThreadFunc
 --
@@ -118,11 +122,13 @@ void start_receiving_voip(LPCWSTR udp_port)
 
 	LPSOCKET_INFORMATION VoipSocketInfo;
 
+	//LPCWSTR temp_udp_port = L"4981";
+
 	//open udp socket
 	initialize_wsa(udp_port, &receiving_client);
 	open_socket(&receiving_voip_socket, SOCK_DGRAM, IPPROTO_UDP);
 
-	setup_svr_addr(&server_addr_udp, udp_port, L"192.168.1.73");
+	setup_svr_addr(&server_addr_udp, udp_port, L"142.232.48.31");
 
 	//bind to server address
 	if (bind(receiving_voip_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
@@ -153,7 +159,7 @@ void start_receiving_voip(LPCWSTR udp_port)
 	VoipSocketInfo->Socket = receiving_voip_socket;
 	VoipSocketInfo->DataBuf.buf = VoipSocketInfo->AUDIO_BUFFER;
 	VoipSocketInfo->DataBuf.len = AUDIO_PACKET_SIZE;
-	//VoipSocketInfo->Sock_addr = server_addr_udp;
+	VoipSocketInfo->Sock_addr = server_addr_udp;
 
 	if (WSARecvFrom(VoipSocketInfo->Socket, &(VoipSocketInfo->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& receiving_client, &receiving_client_len, &(VoipSocketInfo->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
 	{
@@ -252,6 +258,9 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 	BOOL bOptVal = FALSE;
 	int bOptLen = sizeof(BOOL);
 
+	//USHORT udp_port = 4981;
+	USHORT udp_port = (USHORT)params->Udp_Port;
+
 	// Create a datagram socket
 	if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
 	{
@@ -261,11 +270,12 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 
 	memset((char *)&client, 0, sizeof(client));
 	client.sin_family = AF_INET;
-	client.sin_port = htons((USHORT)params->Udp_Port);
+	client.sin_port = htons(udp_port);
+
 
 	int client_len = sizeof(client);
 
-	if ((hp = gethostbyname("192.168.1.73")) == NULL)
+	if ((hp = gethostbyname("142.232.48.31")) == NULL)
 	{
 		fprintf(stderr, "Can't get server's IP address\n");
 		exit(1);
