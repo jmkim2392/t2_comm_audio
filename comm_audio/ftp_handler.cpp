@@ -332,7 +332,8 @@ DWORD WINAPI ReceiveFileThreadFunc(LPVOID lpParameter)
 				break;
 			}
 
-			if (!isReceivingFile) {
+			if (!isReceivingFile) 
+			{
 				close_file();
 			}
 		}
@@ -396,11 +397,14 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 		return;
 	}
 
-	if (BytesTransferred != FTP_PACKET_SIZE) {
-		if (SI->DataBuf.buf[BytesTransferred] == FILE_NOT_FOUND) {
+	if (BytesTransferred != FTP_PACKET_SIZE) 
+	{
+		if (SI->DataBuf.buf[BytesTransferred] == FILE_NOT_FOUND) 
+		{
 			finalize_ftp("File Not Found on server.");
 		}
-		else if (SI->DataBuf.buf[BytesTransferred] == TRANSFER_COMPLETE) {
+		else if (SI->DataBuf.buf[BytesTransferred] == TRANSFER_COMPLETE) 
+		{
 			finalize_ftp("File transfer completed.");
 		}
 	}

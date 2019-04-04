@@ -16,3 +16,4 @@ void update_client_msgs(std::string message);
 void finalize_ftp(std::string msg);
 void start_client_request_receiver();
 void start_client_request_handler();
+void reset_client_request_receiver();

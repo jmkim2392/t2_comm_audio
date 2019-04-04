@@ -530,7 +530,7 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 
 			break;
 		case IDCANCEL:
-			// Disconnect process
+			reset_client_request_receiver();
 			EnableWindow(control_panel_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
 			return 1;

@@ -215,29 +215,6 @@ DWORD WINAPI SendStreamThreadFunc(LPVOID lpParameter)
 }
 
 /*-------------------------------------------------------------------------------------
---	FUNCTION:	send_file_not_found_packet_udp
---
---	DATE:			March 31, 2019
---
---	REVISIONS:		March 31, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void send_file_not_found_packet_udp() 
---
---	RETURNS:		void
---
---	NOTES:
---	Call this thread to send a file not found udp packet to the client
---	TODO
---------------------------------------------------------------------------------------*/
-void send_file_not_found_packet_udp() {
-
-}
-
-/*-------------------------------------------------------------------------------------
 --	FUNCTION:	ReceiveStreamThreadFunc
 --
 --	DATE:			March 31, 2019

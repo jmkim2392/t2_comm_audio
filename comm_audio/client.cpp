@@ -253,7 +253,6 @@ void request_wav_file(LPCWSTR filename)
 {
 	DWORD ThreadId;
 
-
 	initialize_ftp(&cl_tcp_req_socket, FtpCompleted);
 	update_client_msgs("Requesting file from server...");
 	ftp_info.filename = filename;
@@ -433,6 +432,12 @@ void start_client_request_handler()
 		return;
 	}
 	add_new_thread(ThreadId);
+}
+
+void reset_client_request_receiver() 
+{
+	TriggerWSAEvent(FtpCompleted);
+	WSAResetEvent(FtpCompleted);
 }
 
 /*-------------------------------------------------------------------------------------
