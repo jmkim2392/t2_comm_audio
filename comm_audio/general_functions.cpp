@@ -159,7 +159,24 @@ void add_new_thread_gen(DWORD threadList[], DWORD threadId, int threadCount)
 	threadList[threadCount] = threadId;
 }
 
-
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	get_current_time
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		APril 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		std::string get_current_time() 
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to get the current timestamp
+--------------------------------------------------------------------------------------*/
 std::string get_current_time() 
 {
 	char str[70];
@@ -171,6 +188,24 @@ std::string get_current_time()
 	return time_str;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	get_device_ip
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		APril 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		std::wstring get_device_ip() 
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to get the current device's first active ip address
+--------------------------------------------------------------------------------------*/
 std::wstring get_device_ip() 
 {
 	DWORD dwSize = 0;
@@ -238,13 +273,7 @@ std::wstring get_device_ip()
 			if (pCurrAddresses->OperStatus == IfOperStatusUp) {
 				iRetval =WSAAddressToString(pCurrAddresses->FirstUnicastAddress->Address.lpSockaddr, (DWORD)pCurrAddresses->FirstUnicastAddress->Address.iSockaddrLength, NULL, ipstringbuffer, &ipbufferlength);
 				std::wstring ws(ipstringbuffer);
-				//std::string str(ws.begin(), ws.end());
 				return ws;
-				/*if (iRetval != 0)
-				{
-					int temp = WSAGetLastError();
-					printf((char*)iRetval);
-				}*/
 			}
 			pCurrAddresses = pCurrAddresses->Next;
 		}

@@ -266,6 +266,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 --
 --	REVISIONS:		March 8, 2019
 --					March 11, 2019 - JK - added packet parsing and request handling 
+--					April 4, 2019 - JK - added additional request handling for client side
 --
 --	DESIGNER:		Jason Kim
 --
@@ -316,21 +317,14 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 			if (!request.empty()) {
 				switch (parsedPacket.type) {
 				case WAV_FILE_REQUEST_TYPE:
-					// audio file request
-					// parsedPacket.message should contain the file name
 					parseRequest(&parsedPacket, request);
 					update_server_msgs("Received file transfer request for " + parsedPacket.message);
 					start_ftp(parsedPacket.message);
 					break;
 				case AUDIO_STREAM_REQUEST_TYPE:
-					// audio file stream request
-					// parsedPacket.message should contain the file name
 					parseRequest(&parsedPacket, request);
 					update_server_msgs("Received file stream request for " + parsedPacket.message);
-
-					// TODO: change hardcoded ip string with received client address
 					start_file_stream(parsedPacket.message, parsedPacket.port_num, parsedPacket.ip_addr);
-				
 					break;
 				case VOIP_REQUEST_TYPE:
 					// voip request
@@ -358,16 +352,36 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 	return 0;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	getPacketType
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void getPacketType(LPREQUEST_PACKET parsedPacket, std::string packet)
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to get the type of the request
+--------------------------------------------------------------------------------------*/
 void getPacketType(LPREQUEST_PACKET parsedPacket, std::string packet)
 {
 	parsedPacket->type = packet.at(0) - '0';
 }
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	parseRequest
 --
 --	DATE:			March 8, 2019
 --
 --	REVISIONS:		March 8, 2019
+--					April 4, 2019 - removed packet type parsing to another function
 --
 --	DESIGNER:		Jason Kim
 --
@@ -403,6 +417,26 @@ void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	parseFileListRequest
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void parseFileListRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
+--									LPREQUEST_PACKET parsedPacket - packet struct to be populated
+--									std::string packet - the packet to parse
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to parse a request packet containing a list of files
+--------------------------------------------------------------------------------------*/
 void parseFileListRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 {
 	std::vector<std::string> list;
@@ -440,6 +474,26 @@ std::string generateRequestPacket(int type, std::string message)
 	return std::to_string(type) + message;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	generateReqPacketWithData
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		std::string generateReqPacketWithData(int type, std::vector<std::string> messages)
+--									int type - the type of request
+--									std::string message - request messages
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to generate a request packet with multiple messages
+--------------------------------------------------------------------------------------*/
 std::string generateReqPacketWithData(int type, std::vector<std::string> messages)
 {
 	std::string listStringified;

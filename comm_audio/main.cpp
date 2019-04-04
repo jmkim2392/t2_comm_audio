@@ -197,6 +197,7 @@ void show_dialog(int type, HWND p_hwnd)
 		break;
 	case IDM_FILE_REQUEST_TYPE:
 		popup = CreateDialog(hInstance, FileReqDialogName, p_hwnd, (DLGPROC)FileReqProc);
+		send_request_to_svr(FILE_LIST_REQUEST_TYPE, L"FILELISTREQ");
 		break;
 	case IDM_FILE_STREAM_TYPE:
 		popup = CreateDialog(hInstance, FileReqDialogName, p_hwnd, (DLGPROC)FileReqProc);
@@ -460,7 +461,7 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 		case IDM_FILE_REQUEST_TYPE:
 			selectedFeatureType = IDM_FILE_REQUEST_TYPE;
 			show_dialog(IDM_FILE_REQUEST_TYPE, hwnd);
-			enableButtons(FALSE);
+			//enableButtons(FALSE);
 			break;
 		case IDM_FILE_STREAM_TYPE:
 			selectedFeatureType = IDM_FILE_STREAM_TYPE;
@@ -644,6 +645,25 @@ void update_messages(std::vector<std::string> messages)
 	delete[] output;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	setup_file_list_dropdown
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void setup_file_list_dropdown(std::vector<std::string> options)
+--									std::vector<std::string> options - list of options
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to populate the drop down menu
+--------------------------------------------------------------------------------------*/
 void setup_file_list_dropdown(std::vector<std::string> options)
 {
 	HWND dropdown = GetDlgItem(popup, IDM_FILE_LIST_DROPDOWN);

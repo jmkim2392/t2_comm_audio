@@ -13,6 +13,7 @@
 --
 --	REVISIONS:		March 14, 2019
 --					March 24, 2019 - JK - Added FTP Feature
+--					April 4, 2019 - JK - Added TCP request listener for client
 --
 --	DESIGNER:		Jason Kim
 --
@@ -368,6 +369,24 @@ void update_client_msgs(std::string message)
 	update_messages(client_msgs);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_client_request_receiver
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void start_client_request_receiver()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to start listening for requests from server
+--------------------------------------------------------------------------------------*/
 void start_client_request_receiver()
 {
 	DWORD ThreadId;
@@ -384,6 +403,24 @@ void start_client_request_receiver()
 	add_new_thread(ThreadId);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_client_request_handler
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void start_client_request_handler()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to start the request handler thread for client
+--------------------------------------------------------------------------------------*/
 void start_client_request_handler()
 {
 	DWORD ThreadId;

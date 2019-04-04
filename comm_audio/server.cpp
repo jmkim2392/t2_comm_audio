@@ -24,6 +24,8 @@
 --------------------------------------------------------------------------------------*/
 #include "server.h"
 
+namespace fs = std::filesystem;
+
 SOCKET svr_tcp_accept_socket;
 SOCKET udp_audio_socket;
 
@@ -55,7 +57,6 @@ int svr_threadCount = 0;
 
 std::vector<std::string> server_msgs;
 
-namespace fs = std::filesystem;
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_server
 --
@@ -112,7 +113,6 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 		return;
 	}
 
-	//LPCWSTR temp = get_device_ip();
 	add_new_thread(ThreadId);
 	update_server_msgs("Server online..");
 	update_status(connectedMsg);
@@ -546,6 +546,25 @@ void resume_streaming() {
 	TriggerEvent(ResumeSendEvent);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	send_request_to_clnt
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void send_request_to_clnt(std::string msg)
+--									std::string msg - message to send to client
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to send a request packet to the connected client
+--------------------------------------------------------------------------------------*/
 void send_request_to_clnt(std::string msg)
 {
 	size_t i;
@@ -568,6 +587,24 @@ void send_request_to_clnt(std::string msg)
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	get_file_list
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void get_file_list()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to retrieve a list of wav files in the same directory of exe
+--------------------------------------------------------------------------------------*/
 std::vector<std::string> get_file_list()
 {
 	std::vector<std::string> file_list;
