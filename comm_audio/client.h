@@ -14,3 +14,5 @@ void request_file_stream(LPCWSTR filename);
 void terminate_client();
 void update_client_msgs(std::string message);
 void finalize_ftp(std::string msg);
+void start_client_request_receiver();
+void start_client_request_handler();

@@ -34,8 +34,12 @@ SOCKADDR_IN server_addr_tcp;
 SOCKADDR_IN server_addr_udp;
 int server_len;
 
+TCP_SOCKET_INFO clnt_tcp_socket_info;
+
 HANDLE FileReceiverThread;
 HANDLE FileStreamerThread;
+HANDLE ClntRequestHandlerThread;
+HANDLE ClntRequestReceiverThread;
 FTP_INFO ftp_info;
 
 std::vector<std::string> client_msgs;
@@ -47,6 +51,8 @@ BOOL isConnected = TRUE;
 
 WSAEVENT FtpCompleted;
 WSAEVENT FileStreamCompleted;
+WSAEVENT ClntReqRecvEvent;
+HANDLE DisconnectEvent;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_client
@@ -73,6 +79,9 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 {
 	BOOL bOptVal = FALSE;
 	int bOptLen = sizeof(BOOL);
+
+	initialize_events_gen(&DisconnectEvent, L"Disconnect");
+
 	//open udp socket
 	udp_port_num = udp_port;
 	initialize_wsa(udp_port, &cl_addr);
@@ -107,6 +116,9 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	{
 		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
+
+	start_client_request_receiver();
+	start_client_request_handler();
 
 	initialize_audio_device();
 
@@ -353,6 +365,35 @@ void update_client_msgs(std::string message)
 	}
 	client_msgs.push_back(cur_time + message);
 	update_messages(client_msgs);
+}
+
+void start_client_request_receiver()
+{
+	DWORD ThreadId;
+
+	clnt_tcp_socket_info.tcp_socket = cl_tcp_req_socket;
+	clnt_tcp_socket_info.CompleteEvent = ClntReqRecvEvent;
+	clnt_tcp_socket_info.event = DisconnectEvent;
+
+	if ((ClntRequestReceiverThread = CreateThread(NULL, 0, SvrRequestReceiverThreadFunc, (LPVOID)&clnt_tcp_socket_info, 0, &ThreadId)) == NULL)
+	{
+		update_client_msgs("Failed to create RequestReceiverThread " + std::to_string(GetLastError()));
+		return;
+	}
+	add_new_thread(ThreadId);
+}
+
+void start_client_request_handler()
+{
+	DWORD ThreadId;
+	initialize_wsa_events(&ClntReqRecvEvent);
+
+	if ((ClntRequestHandlerThread = CreateThread(NULL, 0, HandleRequest, (LPVOID)ClntReqRecvEvent, 0, &ThreadId)) == NULL)
+	{
+		update_client_msgs("Failed to create RequestHandler Thread " + std::to_string(GetLastError()));
+		return;
+	}
+	add_new_thread(ThreadId);
 }
 
 /*-------------------------------------------------------------------------------------

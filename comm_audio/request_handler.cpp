@@ -4,7 +4,7 @@
 --	PROGRAM:		Comm_Audio
 --
 --	FUNCTIONS:
---					DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter);
+--					DWORD WINAPI SvrRequestReceiverThreadFunc(LPVOID lpParameter);
 --					void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred, 
 --												LPWSAOVERLAPPED Overlapped, DWORD InFlags);
 --					DWORD WINAPI HandleRequest(LPVOID lpParameter);
@@ -28,7 +28,7 @@ bool isAcceptingRequests = FALSE;
 circular_buffer<std::string> request_buffer(10);
 
 /*-------------------------------------------------------------------------------------
---	FUNCTION:	RequestReceiverThreadFunc
+--	FUNCTION:	SvrRequestReceiverThreadFunc
 --
 --	DATE:			March 8, 2019
 --
@@ -38,7 +38,7 @@ circular_buffer<std::string> request_buffer(10);
 --
 --	PROGRAMMER:		Jason Kim
 --
---	INTERFACE:		DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
+--	INTERFACE:		DWORD WINAPI SvrRequestReceiverThreadFunc(LPVOID lpParameter)
 --									LPVOID lpParameter - request handler info struct
 --
 --	RETURNS:		DWORD
@@ -47,7 +47,7 @@ circular_buffer<std::string> request_buffer(10);
 --	Request Receiver Thread function to wait for Accept Events and start receiving requests
 --	from client
 --------------------------------------------------------------------------------------*/
-DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
+DWORD WINAPI SvrRequestReceiverThreadFunc(LPVOID lpParameter)
 {
 	LPTCP_SOCKET_INFO req_handler_info;
 	WSAEVENT EventArray[1];
@@ -87,6 +87,19 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 		start_receiving_requests(req_handler_info->tcp_socket, req_handler_info->CompleteEvent);
 		
 	}
+	return TRUE;
+}
+
+DWORD WINAPI ClntReqReceiverThreadFunc(LPVOID lpParameter)
+{
+	LPTCP_SOCKET_INFO req_handler_info;
+
+	req_handler_info = (LPTCP_SOCKET_INFO)lpParameter;
+
+	start_receiving_requests(req_handler_info->tcp_socket, req_handler_info->CompleteEvent);
+
+	WaitForSingleObject(req_handler_info->event, INFINITE);
+
 	return TRUE;
 }
 
@@ -348,6 +361,10 @@ void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 	}
 }
 
+void parseFileListRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
+{
+
+}
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	generateRequestPacket
 --
@@ -371,4 +388,9 @@ void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 std::string generateRequestPacket(int type, std::string message)
 {
 	return std::to_string(type) + message;
+}
+
+std::string generateReqPacketWithData(int type, std::vector<std::string> messages)
+{
+
 }

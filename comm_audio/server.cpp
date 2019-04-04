@@ -175,7 +175,7 @@ void start_request_receiver()
 	tcp_socket_info.tcp_socket = RequestSocket;
 	tcp_socket_info.CompleteEvent = RequestReceivedEvent;
 
-	if ((RequestReceiverThread = CreateThread(NULL, 0, RequestReceiverThreadFunc, (LPVOID)&tcp_socket_info, 0, &ThreadId)) == NULL)
+	if ((RequestReceiverThread = CreateThread(NULL, 0, SvrRequestReceiverThreadFunc, (LPVOID)&tcp_socket_info, 0, &ThreadId)) == NULL)
 	{
 		update_server_msgs("Failed to create RequestReceiverThread " + std::to_string(GetLastError()));
 		return;
