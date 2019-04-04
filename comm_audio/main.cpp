@@ -520,15 +520,10 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 			EndDialog(hwnd, wParam);
 			if (selectedFeatureType == IDM_FILE_REQUEST_TYPE)
 			{
-				//TODO: to uncomment after testing features
 				request_wav_file(filename);
-
-				//TODO: to remove after testing 
-				//request_wav_file(L"Tester.wav");
 			}
 			else {
 				request_file_stream(filename);
-				//request_file_stream(L"Time.wav");
 				show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
 			}
 
