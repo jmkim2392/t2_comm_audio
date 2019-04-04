@@ -31,6 +31,7 @@ typedef struct _SOCKET_INFORMATION {
 	CHAR AUDIO_BUFFER[AUDIO_BLOCK_SIZE];
 	WSABUF DataBuf;
 	WSAEVENT CompletedEvent;
+	WSAEVENT FtpCompletedEvent;
 	HANDLE EventTrigger;
 	SOCKADDR_IN Sock_addr;
 	DWORD BytesSEND;

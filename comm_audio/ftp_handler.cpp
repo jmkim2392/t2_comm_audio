@@ -392,6 +392,7 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 		
 		isReceivingFile = FALSE;
 		TriggerWSAEvent(SI->CompletedEvent);
+		WSAResetEvent(SI->CompletedEvent);
 		return;
 	}
 

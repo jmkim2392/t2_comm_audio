@@ -84,7 +84,7 @@ DWORD WINAPI SvrRequestReceiverThreadFunc(LPVOID lpParameter)
 		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
 
 		update_server_msgs("Client connected");
-		start_receiving_requests(req_handler_info->tcp_socket, req_handler_info->CompleteEvent);
+		start_receiving_requests(req_handler_info->tcp_socket, req_handler_info->CompleteEvent, NULL);
 		
 	}
 	return TRUE;
@@ -102,7 +102,7 @@ DWORD WINAPI ClntReqReceiverThreadFunc(LPVOID lpParameter)
 	EventArray[0] = req_handler_info->event;
 	isAcceptingRequests = TRUE;
 
-	start_receiving_requests(req_handler_info->tcp_socket, req_handler_info->CompleteEvent);
+	start_receiving_requests(req_handler_info->tcp_socket, req_handler_info->CompleteEvent, req_handler_info->FtpCompleteEvent);
 
 	while (isAcceptingRequests)
 	{
@@ -132,7 +132,7 @@ DWORD WINAPI ClntReqReceiverThreadFunc(LPVOID lpParameter)
 	return TRUE;
 }
 
-void start_receiving_requests(SOCKET request_socket, WSAEVENT recvReqEvent)
+void start_receiving_requests(SOCKET request_socket, WSAEVENT recvReqEvent, WSAEVENT ftpCompleteEvent)
 {
 	LPSOCKET_INFORMATION SocketInfo;
 	DWORD Flags = 0;
@@ -156,6 +156,7 @@ void start_receiving_requests(SOCKET request_socket, WSAEVENT recvReqEvent)
 	SocketInfo->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
 	SocketInfo->DataBuf.buf = SocketInfo->Buffer;
 	SocketInfo->CompletedEvent = recvReqEvent;
+	SocketInfo->FtpCompletedEvent = ftpCompleteEvent;
 	Flags = 0;
 
 	retVal = WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes, &Flags, &(SocketInfo->Overlapped), RequestReceiverRoutine);
@@ -227,11 +228,13 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	{
 		request_buffer.put(SI->DataBuf.buf);
  		SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+		SI->BytesRECV = BytesTransferred;
 		TriggerWSAEvent(SI->CompletedEvent);
 	}
 	else if (BytesTransferred > 0) 
 	{
 		packet = request_buffer.peek();
+		SI->BytesRECV += BytesTransferred;
 		if (packet.length() < DEFAULT_REQUEST_PACKET_SIZE) 
 		{
 			packet += SI->DataBuf.buf;
@@ -247,8 +250,13 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 		} 
 	}
 
+	if (SI->DataBuf.buf[0] == (FILE_LIST_TYPE + '0') && SI->BytesRECV == DEFAULT_REQUEST_PACKET_SIZE)
+	{
+		WaitForSingleObject(SI->FtpCompletedEvent, INFINITE);
+	}
+
 	SI->DataBuf.buf = SI->Buffer;
-	
+
 	if (WSARecv(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, &(SI->Overlapped), RequestReceiverRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
@@ -471,7 +479,7 @@ void parseFileListRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 --------------------------------------------------------------------------------------*/
 std::string generateRequestPacket(int type, std::string message)
 {
-	return std::to_string(type) + message;
+	return std::to_string(type) + message + packetMsgDelimiterStr;
 }
 
 /*-------------------------------------------------------------------------------------

@@ -477,9 +477,6 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 	}*/
 
 	initialize_file_stream(&udp_audio_socket, &client_addr_udp, NULL, ResumeSendEvent);
-	
-	std::string packet = generateRequestPacket(VOIP_REQUEST_TYPE, "TEST");
-	send_request_to_clnt(packet);
 
 	if (open_file_to_stream(filename) == 0) {
 		if ((StreamingThread = CreateThread(NULL, 0, SendStreamThreadFunc, (LPVOID)StreamCompletedEvent, 0, &ThreadId)) == NULL)

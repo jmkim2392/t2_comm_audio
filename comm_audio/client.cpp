@@ -83,6 +83,7 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 
 	initialize_events_gen(&DisconnectEvent, L"Disconnect");
 	initialize_wsa_events(&ClntReqRecvEvent);
+	initialize_wsa_events(&FtpCompleted);
 
 	//open udp socket
 	udp_port_num = udp_port;
@@ -251,7 +252,7 @@ void send_request_to_svr(int type, LPCWSTR request)
 void request_wav_file(LPCWSTR filename) 
 {
 	DWORD ThreadId;
-	initialize_wsa_events(&FtpCompleted);
+
 
 	initialize_ftp(&cl_tcp_req_socket, FtpCompleted);
 	update_client_msgs("Requesting file from server...");
@@ -394,6 +395,7 @@ void start_client_request_receiver()
 	clnt_tcp_socket_info.tcp_socket = cl_tcp_req_socket;
 	clnt_tcp_socket_info.CompleteEvent = ClntReqRecvEvent;
 	clnt_tcp_socket_info.event = DisconnectEvent;
+	clnt_tcp_socket_info.FtpCompleteEvent = FtpCompleted;
 
 	if ((ClntRequestReceiverThread = CreateThread(NULL, 0, ClntReqReceiverThreadFunc, (LPVOID)&clnt_tcp_socket_info, 0, &ThreadId)) == NULL)
 	{
