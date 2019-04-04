@@ -272,7 +272,7 @@ DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter)
 	{
 		WaitForSingleObject(readyEvent, INFINITE);
 		ResetEvent(readyEvent);
-		send_request(AUDIO_BUFFER_RDY_TYPE, L"RDY");
+		send_request_to_svr(AUDIO_BUFFER_RDY_TYPE, L"RDY");
 	}
 	return 0;
 }

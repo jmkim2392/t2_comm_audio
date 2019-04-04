@@ -299,7 +299,6 @@ DWORD WINAPI ReceiveStreamThreadFunc(LPVOID lpParameter)
 	WSAEVENT EventArray[1];
 	isReceivingFileStream = TRUE;
 	EventArray[0] = (WSAEVENT) lpParameter;
-
 	start_receiving_stream();
 
 	while (isReceivingFileStream)
@@ -363,17 +362,6 @@ void start_receiving_stream()
 
 	Flags = 0;
 
-	// Set the timeout value
-
-	iOptVal = 5000;
-
-	iResult = setsockopt(FileStreamSocketInfo->Socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&iOptVal, iOptLen);
-
-	if (iResult == SOCKET_ERROR)
-	{
-		update_client_msgs("setsockopt() failed with error " + std::to_string(WSAGetLastError()));
-	}
-
 	if (WSARecvFrom(FileStreamSocketInfo->Socket, &(FileStreamSocketInfo->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& client, &client_len, &(FileStreamSocketInfo->Overlapped), FileStream_ReceiveRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
@@ -411,43 +399,6 @@ void CALLBACK FileStream_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPW
 	if (Error != 0)
 	{
 		update_client_msgs("I/O operation failed with error " + std::to_string(Error));
-	}
-
-	//TODO: Implement end of file stream process here
-
-	//if (strncmp(SI->DataBuf.buf, fileStream_complete, 18)==0)
-	//{
-	//	update_client_msgs("File Stream completed.");
-	//	update_client_msgs("Closing streaming socket " + std::to_string(SI->Socket));
-
-	//	isReceivingFileStream = FALSE;
-	//	TriggerWSAEvent(SI->CompletedEvent);
-	//	return;
-	//}
-
-	//if (BytesTransferred == 0 || BytesTransferred == 1)
-	//{
-	//	if (strncmp(SI->DataBuf.buf, fileStream_not_found, 1) == 0)
-	//	{
-	//		//FILE NOT FOUND PROCESS
-	//		update_client_msgs("File Not Found on server.");
-	//		//finalize_ftp("File Not Found on server.");
-	//	}
-	//	else if (strncmp(SI->DataBuf.buf, fileStream_complete, 1) == 0)
-	//	{
-	//		//FTP COMPLETE PROCESS
-	//		update_client_msgs("File Stream completed.");
-	//		//finalize_ftp("File transfer completed.");
-	//	}
-	//	update_client_msgs("Closing ftp socket " + std::to_string(SI->Socket));
-
-	//	isReceivingFileStream = FALSE;
-	//	TriggerWSAEvent(SI->CompletedEvent);
-	//	return;
-	//}
-
-	if (BytesTransferred != AUDIO_PACKET_SIZE) {
-		return;
 	}
 
 	packetNUmRecv++;
@@ -538,21 +489,6 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 			}
 		}
 	}
-	else
-	{
-		memset(file_stream_buf, 0, strlen(file_stream_buf));
-		strcat_s(file_stream_buf, 18, "Transfer Complete");
-		SI->DataBuf.buf = file_stream_buf;
-		SI->DataBuf.len = AUDIO_PACKET_SIZE;
-		update_server_msgs("File Stream completed");
-		if (WSASendTo(SI->Socket, &(SI->DataBuf), 1, &SendBytes_FileStream, 0, (SOCKADDR *)&(SI->Sock_addr), sizeof(SI->Sock_addr), &(SI->Overlapped), NULL) == SOCKET_ERROR)
-		{
-			if (WSAGetLastError() != WSA_IO_PENDING)
-			{
-				update_server_msgs("WSASend() failed with error " + std::to_string(WSAGetLastError()));
-				return;
-			}
-		}
-	}
+	return;
 }
 

@@ -42,7 +42,7 @@ typedef struct _BROADCAST_INFO {
 	int portNum;
 } BROADCAST_INFO, *LPBROADCAST_INFO;
 
-static HWND parent_hwnd, child_hwnd, control_panel_hwnd;
+static HWND parent_hwnd, child_hwnd, control_panel_hwnd, popup;
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance, LPSTR lspszCmdParam, int nCmdShow);
 
@@ -66,3 +66,4 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 void update_status(std::string newStatus);
 
 void update_messages(std::vector<std::string> messages);
+void setup_file_list_dropdown(std::vector<std::string> options);

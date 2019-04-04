@@ -6,7 +6,7 @@
 --	FUNCTIONS:
 --					void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr);
 --					void setup_svr_addr(SOCKADDR_IN* svr_addr, LPCWSTR tcp_port, LPCWSTR svr_ip_addr);
---					void send_request(int type, LPCWSTR request);
+--					void send_request_to_svr(int type, LPCWSTR request);
 --					void terminate_client();
 --
 --	DATE:			March 14, 2019
@@ -81,6 +81,7 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	int bOptLen = sizeof(BOOL);
 
 	initialize_events_gen(&DisconnectEvent, L"Disconnect");
+	initialize_wsa_events(&ClntReqRecvEvent);
 
 	//open udp socket
 	udp_port_num = udp_port;
@@ -179,7 +180,7 @@ void setup_svr_addr(SOCKADDR_IN* svr_addr, LPCWSTR svr_port, LPCWSTR svr_ip_addr
 }
 
 /*-------------------------------------------------------------------------------------
---	FUNCTION:	send_request
+--	FUNCTION:	send_request_to_svr
 --
 --	DATE:			March 14, 2019
 --
@@ -189,7 +190,7 @@ void setup_svr_addr(SOCKADDR_IN* svr_addr, LPCWSTR svr_port, LPCWSTR svr_ip_addr
 --
 --	PROGRAMMER:		Jason Kim
 --
---	INTERFACE:		void send_request(int type, LPCWSTR request)
+--	INTERFACE:		void send_request_to_svr(int type, LPCWSTR request)
 --									int type - the type of request
 --									LPCWSTR request - the request message
 --
@@ -198,7 +199,7 @@ void setup_svr_addr(SOCKADDR_IN* svr_addr, LPCWSTR svr_port, LPCWSTR svr_ip_addr
 --	NOTES:
 --	Call this function to send a request to the server
 --------------------------------------------------------------------------------------*/
-void send_request(int type, LPCWSTR request)
+void send_request_to_svr(int type, LPCWSTR request)
 {
 	size_t i;
 	DWORD SendBytes;
@@ -268,7 +269,7 @@ void request_wav_file(LPCWSTR filename)
 
 	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
 
-	send_request(WAV_FILE_REQUEST_TYPE, filename);
+	send_request_to_svr(WAV_FILE_REQUEST_TYPE, filename);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -334,7 +335,7 @@ void request_file_stream(LPCWSTR filename)
 	std::wstring temp_msg = std::wstring(filename) + packetMsgDelimiter + current_device_ip + packetMsgDelimiter + udp_port_num + packetMsgDelimiter;
 	LPCWSTR stream_req_msg = temp_msg.c_str();
 
-	send_request(AUDIO_STREAM_REQUEST_TYPE, stream_req_msg);
+	send_request_to_svr(AUDIO_STREAM_REQUEST_TYPE, stream_req_msg);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -375,7 +376,7 @@ void start_client_request_receiver()
 	clnt_tcp_socket_info.CompleteEvent = ClntReqRecvEvent;
 	clnt_tcp_socket_info.event = DisconnectEvent;
 
-	if ((ClntRequestReceiverThread = CreateThread(NULL, 0, SvrRequestReceiverThreadFunc, (LPVOID)&clnt_tcp_socket_info, 0, &ThreadId)) == NULL)
+	if ((ClntRequestReceiverThread = CreateThread(NULL, 0, ClntReqReceiverThreadFunc, (LPVOID)&clnt_tcp_socket_info, 0, &ThreadId)) == NULL)
 	{
 		update_client_msgs("Failed to create RequestReceiverThread " + std::to_string(GetLastError()));
 		return;
@@ -386,7 +387,6 @@ void start_client_request_receiver()
 void start_client_request_handler()
 {
 	DWORD ThreadId;
-	initialize_wsa_events(&ClntReqRecvEvent);
 
 	if ((ClntRequestHandlerThread = CreateThread(NULL, 0, HandleRequest, (LPVOID)ClntReqRecvEvent, 0, &ThreadId)) == NULL)
 	{
@@ -416,7 +416,6 @@ void start_client_request_handler()
 --------------------------------------------------------------------------------------*/
 void terminate_client()
 {
-	
 	// free any allocated resources
 	// close all client threads
 	isConnected = FALSE;

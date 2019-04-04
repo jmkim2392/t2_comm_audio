@@ -66,6 +66,7 @@
     <ClInclude Include="file_streaming_handler.h">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">

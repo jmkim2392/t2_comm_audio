@@ -93,12 +93,41 @@ DWORD WINAPI SvrRequestReceiverThreadFunc(LPVOID lpParameter)
 DWORD WINAPI ClntReqReceiverThreadFunc(LPVOID lpParameter)
 {
 	LPTCP_SOCKET_INFO req_handler_info;
+	WSAEVENT EventArray[1];
+	DWORD Index;
+	DWORD BytesSent = 0;
 
 	req_handler_info = (LPTCP_SOCKET_INFO)lpParameter;
+	// Save the accept event in the event array.
+	EventArray[0] = req_handler_info->event;
+	isAcceptingRequests = TRUE;
 
 	start_receiving_requests(req_handler_info->tcp_socket, req_handler_info->CompleteEvent);
 
-	WaitForSingleObject(req_handler_info->event, INFINITE);
+	while (isAcceptingRequests)
+	{
+		while (isAcceptingRequests)
+		{
+			Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+
+			if (Index == WSA_WAIT_FAILED)
+			{
+				update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
+				terminate_connection();
+				return FALSE;
+			}
+
+			if (Index != WAIT_IO_COMPLETION)
+			{
+				break;
+			}
+
+			if (!isAcceptingRequests) {
+				close_file_streaming();
+			}
+		}
+	}
+
 
 	return TRUE;
 }
@@ -283,19 +312,20 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 
 		if (!request_buffer.empty()) {
 			request = request_buffer.get();
+			getPacketType(&parsedPacket, request);
 			if (!request.empty()) {
-				parseRequest(&parsedPacket, request);
-
 				switch (parsedPacket.type) {
 				case WAV_FILE_REQUEST_TYPE:
 					// audio file request
 					// parsedPacket.message should contain the file name
+					parseRequest(&parsedPacket, request);
 					update_server_msgs("Received file transfer request for " + parsedPacket.message);
 					start_ftp(parsedPacket.message);
 					break;
 				case AUDIO_STREAM_REQUEST_TYPE:
 					// audio file stream request
 					// parsedPacket.message should contain the file name
+					parseRequest(&parsedPacket, request);
 					update_server_msgs("Received file stream request for " + parsedPacket.message);
 
 					// TODO: change hardcoded ip string with received client address
@@ -306,10 +336,19 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 					// voip request
 					// parsedPacket.message should contain the client info
 					break;
-				case AUDIO_BUFFER_FULL_TYPE:
+				case STREAM_COMPLETE_TYPE:
 					break;
 				case AUDIO_BUFFER_RDY_TYPE:
 					resume_streaming();
+					break;
+				case FILE_LIST_TYPE:
+					parseFileListRequest(&parsedPacket, request);
+					setup_file_list_dropdown(parsedPacket.file_list);
+					break;
+				case FILE_LIST_REQUEST_TYPE:
+					std::vector<std::string> list = get_file_list();
+					std::string msg = generateReqPacketWithData(FILE_LIST_TYPE, list);
+					send_request_to_clnt(msg);
 					break;
 				}
 			}
@@ -319,6 +358,10 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 	return 0;
 }
 
+void getPacketType(LPREQUEST_PACKET parsedPacket, std::string packet)
+{
+	parsedPacket->type = packet.at(0) - '0';
+}
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	parseRequest
 --
@@ -341,7 +384,6 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 --------------------------------------------------------------------------------------*/
 void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet) 
 {
-	parsedPacket->type = packet.at(0) - '0';
 	std::string temp_msg = packet.substr(1);
 	size_t pos = 0;
 	int i = 0;
@@ -363,7 +405,15 @@ void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 
 void parseFileListRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 {
-
+	std::vector<std::string> list;
+	std::string temp_msg = packet.substr(1);
+	size_t pos = 0;
+	int i = 0;
+	while ((pos = temp_msg.find(packetMsgDelimiterStr)) != std::string::npos) {
+		list.push_back(temp_msg.substr(0, pos));
+		temp_msg.erase(0, pos + packetMsgDelimiterStr.length());
+	}
+	parsedPacket->file_list = list;
 }
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	generateRequestPacket
@@ -392,5 +442,12 @@ std::string generateRequestPacket(int type, std::string message)
 
 std::string generateReqPacketWithData(int type, std::vector<std::string> messages)
 {
-
+	std::string listStringified;
+	listStringified += std::to_string(type);
+	for (auto msg : messages) 
+	{
+		listStringified += (msg + packetMsgDelimiterStr);
+	}
+	return listStringified;
 }
+

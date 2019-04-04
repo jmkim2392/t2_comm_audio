@@ -15,8 +15,10 @@
 #define WAV_FILE_REQUEST_TYPE 1
 #define AUDIO_STREAM_REQUEST_TYPE 2
 #define VOIP_REQUEST_TYPE 3
-#define AUDIO_BUFFER_FULL_TYPE 4 // unused, can replace with any new types later
+#define STREAM_COMPLETE_TYPE 4 // unused, can replace with any new types later
 #define AUDIO_BUFFER_RDY_TYPE 5
+#define FILE_LIST_TYPE 6
+#define FILE_LIST_REQUEST_TYPE 7
 
 // Control Packets
 #define FILE_NOT_FOUND 17 // DC1
@@ -52,3 +54,5 @@ const std::string connectedMsg = "Connected";
 
 const LPCWSTR packetMsgDelimiter = L"|";
 const std::string packetMsgDelimiterStr = "|";
+const std::string fileListDelimiterStr = "/";
+const std::string wavExtension = ".wav";
