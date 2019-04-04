@@ -339,13 +339,13 @@ void request_voip()
 
 	// specify addr and port to bind to
 
-	HANDLE ReceiverThread;
+	/*HANDLE ReceiverThread;
 	DWORD ReceiverThreadId;
 	if ((ReceiverThread = CreateThread(NULL, 0, ReceiverThreadFunc, (LPVOID)0, 0, &ReceiverThreadId)) == NULL)
 	{
 		printf("CreateThread failed with error %d\n", GetLastError());
 		return;
-	}
+	}*/
 
 	HANDLE SenderThread;
 	DWORD SenderThreadId;
@@ -355,8 +355,8 @@ void request_voip()
 		return;
 	}
 
-	// do i need to add both threads?
-	//add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
+	//add_new_thread_gen(clientThreads, ReceiverThreadId, cl_threadCount++);
+	add_new_thread_gen(clientThreads, SenderThreadId, cl_threadCount++);
 }
 
 /*-------------------------------------------------------------------------------------

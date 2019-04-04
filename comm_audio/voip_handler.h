@@ -9,3 +9,5 @@
 
 DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter);
 DWORD WINAPI SenderThreadFunc(LPVOID lpParameter);
+void start_receiving_voip();
+void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags);
