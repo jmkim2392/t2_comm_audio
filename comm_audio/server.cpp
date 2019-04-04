@@ -47,6 +47,7 @@ WSAEVENT AcceptEvent;
 WSAEVENT RequestReceivedEvent;
 
 WSAEVENT StreamCompletedEvent;
+WSAEVENT VoipCompleted;
 
 HANDLE ResumeSendEvent;
 
@@ -84,6 +85,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	initialize_wsa_events(&AcceptEvent);
 	initialize_wsa_events(&RequestReceivedEvent);
 	initialize_wsa_events(&StreamCompletedEvent);
+	initialize_wsa_events(&VoipCompleted);
 	initialize_events_gen(&ResumeSendEvent, L"ResumeSend");
 
 	open_socket(&tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
@@ -489,6 +491,52 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 	else {
 		send_file_not_found_packet_udp();
 	}
+}
+
+void start_voip() {
+	LPCWSTR receiving_port = L"4981";
+	LPCWSTR sending_port = L"4918";
+
+	// struct with VoipCompleted event and port
+	LPVOIP_INFO receiving_thread_params;
+	if ((receiving_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
+		sizeof(VOIP_INFO))) == NULL)
+	{
+		//terminate_connection();
+		return;
+	}
+	receiving_thread_params->CompletedEvent = VoipCompleted;
+	receiving_thread_params->Udp_Port = receiving_port;
+
+	HANDLE ReceiverThread;
+	DWORD ReceiverThreadId;
+	if ((ReceiverThread = CreateThread(NULL, 0, ReceiverThreadFunc, (LPVOID)receiving_thread_params, 0, &ReceiverThreadId)) == NULL)
+	{
+		printf("CreateThread failed with error %d\n", GetLastError());
+		return;
+	}
+
+	// struct with VoipCompleted event and port
+	LPVOIP_INFO sending_thread_params;
+	if ((sending_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
+		sizeof(VOIP_INFO))) == NULL)
+	{
+		//terminate_connection();
+		return;
+	}
+	sending_thread_params->CompletedEvent = VoipCompleted;
+	sending_thread_params->Udp_Port = sending_port;
+
+	/*HANDLE SenderThread;
+	DWORD SenderThreadId;
+	if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)sending_thread_params, 0, &SenderThreadId)) == NULL)
+	{
+		printf("CreateThread failed with error %d\n", GetLastError());
+		return;
+	}*/
+
+	add_new_thread_gen(serverThreads, ReceiverThreadId, svr_threadCount++);
+	//add_new_thread_gen(serverThreads, SenderThreadId, svr_threadCount++);
 }
 
 /*-------------------------------------------------------------------------------------

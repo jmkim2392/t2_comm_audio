@@ -42,6 +42,11 @@ typedef struct _BROADCAST_INFO {
 	int portNum;
 } BROADCAST_INFO, *LPBROADCAST_INFO;
 
+typedef struct _VOIP_INFORMATION {
+	WSAEVENT CompletedEvent;
+	LPCWSTR Udp_Port;
+} VOIP_INFO, *LPVOIP_INFO;
+
 static HWND parent_hwnd, child_hwnd, control_panel_hwnd;
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance, LPSTR lspszCmdParam, int nCmdShow);

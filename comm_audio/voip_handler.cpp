@@ -1,12 +1,5 @@
 #include "voip_handler.h"
 
-// NOTES
-// - ports have to be opposite for client and server
-//		-> client send = server receive
-// - both client and server could use these functions
-// - receiving: use start_receiving_stream() as it already has a routine and plays audio
-//		-> problem: want to specify different socket and port
-
 
 struct sockaddr_in receiving_client;
 int receiving_client_len;
@@ -14,57 +7,15 @@ int receiving_client_len;
 
 DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 {
-	//SOCKET sock;
-	//struct sockaddr_in server;
-	//int data_size;
-	//struct sockaddr_in client;
-	//char buf[MAXLEN];
-
-	//// Create a datagram socket
-	//if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
-	//{
-	//	char debug_buf[512];
-	//	sprintf_s(debug_buf, sizeof(debug_buf), "%d\n", WSAGetLastError());
-	//	OutputDebugStringA(debug_buf);
-	//	exit(1);
-	//}
-
-	//// Bind an address to the socket
-	//memset((char *)&server, 0, sizeof(server));
-	//server.sin_family = AF_INET;
-	//server.sin_port = htons(RECEIVING_PORT);
-	//server.sin_addr.s_addr = htonl(INADDR_ANY);
-	//if (bind(sock, (struct sockaddr *)&server, sizeof(server)) == -1)		// ERROR 10048: address already in use
-	//{
-		/*char debug_buf[512];
-		sprintf_s(debug_buf, sizeof(debug_buf), "%d\n", WSAGetLastError());
-		OutputDebugStringA(debug_buf);*/
-	//	exit(1);
-	//}
-
-	//// TODO: comment after testing regular data
-	//while (TRUE)
-	//{
-	//	int client_len = sizeof(client);
-	//	if ((data_size = recvfrom(sock, buf, MAXLEN, 0, (struct sockaddr *)&client, &client_len)) < 0)
-	//	{
-	//		printf("%d\n", WSAGetLastError());
-	//		exit(1);
-	//	}
-
-	//	printf("Received %d bytes\t", data_size);
-	//	printf("From host: %s\n", inet_ntoa(client.sin_addr));
-
-	//	// play audio?
-	//}
-	//closesocket(sock);
+	LPVOIP_INFO params = (LPVOIP_INFO)lpParameter;
 
 	DWORD Index;
 	WSAEVENT EventArray[1];
 	BOOL isReceivingFileStream = TRUE;
-	EventArray[0] = (WSAEVENT)lpParameter;
 
-	start_receiving_voip();
+	EventArray[0] = params->CompletedEvent;
+
+	start_receiving_voip(params->Udp_Port);
 
 	while (isReceivingFileStream)
 	{
@@ -88,13 +39,12 @@ DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 	return 0;
 }
 
-void start_receiving_voip()
+void start_receiving_voip(LPCWSTR udp_port)
 {
 	DWORD RecvBytes;
 	DWORD Flags = 0;
 	SOCKET receiving_voip_socket;
 	SOCKADDR_IN server_addr_udp;
-	LPCWSTR udp_port = L"4981";
 	receiving_client_len = sizeof(sockaddr_in);
 
 	BOOL isConnected = TRUE;
@@ -107,7 +57,7 @@ void start_receiving_voip()
 	initialize_wsa(udp_port, &receiving_client);
 	open_socket(&receiving_voip_socket, SOCK_DGRAM, IPPROTO_UDP);
 
-	setup_svr_addr(&server_addr_udp, udp_port, L"142.232.48.31");
+	setup_svr_addr(&server_addr_udp, udp_port, L"192.168.1.73");
 
 	//bind to server address
 	if (bind(receiving_voip_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
@@ -127,20 +77,6 @@ void start_receiving_voip()
 		update_status(connectedMsg);
 	}
 
-	// TODO: set socket, port, etc
-	/*typedef struct _SOCKET_INFORMATION {
-		OVERLAPPED Overlapped;
-		SOCKET Socket;
-		CHAR Buffer[DEFAULT_REQUEST_PACKET_SIZE];
-		CHAR FTP_BUFFER[FTP_PACKET_SIZE];
-		CHAR AUDIO_BUFFER[AUDIO_BLOCK_SIZE];
-		WSABUF DataBuf;
-		WSAEVENT CompletedEvent;
-		HANDLE EventTrigger;
-		SOCKADDR_IN Sock_addr;
-		DWORD BytesSEND;
-		DWORD BytesRECV;
-	} SOCKET_INFORMATION, *LPSOCKET_INFORMATION;*/
 	// Create a socket information structure
 	if ((VoipSocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
 		sizeof(SOCKET_INFORMATION))) == NULL)
@@ -152,7 +88,7 @@ void start_receiving_voip()
 	VoipSocketInfo->Socket = receiving_voip_socket;
 	VoipSocketInfo->DataBuf.buf = VoipSocketInfo->AUDIO_BUFFER;
 	VoipSocketInfo->DataBuf.len = AUDIO_PACKET_SIZE;
-	//VoipSocketInfo->Sock_addr = server_addr_udp;
+	VoipSocketInfo->Sock_addr = server_addr_udp;
 
 	if (WSARecvFrom(VoipSocketInfo->Socket, &(VoipSocketInfo->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& receiving_client, &receiving_client_len, &(VoipSocketInfo->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
 	{
@@ -205,13 +141,12 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 
 	Flags = 0;
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
-
 	
-	char debug_buf[512];
-	sprintf_s(debug_buf, sizeof(debug_buf), "%s\n", SI->DataBuf.buf);
-	OutputDebugStringA(debug_buf);
+	// not receiving anything anymore???
+	// maybe put sending thread in completion routine??
 
-	OutputDebugStringA("got something");
+	update_client_msgs("Received data");
+	update_server_msgs("Received data");
 
 	//writeToAudioBuffer(SI->DataBuf.buf);
 
@@ -228,13 +163,15 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 
 DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 {
-	LPREQUEST_PACKET packet = (LPREQUEST_PACKET)lpParameter;
+	LPVOIP_INFO params = (LPVOIP_INFO)lpParameter;
 
 	SOCKET sock;
 	char buf[8192] = "hello";
 	int data_size = 8192;
 	struct sockaddr_in client;
 	HOSTENT *hp;
+	BOOL bOptVal = FALSE;
+	int bOptLen = sizeof(BOOL);
 
 	// Create a datagram socket
 	if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
@@ -245,17 +182,22 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 
 	memset((char *)&client, 0, sizeof(client));
 	client.sin_family = AF_INET;
-	client.sin_port = htons(RECEIVING_PORT);
+	client.sin_port = htons((USHORT)params->Udp_Port);
 
 	int client_len = sizeof(client);
 
-	if ((hp = gethostbyname("142.232.48.31")) == NULL)
+	if ((hp = gethostbyname("192.168.1.73")) == NULL)
 	{
 		fprintf(stderr, "Can't get server's IP address\n");
 		exit(1);
 	}
 
 	memcpy((char *)&client.sin_addr, hp->h_addr, hp->h_length);
+
+	//set REUSEADDR for udp socket
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
 
 	while (TRUE)
 	{
@@ -266,7 +208,11 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 			perror("sendto error");
 			exit(1);
 		}
-		printf("Sent data");
+
+		update_client_msgs("Sent data");
+		update_server_msgs("Sent data");
+
+		Sleep(1000);
 	}
 
 	closesocket(sock);

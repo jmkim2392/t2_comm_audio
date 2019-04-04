@@ -326,8 +326,8 @@ void request_file_stream(LPCWSTR filename)
 
 void request_voip()
 {
-	// do i need to initialize a voip completed event here?
-	//initialize_wsa_events(&FileStreamCompleted);
+	WSAEVENT VoipCompleted;
+	initialize_wsa_events(&VoipCompleted);
 
 	update_client_msgs("Requesting VOIP from server...");
 
@@ -338,18 +338,42 @@ void request_voip()
 	send_request(VOIP_REQUEST_TYPE, stream_req_msg);
 
 	// specify addr and port to bind to
+	LPCWSTR receiving_port = L"4918";
+	LPCWSTR sending_port = L"4981";
+
+	// struct with VoipCompleted event and port
+	LPVOIP_INFO receiving_thread_params;
+	if ((receiving_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
+		sizeof(VOIP_INFO))) == NULL)
+	{
+		//terminate_connection();
+		return;
+	}
+	receiving_thread_params->CompletedEvent = VoipCompleted;
+	receiving_thread_params->Udp_Port = receiving_port;
 
 	/*HANDLE ReceiverThread;
 	DWORD ReceiverThreadId;
-	if ((ReceiverThread = CreateThread(NULL, 0, ReceiverThreadFunc, (LPVOID)0, 0, &ReceiverThreadId)) == NULL)
+	if ((ReceiverThread = CreateThread(NULL, 0, ReceiverThreadFunc, (LPVOID)receiving_thread_params, 0, &ReceiverThreadId)) == NULL)
 	{
 		printf("CreateThread failed with error %d\n", GetLastError());
 		return;
 	}*/
 
+	// struct with VoipCompleted event and port
+	LPVOIP_INFO sending_thread_params;
+	if ((sending_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
+		sizeof(VOIP_INFO))) == NULL)
+	{
+		//terminate_connection();
+		return;
+	}
+	sending_thread_params->CompletedEvent = VoipCompleted;
+	sending_thread_params->Udp_Port = sending_port;
+
 	HANDLE SenderThread;
 	DWORD SenderThreadId;
-	if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)0, 0, &SenderThreadId)) == NULL)
+	if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)sending_thread_params, 0, &SenderThreadId)) == NULL)
 	{
 		printf("CreateThread failed with error %d\n", GetLastError());
 		return;
