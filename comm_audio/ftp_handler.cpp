@@ -66,7 +66,7 @@ void initialize_ftp(SOCKET* socket, WSAEVENT ftpCompletedEvent)
 {
 	buf = (char*)malloc(FTP_PACKET_SIZE);
 
-	ftp_complete_packet[0] = FTP_COMPLETE;
+	ftp_complete_packet[0] = TRANSFER_COMPLETE;
 	file_not_found_packet[0] = FILE_NOT_FOUND;
 
 	// Create a socket information structure to associate with the accepted socket.
@@ -399,7 +399,7 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 		if (SI->DataBuf.buf[BytesTransferred] == FILE_NOT_FOUND) {
 			finalize_ftp("File Not Found on server.");
 		}
-		else if (SI->DataBuf.buf[BytesTransferred] == FTP_COMPLETE) {
+		else if (SI->DataBuf.buf[BytesTransferred] == TRANSFER_COMPLETE) {
 			finalize_ftp("File transfer completed.");
 		}
 	}

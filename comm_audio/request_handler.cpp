@@ -49,14 +49,10 @@ circular_buffer<std::string> request_buffer(10);
 --------------------------------------------------------------------------------------*/
 DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 {
-	LPSOCKET_INFORMATION SocketInfo;
 	LPTCP_SOCKET_INFO req_handler_info;
 	WSAEVENT EventArray[1];
 	DWORD Index;
-	DWORD RecvBytes;
-	int retVal;
 	DWORD BytesSent = 0;
-	DWORD Flags = 0;
 
 	req_handler_info = (LPTCP_SOCKET_INFO)lpParameter;
 
@@ -88,40 +84,50 @@ DWORD WINAPI RequestReceiverThreadFunc(LPVOID lpParameter)
 		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
 
 		update_server_msgs("Client connected");
-
-		// Create a socket information structure to associate with the accepted socket.
-		if ((SocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
-			sizeof(SOCKET_INFORMATION))) == NULL)
-		{
-			update_server_msgs("GlobalAlloc() failed in Request Handler with error " + std::to_string(GetLastError()));
-			terminate_connection();
-			return FALSE;
-		}
-
-		// Fill in the details of our accepted socket.
-		SocketInfo->Socket = req_handler_info->tcp_socket;
-		ZeroMemory(&(SocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
-		SocketInfo->BytesSEND = 0;
-		SocketInfo->BytesRECV = 0;
-		SocketInfo->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
-		SocketInfo->DataBuf.buf = SocketInfo->Buffer;
-		SocketInfo->CompletedEvent = req_handler_info->CompleteEvent;
-
-		Flags = 0;
-
-		retVal = WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes, &Flags, &(SocketInfo->Overlapped), RequestReceiverRoutine);
-
-		if (retVal == SOCKET_ERROR) {
-			if (WSAGetLastError() != WSA_IO_PENDING) {
-				update_server_msgs("WSARecv failed in Request Handler with error " + std::to_string(WSAGetLastError()));
-				terminate_connection();
-
-				return FALSE;
-			}
-		}
+		start_receiving_requests(req_handler_info->tcp_socket, req_handler_info->CompleteEvent);
+		
 	}
 	return TRUE;
 }
+
+void start_receiving_requests(SOCKET request_socket, WSAEVENT recvReqEvent)
+{
+	LPSOCKET_INFORMATION SocketInfo;
+	DWORD Flags = 0;
+	int retVal;
+	DWORD RecvBytes;
+
+	// Create a socket information structure to associate with the accepted socket.
+	if ((SocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
+		sizeof(SOCKET_INFORMATION))) == NULL)
+	{
+		update_server_msgs("GlobalAlloc() failed in Request Handler with error " + std::to_string(GetLastError()));
+		terminate_connection();
+		return;
+	}
+
+	// Fill in the details of our accepted socket.
+	SocketInfo->Socket = request_socket;
+	ZeroMemory(&(SocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
+	SocketInfo->BytesSEND = 0;
+	SocketInfo->BytesRECV = 0;
+	SocketInfo->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+	SocketInfo->DataBuf.buf = SocketInfo->Buffer;
+	SocketInfo->CompletedEvent = recvReqEvent;
+	Flags = 0;
+
+	retVal = WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes, &Flags, &(SocketInfo->Overlapped), RequestReceiverRoutine);
+
+	if (retVal == SOCKET_ERROR) {
+		if (WSAGetLastError() != WSA_IO_PENDING) {
+			update_server_msgs("WSARecv failed in Request Handler with error " + std::to_string(WSAGetLastError()));
+			terminate_connection();
+
+			return;
+		}
+	}
+}
+
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	RequestReceiverRoutine

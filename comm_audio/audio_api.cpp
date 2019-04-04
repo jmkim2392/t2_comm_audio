@@ -33,12 +33,13 @@ static WAVEHDR* waveBlocks;
 static int waveHeadBlock;
 static int waveTailBlock;
 
-HANDLE ReadyToPlayEvent;
 HANDLE AudioPlayerThread;
 HANDLE BufRdySignalerThread;
 
 BOOL isPlayingAudio = FALSE;
+
 HANDLE BufferOpenToWriteEvent;
+HANDLE ReadyToPlayEvent;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_audio_device
@@ -374,5 +375,8 @@ void freeBlocks(WAVEHDR* blockArray)
 --	TODO: may need to implement later, for now nothing
 --------------------------------------------------------------------------------------*/
 void terminate_audio_api() {
-
+	isPlayingAudio = FALSE;
+	TriggerEvent(ReadyToPlayEvent);
+	TriggerEvent(BufferOpenToWriteEvent);
+	freeBlocks(waveBlocks);
 }
