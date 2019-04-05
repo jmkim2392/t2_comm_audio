@@ -105,7 +105,6 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	start_request_receiver();
 	start_request_handler();
 	//start_broadcast(&udp_audio_socket, udp_port);
-	// start listening for VOIP requests?
 
 	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&tcp_accept_socket, 0, &ThreadId)) == NULL)
 	{
@@ -515,8 +514,8 @@ void start_voip(std::string client_ip_addr) {
 	LPCWSTR receiving_port = L"4981";
 	LPCWSTR sending_port = L"4982";
 
-	std::wstring stemp = std::wstring(client_ip_addr.begin(), client_ip_addr.end());
-	LPCWSTR sw = stemp.c_str();
+	std::wstring temp_str = std::wstring(client_ip_addr.begin(), client_ip_addr.end());
+	LPCWSTR ip_addr = temp_str.c_str();
 
 	// struct with VoipCompleted event and port
 	LPVOIP_INFO receiving_thread_params;
@@ -527,7 +526,7 @@ void start_voip(std::string client_ip_addr) {
 		return;
 	}
 	receiving_thread_params->CompletedEvent = VoipCompleted;
-	receiving_thread_params->Ip_addr = sw;
+	receiving_thread_params->Ip_addr = ip_addr;
 	receiving_thread_params->Udp_Port = receiving_port;
 
 	HANDLE ReceiverThread;
@@ -547,7 +546,7 @@ void start_voip(std::string client_ip_addr) {
 		return;
 	}
 	sending_thread_params->CompletedEvent = VoipCompleted;
-	sending_thread_params->Ip_addr = sw;
+	sending_thread_params->Ip_addr = ip_addr;
 	sending_thread_params->Udp_Port = sending_port;
 
 	HANDLE SenderThread;

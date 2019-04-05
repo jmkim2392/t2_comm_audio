@@ -24,8 +24,8 @@
 #include "voip_handler.h"
 
 
-struct sockaddr_in receiving_client;
-int receiving_client_len;
+struct sockaddr_in sender_addr;
+int sender_addr_len;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	ReceiverThreadFunc
@@ -105,8 +105,8 @@ void start_receiving_voip(LPCWSTR ip_addr, LPCWSTR udp_port)
 	DWORD RecvBytes;
 	DWORD Flags = 0;
 	SOCKET receiving_voip_socket;
-	SOCKADDR_IN server_addr_udp;
-	receiving_client_len = sizeof(sockaddr_in);
+	SOCKADDR_IN curr_addr;
+	sender_addr_len = sizeof(sockaddr_in);
 
 	BOOL isConnected = TRUE;
 	BOOL bOptVal = FALSE;
@@ -115,13 +115,13 @@ void start_receiving_voip(LPCWSTR ip_addr, LPCWSTR udp_port)
 	LPSOCKET_INFORMATION VoipSocketInfo;
 
 	//open udp socket
-	initialize_wsa(udp_port, &receiving_client);
+	initialize_wsa(udp_port, &sender_addr);
 	open_socket(&receiving_voip_socket, SOCK_DGRAM, IPPROTO_UDP);
 
-	setup_svr_addr(&server_addr_udp, udp_port, ip_addr);
+	setup_svr_addr(&curr_addr, udp_port, ip_addr);
 
 	//bind to server address
-	if (bind(receiving_voip_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
+	if (bind(receiving_voip_socket, (struct sockaddr *)&curr_addr, sizeof(sockaddr)) == SOCKET_ERROR) {
 		isConnected = FALSE;
 
 		update_status(disconnectedMsg);
@@ -149,9 +149,9 @@ void start_receiving_voip(LPCWSTR ip_addr, LPCWSTR udp_port)
 	VoipSocketInfo->Socket = receiving_voip_socket;
 	VoipSocketInfo->DataBuf.buf = VoipSocketInfo->AUDIO_BUFFER;
 	VoipSocketInfo->DataBuf.len = AUDIO_PACKET_SIZE;
-	VoipSocketInfo->Sock_addr = server_addr_udp;
+	VoipSocketInfo->Sock_addr = curr_addr;
 
-	if (WSARecvFrom(VoipSocketInfo->Socket, &(VoipSocketInfo->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& receiving_client, &receiving_client_len, &(VoipSocketInfo->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
+	if (WSARecvFrom(VoipSocketInfo->Socket, &(VoipSocketInfo->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& sender_addr, &sender_addr_len, &(VoipSocketInfo->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
@@ -228,7 +228,7 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 	memset(SI->DataBuf.buf, 0, SI->DataBuf.len);
 
 	SI->DataBuf.buf = SI->AUDIO_BUFFER;
-	if (WSARecvFrom(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& receiving_client, &receiving_client_len, &(SI->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
+	if (WSARecvFrom(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& sender_addr, &sender_addr_len, &(SI->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{
@@ -238,56 +238,72 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	SenderThreadFunc
+--
+--	DATE:			April 3, 2019
+--
+--	REVISIONS:		April 3, 2019
+--
+--	DESIGNER:		Dasha Strigoun
+--
+--	PROGRAMMER:		Dasha Strigoun
+--
+--	INTERFACE:		DWORD WINAPI SendStreamThreadFunc(LPVOID lpParameter)
+--										LPVOID lpParameter - a LPVOIP_INFO struct that contains the event that
+--										signifies completion and the UDP port number
+--
+--	RETURNS:		DWORD - 0 Thread terminated
+--
+--	NOTES:
+--	Thread function for sending VOIP packets
+--------------------------------------------------------------------------------------*/
 DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 {
 	LPVOIP_INFO params = (LPVOIP_INFO)lpParameter;
 
-	SOCKET sock;
+	SOCKET sending_voip_socket;
+	struct sockaddr_in connect_addr;
+	int connect_addr_len;
+	HOSTENT *hp;
+	char ip_addr[MAX_PATH];
+
 	char buf[8192] = "hello";
 	int data_size = 8192;
-	struct sockaddr_in client;
-	HOSTENT *hp;
 	BOOL bOptVal = FALSE;
 	int bOptLen = sizeof(BOOL);
 
+	// Convert udp_port from LPCWSTR to USHORT
 	LPCWSTR str_udp_port = (LPCWSTR)params->Udp_Port;
 	int int_udp_port = _wtoi(str_udp_port);
 	USHORT udp_port = (USHORT)int_udp_port;
 
 	// Create a datagram socket
-	if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
+	if ((sending_voip_socket = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
 	{
 		perror("Can't create a socket");
 		exit(1);
 	}
 
-	memset((char *)&client, 0, sizeof(client));
-	client.sin_family = AF_INET;
-	client.sin_port = htons(udp_port);
+	// Set up address of device to send to
+	memset((char *)&connect_addr, 0, sizeof(connect_addr));
+	connect_addr.sin_family = AF_INET;
+	connect_addr.sin_port = htons(udp_port);
+	connect_addr_len = sizeof(connect_addr);
 
+	// Convert ip address from LPCWSTR to const char*
+	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, params->Ip_addr, -1, ip_addr, sizeof(ip_addr), NULL, NULL);
 
-	int client_len = sizeof(client);
-
-	char ip_addr[MAX_PATH];
-	WideCharToMultiByte(CP_ACP,                // ANSI code page
-		WC_COMPOSITECHECK,     // Check for accented characters
-		params->Ip_addr,         // Source Unicode string
-		-1,                    // -1 means string is zero-terminated
-		ip_addr,          // Destination char string
-		sizeof(ip_addr),  // Size of buffer
-		NULL,                  // No default character
-		NULL);
-
+	// Get host name of ip address
 	if ((hp = gethostbyname(ip_addr)) == NULL)
 	{
 		fprintf(stderr, "Can't get server's IP address\n");
 		exit(1);
 	}
-
-	memcpy((char *)&client.sin_addr, hp->h_addr, hp->h_length);
+	memcpy((char *)&connect_addr.sin_addr, hp->h_addr, hp->h_length);
 
 	//set REUSEADDR for udp socket
-	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+	if (setsockopt(sending_voip_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
 		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
 
@@ -295,7 +311,7 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 	{
 		// record audio?
 
-		if (sendto(sock, buf, data_size, 0, (struct sockaddr *)&client, client_len) != data_size)
+		if (sendto(sending_voip_socket, buf, data_size, 0, (struct sockaddr *)&connect_addr, connect_addr_len) != data_size)
 		{
 			perror("sendto error");
 			exit(1);
@@ -308,5 +324,5 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 		Sleep(1000);
 	}
 
-	closesocket(sock);
+	closesocket(sending_voip_socket);
 }

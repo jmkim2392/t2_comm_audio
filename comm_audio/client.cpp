@@ -350,13 +350,13 @@ void request_voip()
 	update_client_msgs("Requesting VOIP from server...");
 
 	// Make up a message to pass device ip address into request
-	std::wstring voip = L"voip";
-	std::wstring temp_msg = voip + packetMsgDelimiter + current_device_ip + packetMsgDelimiter + udp_port_num + packetMsgDelimiter;
+	std::wstring temp_str = L"voip";
+	std::wstring temp_msg = temp_str + packetMsgDelimiter + current_device_ip + packetMsgDelimiter + udp_port_num + packetMsgDelimiter;
 	LPCWSTR stream_req_msg = temp_msg.c_str();
 
 	send_request(VOIP_REQUEST_TYPE, stream_req_msg);
 
-	LPCWSTR sw = current_device_ip.c_str();
+	LPCWSTR ip_addr = current_device_ip.c_str();
 
 	// specify addr and port to bind to
 	LPCWSTR receiving_port = L"4982";
@@ -371,7 +371,7 @@ void request_voip()
 		return;
 	}
 	receiving_thread_params->CompletedEvent = VoipCompleted;
-	receiving_thread_params->Ip_addr = sw;
+	receiving_thread_params->Ip_addr = ip_addr;
 	receiving_thread_params->Udp_Port = receiving_port;
 
 	HANDLE ReceiverThread;
@@ -391,7 +391,7 @@ void request_voip()
 		return;
 	}
 	sending_thread_params->CompletedEvent = VoipCompleted;
-	receiving_thread_params->Ip_addr = sw;
+	receiving_thread_params->Ip_addr = ip_addr;
 	sending_thread_params->Udp_Port = sending_port;
 
 	HANDLE SenderThread;
