@@ -33,6 +33,10 @@ static WAVEHDR* waveBlocks;
 static int waveHeadBlock;
 static int waveTailBlock;
 
+HWAVEIN hWaveIn;
+WAVEFORMATEX wfe;
+static volatile int waveInFreeBlockCount;
+
 HANDLE ReadyToPlayEvent;
 HANDLE AudioPlayerThread;
 HANDLE BufRdySignalerThread;
@@ -100,6 +104,19 @@ void initialize_audio_device()
 		//fprintf(stderr, "%s: unable to open wave mapper device\n", argv[0]);
 		ExitProcess(1);
 	}
+
+	// try to open the default wave in device
+	if (waveInOpen(
+		&hWaveIn,
+		WAVE_MAPPER,
+		&wfx,
+		(DWORD_PTR)waveInProc,
+		(DWORD_PTR)&waveInFreeBlockCount,
+		CALLBACK_FUNCTION
+	) != MMSYSERR_NOERROR) {
+		ExitProcess(1);
+	}
+
 	if ((AudioPlayerThread = CreateThread(NULL, 0, playAudioThreadFunc, (LPVOID)ReadyToPlayEvent, 0, &ThreadId)) == NULL)
 	{
 		update_client_msgs("Failed creating AudioPlayerThread with error " + std::to_string(GetLastError()));
@@ -274,6 +291,36 @@ DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter)
 		send_request(AUDIO_BUFFER_RDY_TYPE, L"RDY");
 	}
 	return 0;
+}
+
+static void CALLBACK waveInProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
+{
+	///*
+	// * pointer to free block counter
+	// */
+	//int* freeBlockCounter = (int*)dwInstance;
+	///*
+	// * ignore calls that occur due to openining and closing the
+	// * device.
+	// */
+
+	//if (uMsg != WOM_DONE) {
+	//	return;
+	//}
+	//numFreed++;
+	////OutputDebugStringA("Hello\n");
+	//EnterCriticalSection(&waveCriticalSection);
+	//waveFreeBlockCount++;
+	//char debug_buf[512];
+	//sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", waveFreeBlockCount);
+	//OutputDebugStringA(debug_buf);
+	////	(*freeBlockCounter)++;
+	//LeaveCriticalSection(&waveCriticalSection);
+	//TriggerEvent(ReadyToPlayEvent);
+	//if (numFreed >= MAX_NUM_STREAM_PACKETS && waveFreeBlockCount >= MAX_NUM_STREAM_PACKETS) {
+	//	numFreed = 1;
+	//	TriggerEvent(BufferOpenToWriteEvent);
+	//}
 }
 
 /*-------------------------------------------------------------------------------------
