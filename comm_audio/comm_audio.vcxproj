@@ -121,6 +121,7 @@
     <ClCompile Include="ftp_handler.cpp" />
     <ClCompile Include="general_functions.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="multicast.cpp" />
     <ClCompile Include="request_handler.cpp" />
     <ClCompile Include="server.cpp" />
     <ClCompile Include="audio_api.h" />
@@ -133,6 +134,7 @@
     <ClInclude Include="ftp_handler.h" />
     <ClInclude Include="general_functions.h" />
     <ClInclude Include="gui_resource.h" />
+    <ClInclude Include="multicast.h" />
     <ClInclude Include="request_handler.h" />
     <ClInclude Include="server.h" />
     <ClInclude Include="winsock_handler.h" />

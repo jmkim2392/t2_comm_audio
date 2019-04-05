@@ -44,6 +44,7 @@ DWORD clientThreads[20];
 int cl_threadCount;
 
 BOOL isConnected = TRUE;
+bool multicast_connected = false;
 
 WSAEVENT FtpCompleted;
 WSAEVENT FileStreamCompleted;
@@ -108,7 +109,7 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
 
-	initialize_audio_device();
+	initialize_audio_device(0);
 
 	if (isConnected) {
 		update_client_msgs("Connected to server");
@@ -322,6 +323,25 @@ void request_file_stream(LPCWSTR filename)
 	LPCWSTR stream_req_msg = temp_msg.c_str();
 
 	send_request(AUDIO_STREAM_REQUEST_TYPE, stream_req_msg);
+}
+
+
+void join_multicast_stream() {
+	HANDLE multicast_receive_thread;
+	DWORD ThreadId;
+	multicast_connected = true;
+
+	if ((multicast_receive_thread = CreateThread(NULL, 0, receive_data, &multicast_connected, 0, &ThreadId)) == NULL) {
+		printf("CreateThread failed with error %d\n", GetLastError());
+		WSACleanup();
+		return;
+	}
+	add_new_thread(ThreadId);
+}
+
+void disconnect_multicast() {
+	OutputDebugString(L"Disconnect_\n");
+	multicast_connected = false;
 }
 
 /*-------------------------------------------------------------------------------------

@@ -36,7 +36,6 @@ HANDLE StreamingThread;
 HANDLE BroadCastThread;
 
 TCP_SOCKET_INFO tcp_socket_info;
-BROADCAST_INFO broadcast_info;
 
 SOCKADDR_IN InternetAddr;
 SOCKADDR_IN client_addr_udp;
@@ -102,7 +101,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 
 	start_request_receiver();
 	start_request_handler();
-	//start_broadcast(&udp_audio_socket, udp_port);
+	start_broadcast();
 
 	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&tcp_accept_socket, 0, &ThreadId)) == NULL)
 	{
@@ -233,27 +232,82 @@ void start_request_handler()
 --	NOTES:
 --	Call this function to initialize and start multicasting audio to clients
 --------------------------------------------------------------------------------------*/
-void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
+void start_broadcast()
 {
+	SOCKADDR_IN stLclAddr, stDstAddr;
+	struct ip_mreq stMreq;        /* Multicast interface structure */
+	SOCKET hSocket;
+	WSADATA stWSAData;
+	WSAEVENT sendEvent;
+	BROADCAST_INFO bi;
+	HANDLE audio_buffering_thread;
 	DWORD ThreadId;
-	size_t i;
-	int portNum;
-	char* port_num = (char *)malloc(MAX_INPUT_LENGTH);
 
+	char achMCAddr[MAXADDRSTR] = TIMECAST_ADDR;
+	u_short nPort = TIMECAST_PORT;
+	u_long  lTTL = TIMECAST_TTL;
 	isBroadcasting = TRUE;
 
-	wcstombs_s(&i, port_num, MAX_INPUT_LENGTH, udp_port, MAX_INPUT_LENGTH);
-	portNum = atoi(port_num);
+	if (!init_winsock(&stWSAData)) {
+		isBroadcasting = FALSE;
+		return;
+	}
 
-	broadcast_info.portNum = portNum;
-	broadcast_info.udpSocket = *socket;
+	if (!get_datagram_socket(&hSocket)) {
+		WSACleanup();
+		isBroadcasting = FALSE;
+		return;
+	}
 
-	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_audio, (LPVOID)&broadcast_info, 0, &ThreadId)) == NULL)
-	{
+	if (!bind_socket(&stLclAddr, &hSocket, 0)) {
+		closesocket(hSocket);
+		WSACleanup();
+		isBroadcasting = FALSE;
+		return;
+	}
+
+	if (!join_multicast_group(&stMreq, &hSocket, achMCAddr)) {
+		closesocket(hSocket);
+		WSACleanup();
+		isBroadcasting = FALSE;
+		return;
+	}
+
+	if (!set_ip_ttl(&hSocket, lTTL)) {
+		closesocket(hSocket);
+		WSACleanup();
+		isBroadcasting = FALSE;
+		return;
+	}
+
+	if (!disable_loopback(&hSocket)) {
+		closesocket(hSocket);
+		WSACleanup();
+		isBroadcasting = FALSE;
+		return;
+	}
+
+	stDstAddr.sin_family = AF_INET;
+	stDstAddr.sin_addr.s_addr = inet_addr(achMCAddr);
+	stDstAddr.sin_port = htons(nPort);
+
+	bi.hSocket = &hSocket;
+	bi.stDstAddr = &stDstAddr;
+
+
+	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_data, (LPVOID)&bi, 0, &ThreadId)) == NULL) {
 		printf("CreateThread failed with error %d\n", GetLastError());
+		closesocket(hSocket);
+		WSACleanup();
+		isBroadcasting = FALSE;
 		return;
 	}
 	add_new_thread(ThreadId);
+	WaitForSingleObject(BroadCastThread, INFINITE);
+
+	closesocket(hSocket);
+	WSACleanup();
+	isBroadcasting = FALSE;
 }
 
 /*-------------------------------------------------------------------------------------
@@ -296,85 +350,6 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 			update_server_msgs("WSASetEvent(AccentEvent) failed with error " + std::to_string(WSAGetLastError()));
 			return WSAGetLastError();
 		}
-	}
-	return 0;
-}
-
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	broadcast_audio
---
---	DATE:			March 11, 2019
---
---	REVISIONS:		March 11, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
---									LPVOID broadcastInfo - struct for multicasting
---
---	RETURNS:		DWORD
---
---	NOTES:
---	Thread function for multicasting an audio stream to clients.
-	//TODO: Current implementation is for testing only and uses Broadcast.
-	// Will be reimplemented with Multicast as required by Phat
---------------------------------------------------------------------------------------*/
-DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
-{
-	int retVal;
-	BOOL bOpt;
-	SOCKADDR_IN   to;
-	LPBROADCAST_INFO broadcast_info;
-	WSABUF DataBuf;
-	WSAOVERLAPPED Overlapped;
-	DWORD BytesSent = 0;
-	DWORD Flags = 0;
-
-	std::string tempMsg = "Testing Broadcast";
-
-	broadcast_info = (LPBROADCAST_INFO)broadcastInfo;
-
-	bOpt = TRUE;
-	isBroadcasting = TRUE;
-
-	retVal = setsockopt(broadcast_info->udpSocket, SOL_SOCKET, SO_BROADCAST, (char *)&bOpt, sizeof(bOpt));
-	//TODO: temp for testing to be removed
-	//retVal = setsockopt(broadcast_info->udpSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOpt, sizeof(bOpt));
-	if (retVal == SOCKET_ERROR)
-	{
-		printf("setsockopt(SO_BROADCAST) failed: %d\n",
-			WSAGetLastError());
-		return -1;
-	}
-	to.sin_family = AF_INET;
-	to.sin_addr.s_addr = htonl(INADDR_BROADCAST);
-	to.sin_port = htons(broadcast_info->portNum);
-
-	// Make sure the Overlapped struct is zeroed out
-	SecureZeroMemory((PVOID)&Overlapped, sizeof(WSAOVERLAPPED));
-
-	// Create an event handle and setup the overlapped structure.
-	Overlapped.hEvent = WSACreateEvent();
-	if (Overlapped.hEvent == WSA_INVALID_EVENT) {
-		printf("WSACreateEvent failed with error: %d\n", WSAGetLastError());
-		WSACleanup();
-		return -1;
-	}
-
-	// while flag on and no error
-	while (isBroadcasting) 
-	{
-		DataBuf.len = 1024;
-		DataBuf.buf = &tempMsg[0u];
-		retVal = WSASendTo(broadcast_info->udpSocket, &DataBuf, 1, &BytesSent, Flags,(SOCKADDR *)&to, sizeof(to), &Overlapped, NULL);
-		if (retVal == SOCKET_ERROR)
-		{
-			printf("sendto() failed: %d\n", WSAGetLastError());
-			break;
-		}
-		Sleep(10000);
 	}
 	return 0;
 }

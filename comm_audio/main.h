@@ -19,6 +19,7 @@
 #include "client.h"
 #include "gui_resource.h"
 #include "audio_api.h"
+#include "multicast.h"
 
 static HINSTANCE hInstance;
 static WNDCLASSEX Wcl;
@@ -38,8 +39,15 @@ typedef struct _SOCKET_INFORMATION {
 } SOCKET_INFORMATION, *LPSOCKET_INFORMATION;
 
 typedef struct _BROADCAST_INFO {
-	SOCKET udpSocket;
-	int portNum;
+	OVERLAPPED overlapped;
+	SOCKET *hSocket;
+	CHAR AUDIO_BUFFER[AUDIO_BLOCK_SIZE];
+	WSABUF DataBuf;
+	DWORD BytesSEND;
+	DWORD BytesRECV;
+	SOCKADDR_IN *stDstAddr;
+	SOCKADDR_IN *stSrcAddr;
+	WSAEVENT CompletedEvent;
 } BROADCAST_INFO, *LPBROADCAST_INFO;
 
 static HWND parent_hwnd, child_hwnd, control_panel_hwnd;
