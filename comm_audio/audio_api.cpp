@@ -392,7 +392,7 @@ void terminate_audio_api() {
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void startWaveIn()
+void startRecording(HANDLE ReadyToSendEvent)
 {
 	DWORD ThreadId;
 
@@ -402,8 +402,6 @@ void startWaveIn()
 	waveInHeadBlock = 0;
 	waveInTailBlock = 0;
 	InitializeCriticalSection(&waveInCriticalSection);
-
-	initialize_events_gen(&ReadyToSendEvent, L"AudioSendReady");
 
 	// try to open the default wave in device
 	if (waveInOpen(
@@ -448,9 +446,9 @@ static void CALLBACK waveInProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, 
 	//char debug_buf[512];
 	//sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", waveInFreeBlockCount);
 	//OutputDebugStringA(debug_buf);
-	//LeaveCriticalSection(&waveCriticalSection);
+	//LeaveCriticalSection(&waveInCriticalSection);
 
-	//TriggerEvent(ReadyToPlayEvent);
+	////TriggerEvent(ReadyToPlayEvent);
 	//if (waveInNumFreed >= MAX_NUM_STREAM_PACKETS && waveInFreeBlockCount >= MAX_NUM_STREAM_PACKETS) {
 	//	waveInNumFreed = 1;
 	//}
@@ -458,30 +456,34 @@ static void CALLBACK waveInProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, 
 
 DWORD WINAPI recordAudioThreadFunc(LPVOID lpParameter)
 {
+	WAVEHDR* head;
 	WAVEHDR* tail;
 	DWORD Index;
 	isRecordingAudio = TRUE;
 	HANDLE readyEvent = (HANDLE)lpParameter;
 
-	// DASHA - not sure what to do here....
-	//while (isRecordingAudio)
-	//{
-	//	/*WaitForSingleObject(readyEvent, INFINITE);
-	//	ResetEvent(readyEvent);*/
-	//	while (waveInTailBlock != waveInHeadBlock)
-	//	{
-	//		tail = &waveInBlocks[waveInTailBlock];
-	//		waveInPrepareHeader(hWaveIn, tail, sizeof(WAVEHDR));
+	// DASHA - not sure what to do here...
+	// when do you use head and when do you use tail?
 
-	//		waveInAddBuffer(hWaveIn, tail, sizeof(WAVEHDR));
-	//		waveInStart(hWaveIn);
+	while (isRecordingAudio)
+	{
+		while (waveInTailBlock != waveInHeadBlock)
+		{
+			//tail = &waveInBlocks[waveInTailBlock];
+			head = &waveInBlocks[waveInHeadBlock];
 
-	//		waveInTailBlock++;
-	//		waveInTailBlock %= BLOCK_COUNT;
-	//	}
+			waveInPrepareHeader(hWaveIn, head, sizeof(WAVEHDR));
+			waveInAddBuffer(hWaveIn, head, sizeof(WAVEHDR));
+			waveInStart(hWaveIn);
 
-	//	TriggerEvent(readyEvent);
-	//}
+			//waveInTailBlock++;
+			//waveInTailBlock %= BLOCK_COUNT;
+			waveInHeadBlock++;
+			waveInHeadBlock %= BLOCK_COUNT;
+		}
+
+		TriggerEvent(readyEvent); //ReadyToSend
+	}
 	return 0;
 }
 

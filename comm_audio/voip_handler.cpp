@@ -308,14 +308,17 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 	}
 
 	// start audio recording thread
+	HANDLE ReadyToSendEvent;
+	initialize_events_gen(&ReadyToSendEvent, L"AudioSendReady");
+	startRecording(ReadyToSendEvent);
 
 	while (TRUE)
 	{
-		// record audio?
+		// wait for block to fill up
+		WaitForSingleObject(ReadyToSendEvent, INFINITE);
+		ResetEvent(ReadyToSendEvent);
 
-		// create ReadyToSend event?
-		// have a thread in audio_api that fills up block and when block is full it triggers ReadyToSend event
-		// how to get block?? hmm....
+		getRecordedAudioBuffer();
 
 		if (sendto(sending_voip_socket, buf, data_size, 0, (struct sockaddr *)&connect_addr, connect_addr_len) != data_size)
 		{

@@ -12,7 +12,7 @@ void writeToAudioBuffer(LPSTR data);
 DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter);
 DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter);
 
-void startWaveIn();
+void startRecording(HANDLE ReadyToSendEvent);
 void CALLBACK waveInProc(HWAVEOUT, UINT, DWORD, DWORD, DWORD);
 DWORD WINAPI recordAudioThreadFunc(LPVOID lpParameter);
 LPSTR getRecordedAudioBuffer();
