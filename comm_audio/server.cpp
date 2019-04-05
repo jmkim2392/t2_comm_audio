@@ -511,9 +511,12 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 --	NOTES:
 --	Call this function to start the voip process
 --------------------------------------------------------------------------------------*/
-void start_voip() {
+void start_voip(std::string client_ip_addr) {
 	LPCWSTR receiving_port = L"4981";
-	LPCWSTR sending_port = L"4918";
+	LPCWSTR sending_port = L"4982";
+
+	std::wstring stemp = std::wstring(client_ip_addr.begin(), client_ip_addr.end());
+	LPCWSTR sw = stemp.c_str();
 
 	// struct with VoipCompleted event and port
 	LPVOIP_INFO receiving_thread_params;
@@ -524,6 +527,7 @@ void start_voip() {
 		return;
 	}
 	receiving_thread_params->CompletedEvent = VoipCompleted;
+	receiving_thread_params->Ip_addr = sw;
 	receiving_thread_params->Udp_Port = receiving_port;
 
 	HANDLE ReceiverThread;
@@ -534,27 +538,28 @@ void start_voip() {
 		return;
 	}
 
-	//// struct with VoipCompleted event and port
-	//LPVOIP_INFO sending_thread_params;
-	//if ((sending_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
-	//	sizeof(VOIP_INFO))) == NULL)
-	//{
-	//	//terminate_connection();
-	//	return;
-	//}
-	//sending_thread_params->CompletedEvent = VoipCompleted;
-	//sending_thread_params->Udp_Port = sending_port;
+	// struct with VoipCompleted event and port
+	LPVOIP_INFO sending_thread_params;
+	if ((sending_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
+		sizeof(VOIP_INFO))) == NULL)
+	{
+		//terminate_connection();
+		return;
+	}
+	sending_thread_params->CompletedEvent = VoipCompleted;
+	sending_thread_params->Ip_addr = sw;
+	sending_thread_params->Udp_Port = sending_port;
 
-	//HANDLE SenderThread;
-	//DWORD SenderThreadId;
-	//if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)sending_thread_params, 0, &SenderThreadId)) == NULL)
-	//{
-	//	update_client_msgs("Failed creating Voip Sending Thread with error " + std::to_string(GetLastError()));
-	//	return;
-	//}
+	HANDLE SenderThread;
+	DWORD SenderThreadId;
+	if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)sending_thread_params, 0, &SenderThreadId)) == NULL)
+	{
+		update_client_msgs("Failed creating Voip Sending Thread with error " + std::to_string(GetLastError()));
+		return;
+	}
 
 	add_new_thread_gen(serverThreads, ReceiverThreadId, svr_threadCount++);
-	//add_new_thread_gen(serverThreads, SenderThreadId, svr_threadCount++);
+	add_new_thread_gen(serverThreads, SenderThreadId, svr_threadCount++);
 }
 
 /*-------------------------------------------------------------------------------------

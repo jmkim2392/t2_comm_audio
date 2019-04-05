@@ -27,14 +27,6 @@
 struct sockaddr_in receiving_client;
 int receiving_client_len;
 
-// NOTES:
-// - commit 6202f72363b3804812cc719bd9d4b1a75f8b6977 has server receiving and client sending successfully
-// - this version has sending, but receiving doesn't hit completion routine for some reason
-
-// - ^ reason was the port; hardcoded port works fine
-// - tried tracking the port on the client & server side.. looks fine to me....
-//		-> try tracking in server, client, ReceiverThread, SenderThread, start_voip, & completion routine
-
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	ReceiverThreadFunc
 --
@@ -65,7 +57,7 @@ DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 
 	EventArray[0] = params->CompletedEvent;
 
-	start_receiving_voip(params->Udp_Port);
+	start_receiving_voip(params->Ip_addr, params->Udp_Port);
 
 	while (isReceivingFileStream)
 	{
@@ -108,7 +100,7 @@ DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 --	NOTES:
 --	Call this function to receive voip packets
 --------------------------------------------------------------------------------------*/
-void start_receiving_voip(LPCWSTR udp_port)
+void start_receiving_voip(LPCWSTR ip_addr, LPCWSTR udp_port)
 {
 	DWORD RecvBytes;
 	DWORD Flags = 0;
@@ -122,13 +114,11 @@ void start_receiving_voip(LPCWSTR udp_port)
 
 	LPSOCKET_INFORMATION VoipSocketInfo;
 
-	//LPCWSTR temp_udp_port = L"4981";
-
 	//open udp socket
 	initialize_wsa(udp_port, &receiving_client);
 	open_socket(&receiving_voip_socket, SOCK_DGRAM, IPPROTO_UDP);
 
-	setup_svr_addr(&server_addr_udp, udp_port, L"142.232.48.31");
+	setup_svr_addr(&server_addr_udp, udp_port, ip_addr);
 
 	//bind to server address
 	if (bind(receiving_voip_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
@@ -235,6 +225,8 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 
 	//writeToAudioBuffer(SI->DataBuf.buf);
 
+	memset(SI->DataBuf.buf, 0, SI->DataBuf.len);
+
 	SI->DataBuf.buf = SI->AUDIO_BUFFER;
 	if (WSARecvFrom(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& receiving_client, &receiving_client_len, &(SI->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
 	{
@@ -258,8 +250,9 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 	BOOL bOptVal = FALSE;
 	int bOptLen = sizeof(BOOL);
 
-	//USHORT udp_port = 4981;
-	USHORT udp_port = (USHORT)params->Udp_Port;
+	LPCWSTR str_udp_port = (LPCWSTR)params->Udp_Port;
+	int int_udp_port = _wtoi(str_udp_port);
+	USHORT udp_port = (USHORT)int_udp_port;
 
 	// Create a datagram socket
 	if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
@@ -275,7 +268,17 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 
 	int client_len = sizeof(client);
 
-	if ((hp = gethostbyname("142.232.48.31")) == NULL)
+	char ip_addr[MAX_PATH];
+	WideCharToMultiByte(CP_ACP,                // ANSI code page
+		WC_COMPOSITECHECK,     // Check for accented characters
+		params->Ip_addr,         // Source Unicode string
+		-1,                    // -1 means string is zero-terminated
+		ip_addr,          // Destination char string
+		sizeof(ip_addr),  // Size of buffer
+		NULL,                  // No default character
+		NULL);
+
+	if ((hp = gethostbyname(ip_addr)) == NULL)
 	{
 		fprintf(stderr, "Can't get server's IP address\n");
 		exit(1);

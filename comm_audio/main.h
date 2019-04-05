@@ -13,6 +13,9 @@
 #include <iomanip>
 #include <time.h>
 #include <sstream>
+#include <locale>
+#include <codecvt>
+#include <atlstr.h>
 #include "constants.h"
 #include "server.h"
 #include "circular_buffer.h"
@@ -44,6 +47,7 @@ typedef struct _BROADCAST_INFO {
 
 typedef struct _VOIP_INFORMATION {
 	WSAEVENT CompletedEvent;
+	LPCWSTR Ip_addr;
 	LPCWSTR Udp_Port;
 } VOIP_INFO, *LPVOIP_INFO;
 
