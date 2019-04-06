@@ -184,6 +184,7 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 	DWORD RecvBytes;
 	DWORD Flags;
 
+	OutputDebugStringA("Recv CRoutine\n");
 	LPSOCKET_INFORMATION SI = (LPSOCKET_INFORMATION)Overlapped;
 	if (Error != 0)
 	{
@@ -292,10 +293,11 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 	connect_addr_len = sizeof(connect_addr);
 
 	// Convert ip address from LPCWSTR to const char*
-	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, params->Ip_addr, -1, ip_addr, sizeof(ip_addr), NULL, NULL);
+	//WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, params->Ip_addr, -1, ip_addr, sizeof(ip_addr), NULL, NULL);
 
 	// Get host name of ip address
-	if ((hp = gethostbyname(ip_addr)) == NULL)
+	//if ((hp = gethostbyname(ip_addr)) == NULL)
+	if ((hp = gethostbyname("localhost")) == NULL)
 	{
 		fprintf(stderr, "Can't get server's IP address\n");
 		exit(1);
@@ -310,15 +312,16 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 	// start audio recording thread
 	HANDLE ReadyToSendEvent;
 	initialize_events_gen(&ReadyToSendEvent, L"AudioSendReady");
-	startRecording(ReadyToSendEvent);
+	//startRecording(ReadyToSendEvent);
 
 	while (TRUE)
 	{
 		// wait for block to fill up
-		WaitForSingleObject(ReadyToSendEvent, INFINITE);
-		ResetEvent(ReadyToSendEvent);
+		//WaitForSingleObject(ReadyToSendEvent, INFINITE);
+		//ResetEvent(ReadyToSendEvent);
 
-		getRecordedAudioBuffer();
+		OutputDebugStringA("hello2");
+		//getRecordedAudioBuffer();
 
 		if (sendto(sending_voip_socket, buf, data_size, 0, (struct sockaddr *)&connect_addr, connect_addr_len) != data_size)
 		{

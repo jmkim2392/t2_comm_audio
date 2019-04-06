@@ -72,6 +72,7 @@ HANDLE BufferOpenToWriteEvent;
 --------------------------------------------------------------------------------------*/
 void initialize_audio_device()
 {
+	// KTODO: Probably inintialize wave in device here too.
 	DWORD ThreadId;
 
 	/*
@@ -487,8 +488,9 @@ DWORD WINAPI recordAudioThreadFunc(LPVOID lpParameter)
 	return 0;
 }
 
-LPSTR getRecordedAudioBuffer()
-{
+//LPSTR getRecordedAudioBuffer()
+//{
 	// DASHA - not sure what to do here....
 	// return waveInBlocks? first block?
-}
+	//return "helloc";
+//}

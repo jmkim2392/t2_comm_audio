@@ -356,7 +356,9 @@ void request_voip()
 
 	send_request(VOIP_REQUEST_TYPE, stream_req_msg);
 
-	LPCWSTR ip_addr = current_device_ip.c_str();
+	// KTODO: Change the hardcoded loopback IP
+	//LPCWSTR ip_addr = current_device_ip.c_str();
+	LPCWSTR ip_addr = L"127.0.0.1";
 
 	// specify addr and port to bind to
 	LPCWSTR receiving_port = L"4982";
@@ -391,7 +393,7 @@ void request_voip()
 		return;
 	}
 	sending_thread_params->CompletedEvent = VoipCompleted;
-	receiving_thread_params->Ip_addr = ip_addr;
+	sending_thread_params->Ip_addr = ip_addr;
 	sending_thread_params->Udp_Port = sending_port;
 
 	HANDLE SenderThread;

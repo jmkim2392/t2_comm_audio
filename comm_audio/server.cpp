@@ -515,7 +515,9 @@ void start_voip(std::string client_ip_addr) {
 	LPCWSTR sending_port = L"4982";
 
 	std::wstring temp_str = std::wstring(client_ip_addr.begin(), client_ip_addr.end());
-	LPCWSTR ip_addr = temp_str.c_str();
+	//KTODO: Change the hardcoded loopback IP
+	//LPCWSTR ip_addr = temp_str.c_str();
+	LPCWSTR ip_addr = L"127.0.0.1";
 
 	// struct with VoipCompleted event and port
 	LPVOIP_INFO receiving_thread_params;
