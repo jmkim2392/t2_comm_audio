@@ -18,7 +18,7 @@
 --
 --	DATE:			March 24, 2019
 --
---	REVISIONS:		March 24, 2019 
+--	REVISIONS:		March 24, 2019
 --
 --	DESIGNER:		Jason Kim
 --
@@ -74,7 +74,6 @@ void initialize_ftp(SOCKET* socket, WSAEVENT ftpCompletedEvent)
 		sizeof(SOCKET_INFORMATION))) == NULL)
 	{
 		update_client_msgs("GlobalAlloc failed with error");
-		terminate_connection();
 		return;
 	}
 
@@ -110,7 +109,7 @@ void initialize_ftp(SOCKET* socket, WSAEVENT ftpCompletedEvent)
 --	NOTES:
 --	Call this function to open a file for reading in binary
 --------------------------------------------------------------------------------------*/
-int open_file(std::string filename) 
+int open_file(std::string filename)
 {
 	return fopen_s(&requested_file, filename.c_str(), "rb");
 }
@@ -134,7 +133,7 @@ int open_file(std::string filename)
 --	NOTES:
 --	Call this function to create a new file with the supplied filename in binary
 --------------------------------------------------------------------------------------*/
-void create_new_file(std::string filename) 
+void create_new_file(std::string filename)
 {
 	fopen_s(&file_output, filename.c_str(), "wb");
 }
@@ -150,14 +149,14 @@ void create_new_file(std::string filename)
 --
 --	PROGRAMMER:		Jason Kim
 --
---	INTERFACE:		void close_file() 
+--	INTERFACE:		void close_file()
 --
 --	RETURNS:		void
 --
 --	NOTES:
 --	Call this function to close an open file
 --------------------------------------------------------------------------------------*/
-void close_file() 
+void close_file()
 {
 	fclose(file_output);
 }
@@ -173,7 +172,7 @@ void close_file()
 --
 --	PROGRAMMER:		Jason Kim
 --
---	INTERFACE:		void write_file(char* data, int length) 
+--	INTERFACE:		void write_file(char* data, int length)
 --									char* data - the data to write to file
 --									int length - length of data to write
 --
@@ -183,7 +182,7 @@ void close_file()
 --	Call this function to write data to a file. Should call open_file before using this
 --	function
 --------------------------------------------------------------------------------------*/
-void write_file(char* data, int length) 
+void write_file(char* data, int length)
 {
 	fwrite(data, length, 1, file_output);
 }
@@ -199,20 +198,20 @@ void write_file(char* data, int length)
 --
 --	PROGRAMMER:		Jason Kim
 --
---	INTERFACE:		void start_sending_file() 
+--	INTERFACE:		void start_sending_file()
 --
 --	RETURNS:		void
 --
 --	NOTES:
 --	Call this function to begin the completion routine for sending the requested file to client
 --------------------------------------------------------------------------------------*/
-void start_sending_file() 
+void start_sending_file()
 {
 	memset(buf, 0, FTP_PACKET_SIZE);
 	size_t bytes_read = fread(buf, 1, FTP_PACKET_SIZE, requested_file);
 
 	memcpy(FtpSocketInfo->DataBuf.buf, buf, bytes_read);
-	FtpSocketInfo->DataBuf.len = (ULONG) bytes_read;
+	FtpSocketInfo->DataBuf.len = (ULONG)bytes_read;
 
 	if (WSASend(FtpSocketInfo->Socket, &(FtpSocketInfo->DataBuf), 1, &SendBytes, 0,
 		&(FtpSocketInfo->Overlapped), FTP_SendRoutine) == SOCKET_ERROR)
@@ -260,9 +259,8 @@ void send_file_not_found_packet()
 --	NOTES:
 --	Call this function to begin the completion routine for receiving file from server
 --------------------------------------------------------------------------------------*/
-void start_receiving_file(int type, LPCWSTR request) 
+void start_receiving_file(int type, LPCWSTR request)
 {
-	size_t i;
 	DWORD RecvBytes;
 
 	DWORD Flags = 0;
@@ -302,7 +300,7 @@ void start_receiving_file(int type, LPCWSTR request)
 --	RETURNS:		void
 --
 --	NOTES:
---	Thread function to initiate and complete the client side file transfer 
+--	Thread function to initiate and complete the client side file transfer
 --------------------------------------------------------------------------------------*/
 DWORD WINAPI ReceiveFileThreadFunc(LPVOID lpParameter)
 {
@@ -313,31 +311,18 @@ DWORD WINAPI ReceiveFileThreadFunc(LPVOID lpParameter)
 	EventArray[0] = info->FtpCompleteEvent;
 
 	start_receiving_file(WAV_FILE_REQUEST_TYPE, info->filename);
-
 	while (isReceivingFile)
 	{
-		while (isReceivingFile)
+		Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+
+		if (Index == WSA_WAIT_FAILED)
 		{
-			Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+			update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
 
-			if (Index == WSA_WAIT_FAILED)
-			{
-				update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
-				terminate_connection();
-				return FALSE;
-			}
-
-			if (Index != WAIT_IO_COMPLETION)
-			{
-				break;
-			}
-
-			if (!isReceivingFile) 
-			{
-				close_file();
-			}
+			return FALSE;
 		}
 	}
+	close_file();
 
 	return 0;
 }
@@ -363,7 +348,7 @@ DWORD WINAPI ReceiveFileThreadFunc(LPVOID lpParameter)
 --	RETURNS:		void
 --
 --	NOTES:
---	Completion routine for receiving file from server and writing to a file. 
+--	Completion routine for receiving file from server and writing to a file.
 --	Make sure to have opened the file using open_file before entering this completion routine.
 --------------------------------------------------------------------------------------*/
 void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags)
@@ -390,20 +375,20 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 			finalize_ftp("File transfer completed.");
 		}
 		update_client_msgs("Closing ftp socket ");
-		
+
 		isReceivingFile = FALSE;
 		TriggerWSAEvent(SI->CompletedEvent);
 		WSAResetEvent(SI->CompletedEvent);
 		return;
 	}
 
-	if (BytesTransferred != FTP_PACKET_SIZE) 
+	if (BytesTransferred != FTP_PACKET_SIZE)
 	{
-		if (SI->DataBuf.buf[BytesTransferred] == FILE_NOT_FOUND) 
+		if (SI->DataBuf.buf[BytesTransferred] == FILE_NOT_FOUND)
 		{
 			finalize_ftp("File Not Found on server.");
 		}
-		else if (SI->DataBuf.buf[BytesTransferred] == TRANSFER_COMPLETE) 
+		else if (SI->DataBuf.buf[BytesTransferred] == TRANSFER_COMPLETE)
 		{
 			finalize_ftp("File transfer completed.");
 		}
@@ -519,3 +504,11 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPP
 	}
 }
 
+void terminateFtpHandler()
+{
+	if (isReceivingFile)
+	{
+		isReceivingFile = FALSE;
+		TriggerWSAEvent(FtpSocketInfo->CompletedEvent);
+	}
+}

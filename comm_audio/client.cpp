@@ -45,16 +45,18 @@ FTP_INFO ftp_info;
 
 std::vector<std::string> client_msgs;
 
-DWORD clientThreads[20];
-int cl_threadCount;
+std::vector<HANDLE> clntThreads;
 
 BOOL isConnected = TRUE;
+BOOL isStreaming = FALSE;
 
 WSAEVENT FtpCompleted;
 WSAEVENT FileStreamCompleted;
 WSAEVENT ClntReqRecvEvent;
 HANDLE DisconnectEvent;
 
+BOOL bOptVal = FALSE;
+int bOptLen = sizeof(BOOL);
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_client
 --
@@ -78,17 +80,14 @@ HANDLE DisconnectEvent;
 --------------------------------------------------------------------------------------*/
 void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 {
-	BOOL bOptVal = FALSE;
-	int bOptLen = sizeof(BOOL);
-
+	isConnected = TRUE;
 	initialize_events_gen(&DisconnectEvent, L"Disconnect");
 	initialize_wsa_events(&ClntReqRecvEvent);
 	initialize_wsa_events(&FtpCompleted);
-
-	//open udp socket
+	
+	//save info to open udp socket later
 	udp_port_num = udp_port;
 	initialize_wsa(udp_port, &cl_addr);
-	open_socket(&cl_udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 
 	//open tcp socket 
 	tcp_port_num = tcp_port;
@@ -105,19 +104,6 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 
 		update_status(disconnectedMsg);
 		update_client_msgs("Failed to connect to server " + std::to_string(WSAGetLastError()));
-	}
-
-	if (bind(cl_udp_audio_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) 
-	{
-		isConnected = FALSE;
-
-		update_status(disconnectedMsg);
-		update_client_msgs("Failed to bind udp socket " + std::to_string(WSAGetLastError()));
-	}
-
-	if (setsockopt(cl_udp_audio_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) 
-	{
-		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
 
 	start_client_request_receiver();
@@ -268,7 +254,7 @@ void request_wav_file(LPCWSTR filename)
 		return;
 	}
 
-	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
+	add_new_thread_gen(clntThreads, FileReceiverThread);
 
 	send_request_to_svr(WAV_FILE_REQUEST_TYPE, filename);
 }
@@ -322,6 +308,21 @@ void request_file_stream(LPCWSTR filename)
 	DWORD ThreadId;
 	initialize_wsa_events(&FileStreamCompleted);
 
+	open_socket(&cl_udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
+
+	if (bind(cl_udp_audio_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR)
+	{
+		isConnected = FALSE;
+
+		update_status(disconnectedMsg);
+		update_client_msgs("Failed to bind udp socket " + std::to_string(WSAGetLastError()));
+	}
+
+	if (setsockopt(cl_udp_audio_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR)
+	{
+		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
+
 	initialize_file_stream(&cl_udp_audio_socket, NULL, FileStreamCompleted, NULL);
 	update_client_msgs("Requesting file stream from server...");
 
@@ -331,12 +332,15 @@ void request_file_stream(LPCWSTR filename)
 		return;
 	}
 
-	add_new_thread_gen(clientThreads, ThreadId, cl_threadCount++);
+	add_new_thread_gen(clntThreads, FileStreamerThread);
 
 	std::wstring temp_msg = std::wstring(filename) + packetMsgDelimiter + current_device_ip + packetMsgDelimiter + udp_port_num + packetMsgDelimiter;
 	LPCWSTR stream_req_msg = temp_msg.c_str();
 
+	reset_client_request_receiver();
+
 	send_request_to_svr(AUDIO_STREAM_REQUEST_TYPE, stream_req_msg);
+	isStreaming = TRUE;
 }
 
 /*-------------------------------------------------------------------------------------
@@ -401,7 +405,7 @@ void start_client_request_receiver()
 		update_client_msgs("Failed to create RequestReceiverThread " + std::to_string(GetLastError()));
 		return;
 	}
-	add_new_thread(ThreadId);
+	add_new_thread_gen(clntThreads, ClntRequestReceiverThread);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -431,13 +435,23 @@ void start_client_request_handler()
 		update_client_msgs("Failed to create RequestHandler Thread " + std::to_string(GetLastError()));
 		return;
 	}
-	add_new_thread(ThreadId);
+	add_new_thread_gen(clntThreads, ClntRequestHandlerThread);
 }
 
 void reset_client_request_receiver() 
 {
 	TriggerWSAEvent(FtpCompleted);
 	WSAResetEvent(FtpCompleted);
+}
+
+void start_client_terminate_file_stream() 
+{
+	if (isStreaming) {
+		isStreaming = FALSE;
+		terminateFileStream();
+		close_socket(&cl_udp_audio_socket);
+		close_popup();
+	}
 }
 
 /*-------------------------------------------------------------------------------------
@@ -460,8 +474,25 @@ void reset_client_request_receiver()
 --------------------------------------------------------------------------------------*/
 void terminate_client()
 {
-	// free any allocated resources
-	// close all client threads
+	// turn off all status flags to start terminating process
 	isConnected = FALSE;
+
+	// close all client's feature threads
+	terminateAudioApi();
+	terminateFtpHandler();
+	start_client_terminate_file_stream();
+	terminateRequestHandler();
+
+	// trigger all events to unblock threads
+	TriggerWSAEvent(ClntReqRecvEvent);
+
+	// check if all client initialized threads have been terminated
+	WaitForMultipleObjects((int)clntThreads.size(), clntThreads.data(), TRUE, INFINITE);
+
+	// clear residual msgs
+	client_msgs.clear();
+
 	// close client sockets 
+	close_socket(&cl_tcp_req_socket);
+	terminate_connection();
 }

@@ -68,3 +68,4 @@ void update_status(std::string newStatus);
 
 void update_messages(std::vector<std::string> messages);
 void setup_file_list_dropdown(std::vector<std::string> options);
+void close_popup();

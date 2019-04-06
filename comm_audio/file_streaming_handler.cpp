@@ -71,7 +71,7 @@ int packetNUmRecv = 0;
 void initialize_file_stream(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT fileStreamCompletedEvent, HANDLE eventTrigger)
 {
 	file_stream_buf = (char*)malloc(AUDIO_PACKET_SIZE);
-	strcpy_s(fileStream_complete, 18,"Transfer Complete");
+	strcpy_s(fileStream_complete, 18, "Transfer Complete");
 
 	// Create a socket information structure
 	if ((FileStreamSocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
@@ -86,7 +86,7 @@ void initialize_file_stream(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT fileStre
 	ZeroMemory(&(FileStreamSocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
 	FileStreamSocketInfo->BytesSEND = 0;
 	FileStreamSocketInfo->BytesRECV = 0;
-	if (addr != NULL) 
+	if (addr != NULL)
 	{
 		FileStreamSocketInfo->Sock_addr = *addr;
 	}
@@ -173,12 +173,12 @@ DWORD WINAPI SendStreamThreadFunc(LPVOID lpParameter)
 	WSAEVENT EventArray[1];
 	isReceivingFileStream = TRUE;
 	EventArray[0] = (WSAEVENT)lpParameter;
-	
+
 	memset(file_stream_buf, 0, AUDIO_PACKET_SIZE);
-	int bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, requested_file_stream);
+	size_t bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, requested_file_stream);
 
 	memcpy(FileStreamSocketInfo->DataBuf.buf, file_stream_buf, bytes_read);
-	FileStreamSocketInfo->DataBuf.len = bytes_read;
+	FileStreamSocketInfo->DataBuf.len = (ULONG)bytes_read;
 	num_packet++;
 	total_packet++;
 
@@ -196,21 +196,14 @@ DWORD WINAPI SendStreamThreadFunc(LPVOID lpParameter)
 
 		if (Index == WSA_WAIT_FAILED)
 		{
-			update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
-			terminate_connection();
+			update_server_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
 			return FALSE;
-		}
-
-		if (Index != WAIT_IO_COMPLETION)
-		{
-			break;
-		}
-
-		if (!isReceivingFileStream) {
-			close_file_streaming();
 		}
 	}
 
+	std::string termRequest = generateRequestPacket(STREAM_COMPLETE_TYPE, "FSTREAMTERM");
+	send_request_to_clnt(termRequest);
+	update_server_msgs("Completed File Stream");
 	return 0;
 }
 
@@ -238,33 +231,20 @@ DWORD WINAPI ReceiveStreamThreadFunc(LPVOID lpParameter)
 	DWORD Index;
 	WSAEVENT EventArray[1];
 	isReceivingFileStream = TRUE;
-	EventArray[0] = (WSAEVENT) lpParameter;
+	EventArray[0] = (WSAEVENT)lpParameter;
 	start_receiving_stream();
 
 	while (isReceivingFileStream)
 	{
-		while (isReceivingFileStream)
+		Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+
+		if (Index == WSA_WAIT_FAILED)
 		{
-			Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
-
-			if (Index == WSA_WAIT_FAILED)
-			{
-				update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
-				terminate_connection();
-				return FALSE;
-			}
-
-			if (Index != WAIT_IO_COMPLETION)
-			{
-				break;
-			}
-
-			if (!isReceivingFileStream) {
-				close_file_streaming();
-			}
+			update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
+			return FALSE;
 		}
 	}
-
+	update_client_msgs("Completed File Stream");
 	return 0;
 }
 
@@ -288,7 +268,6 @@ DWORD WINAPI ReceiveStreamThreadFunc(LPVOID lpParameter)
 --------------------------------------------------------------------------------------*/
 void start_receiving_stream()
 {
-	size_t i;
 	DWORD RecvBytes;
 	DWORD Flags = 0;
 
@@ -383,7 +362,8 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 	size_t bytes_read;
 	// Reference the WSAOVERLAPPED structure as a SOCKET_INFORMATION structure
 	LPSOCKET_INFORMATION SI = (LPSOCKET_INFORMATION)Overlapped;
-	
+	DWORD dwWaitResult;
+
 	num_packet++;
 	total_packet++;
 	update_server_msgs("Total Packets Sent: " + std::to_string(total_packet));
@@ -406,10 +386,16 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 
-	if (num_packet == MAX_NUM_STREAM_PACKETS) {
-		WaitForSingleObject(SI->EventTrigger ,INFINITE);
+	if (num_packet == MAX_NUM_STREAM_PACKETS)
+	{
+		dwWaitResult = WaitForSingleObject(SI->EventTrigger, 3000);
 		ResetEvent(SI->EventTrigger);
 		num_packet = 0;
+		if (dwWaitResult == WAIT_TIMEOUT)
+		{
+			terminateFileStream();
+			return;
+		}
 	}
 
 	if (!feof(requested_file_stream))
@@ -429,6 +415,19 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 			}
 		}
 	}
+	else {
+		terminateFileStream();
+	}
 	return;
+}
+
+void terminateFileStream()
+{
+	if (isReceivingFileStream) 
+	{
+		isReceivingFileStream = FALSE;
+		TriggerWSAEvent(FileStreamSocketInfo->CompletedEvent);
+		TriggerWSAEvent(FileStreamSocketInfo->EventTrigger);
+	}
 }
 

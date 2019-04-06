@@ -104,7 +104,7 @@ void TriggerWSAEvent(WSAEVENT event)
 {
 	if (WSASetEvent(event) == FALSE)
 	{
-		update_server_msgs("WSASetEvent failed in Request Handler with error " + std::to_string(WSAGetLastError()));
+		update_server_msgs("WSASetEvent failed in TriggerWSAEvent with error " + std::to_string(WSAGetLastError()));
 		return;
 	}
 }
@@ -154,9 +154,9 @@ void TriggerEvent(HANDLE event)
 --	NOTES:
 --	Call this function to add a new thread to maintain the list of active threads
 --------------------------------------------------------------------------------------*/
-void add_new_thread_gen(DWORD threadList[], DWORD threadId, int threadCount)
+void add_new_thread_gen(std::vector<HANDLE> threadList, HANDLE &thrd)
 {
-	threadList[threadCount] = threadId;
+	threadList.push_back(thrd);
 }
 
 /*-------------------------------------------------------------------------------------

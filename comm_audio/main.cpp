@@ -424,6 +424,7 @@ LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 		switch (LOWORD(wParam))
 		{
 		case IDCANCEL:
+			terminate_server();
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
 			return 1;
@@ -475,6 +476,7 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			break;
 		case IDCANCEL:
 			// Disconnect process
+			terminate_client();
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
 			return 1;
@@ -516,17 +518,25 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 		case IDOK:
 			// get the input and initialize filereq/filestream
 			GetDlgItemText(hwnd, IDM_FILE_LIST_DROPDOWN, filename, MAX_INPUT_LENGTH);
-			
-			EnableWindow(control_panel_hwnd, TRUE);
-			EndDialog(hwnd, wParam);
-			if (selectedFeatureType == IDM_FILE_REQUEST_TYPE)
+			if (wcslen(filename) == 0)
 			{
-				request_wav_file(filename);
+				MessageBox(hwnd, L"You must select a file", L"", MB_OK);
 			}
-			else {
-				request_file_stream(filename);
-				show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
+			else
+			{
+				EnableWindow(control_panel_hwnd, TRUE);
+				EndDialog(hwnd, wParam);
+				if (selectedFeatureType == IDM_FILE_REQUEST_TYPE)
+				{
+					request_wav_file(filename);
+				}
+				else
+				{
+					request_file_stream(filename);
+					show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
+				}
 			}
+			
 
 			break;
 		case IDCANCEL:
@@ -567,8 +577,8 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 		{
 		case IDCANCEL:
 			// Disconnect process
+			start_client_terminate_file_stream();
 			EnableWindow(control_panel_hwnd, TRUE);
-			EndDialog(hwnd, wParam);
 			return 1;
 		}
 	}
@@ -599,7 +609,7 @@ void update_status(std::string newStatus)
 	HWND status_message = GetDlgItem(control_panel_hwnd, IDM_STATUS);
 	LPWSTR widestr = new WCHAR[newStatus.length() + 1];
 
-	::MultiByteToWideChar(CP_ACP, 0, newStatus.c_str(), newStatus.size(), widestr, newStatus.length());
+	::MultiByteToWideChar(CP_ACP, 0, newStatus.c_str(), (int)newStatus.size(), widestr, (int)newStatus.length());
 
 	widestr[newStatus.length()] = 0;
 
@@ -637,7 +647,7 @@ void update_messages(std::vector<std::string> messages)
 		outputString += (msg + "\n");
 	}
 	output = new WCHAR[outputString.length() + 1];
-	::MultiByteToWideChar(CP_ACP, 0, outputString.c_str(), outputString.size(), output, outputString.length());
+	::MultiByteToWideChar(CP_ACP, 0, outputString.c_str(), (int)outputString.size(), output, (int)outputString.length());
 
 	output[outputString.length()] = 0;
 
@@ -672,8 +682,13 @@ void setup_file_list_dropdown(std::vector<std::string> options)
 	for (auto option : options)
 	{
 		memset(output, 0, MAX_INPUT_LENGTH);
-		::MultiByteToWideChar(CP_ACP, 0, option.c_str(), option.size(), output, option.length());
+		::MultiByteToWideChar(CP_ACP, 0, option.c_str(), (int)option.size(), output, (int)option.length());
 		SendMessage(dropdown, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(output));
 	}
 	delete[] output;
+}
+
+void close_popup()
+{
+	EndDialog(popup, 0);
 }
