@@ -24,6 +24,7 @@
 #include "voip_handler.h"
 
 
+BOOL voipConnected = TRUE;
 struct sockaddr_in sender_addr;
 int sender_addr_len;
 
@@ -108,7 +109,6 @@ void start_receiving_voip(LPCWSTR ip_addr, LPCWSTR udp_port)
 	SOCKADDR_IN curr_addr;
 	sender_addr_len = sizeof(sockaddr_in);
 
-	BOOL isConnected = TRUE;
 	BOOL bOptVal = FALSE;
 	int bOptLen = sizeof(BOOL);
 
@@ -122,7 +122,7 @@ void start_receiving_voip(LPCWSTR ip_addr, LPCWSTR udp_port)
 
 	//bind to server address
 	if (bind(receiving_voip_socket, (struct sockaddr *)&curr_addr, sizeof(sockaddr)) == SOCKET_ERROR) {
-		isConnected = FALSE;
+		voipConnected = FALSE;
 
 		update_status(disconnectedMsg);
 		update_client_msgs("Failed to bind udp socket " + std::to_string(WSAGetLastError()));
@@ -133,7 +133,7 @@ void start_receiving_voip(LPCWSTR ip_addr, LPCWSTR udp_port)
 		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
 
-	if (isConnected) {
+	if (voipConnected) {
 		update_client_msgs("Connected to voip");
 		update_status(connectedMsg);
 	}
@@ -190,29 +190,6 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 		update_client_msgs("I/O operation failed with error " + std::to_string(Error));
 	}
 
-	//TODO: Implement end of voip process here
-
-	//if (BytesTransferred == 0 || BytesTransferred == 1)
-	//{
-	//	//if (strncmp(SI->DataBuf.buf, file_not_found_packet, 1) == 0)
-	//	//{
-	//	//	//FILE NOT FOUND PROCESS
-	//	//	//update_client_msgs("File Not Found on server.");
-	//	//	finalize_ftp("File Not Found on server.");
-	//	//}
-	//	//else if (strncmp(SI->DataBuf.buf, ftp_complete_packet, 1) == 0)
-	//	//{
-	//	//	//FTP COMPLETE PROCESS
-	//	//	//update_client_msgs("File transfer completed.");
-	//	//	finalize_ftp("File transfer completed.");
-	//	//}
-	//	update_client_msgs("Closing ftp socket " + std::to_string(SI->Socket));
-
-	//	isReceivingFileStream = FALSE;
-	//	TriggerWSAEvent(SI->CompletedEvent);
-	//	return;
-	//}
-
 	if (BytesTransferred != AUDIO_PACKET_SIZE) {
 		return;
 	}
@@ -226,6 +203,13 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 	//writeToAudioBuffer(SI->DataBuf.buf);
 
 	memset(SI->DataBuf.buf, 0, SI->DataBuf.len);
+
+	if (!voipConnected) {
+		// TriggerWSAEvent(SI->CompletedEvent);
+		update_client_msgs("Closing VOIP receiving UDP socket " + std::to_string(SI->Socket));
+		closesocket(SI->Socket);
+		return;
+	}
 
 	SI->DataBuf.buf = SI->AUDIO_BUFFER;
 	if (WSARecvFrom(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& sender_addr, &sender_addr_len, &(SI->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
@@ -312,7 +296,7 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 	//initialize_events_gen(&ReadyToSendEvent, L"AudioSendReady");
 	//startRecording(ReadyToSendEvent);
 
-	while (TRUE)
+	while (voipConnected)
 	{
 		// wait for block to fill up
 		/*WaitForSingleObject(ReadyToSendEvent, INFINITE);
@@ -333,5 +317,12 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 		Sleep(1000);
 	}
 
+	// TriggerWSAEvent(SI->CompletedEvent);
+	update_client_msgs("Closing VOIP sending UDP socket " + std::to_string(sending_voip_socket));
 	closesocket(sending_voip_socket);
+}
+
+void closeVOIP()
+{
+	voipConnected = FALSE;
 }

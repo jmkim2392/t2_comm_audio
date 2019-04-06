@@ -511,6 +511,9 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 --	Call this function to start the voip process
 --------------------------------------------------------------------------------------*/
 void start_voip(std::string client_ip_addr) {
+	// start streaming dialog
+	show_voip_dialog();
+
 	LPCWSTR receiving_port = L"4981";
 	LPCWSTR sending_port = L"4982";
 

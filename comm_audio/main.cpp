@@ -32,6 +32,8 @@ LPCWSTR mode = new TCHAR[MAX_INPUT_LENGTH];
 std::vector<std::wstring> messages;
 int selectedFeatureType;
 
+HWND serverHWND;
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	WinMain
 --
@@ -416,6 +418,7 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 --------------------------------------------------------------------------------------*/
 LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
+	serverHWND = hwnd;
 	switch (Message)
 	{
 	case WM_COMMAND:
@@ -466,6 +469,7 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			show_dialog(IDM_FILE_STREAM_TYPE, hwnd);
 			break;
 		case IDM_VOIP_TYPE:
+			selectedFeatureType = IDM_VOIP_TYPE;
 			request_voip();
 			show_dialog(IDM_VOIP_TYPE, hwnd);
 			break;
@@ -571,12 +575,21 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 		{
 		case IDCANCEL:
 			// Disconnect process
+			if (selectedFeatureType == IDM_VOIP_TYPE)
+			{
+				closeVOIP();
+			}
 			EnableWindow(control_panel_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
 			return 1;
 		}
 	}
 	return 0;
+}
+
+void show_voip_dialog()
+{
+	show_dialog(IDM_VOIP_TYPE, serverHWND);
 }
 
 /*-------------------------------------------------------------------------------------

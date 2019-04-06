@@ -72,6 +72,8 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 
 
+void show_voip_dialog();
+
 void update_status(std::string newStatus);
 
 void update_messages(std::vector<std::string> messages);
