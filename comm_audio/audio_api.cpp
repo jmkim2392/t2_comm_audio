@@ -33,14 +33,14 @@ static WAVEHDR* waveBlocks;
 static int waveHeadBlock;
 static int waveTailBlock;
 
-HWAVEIN hWaveIn;
-// can i use wfx for wave in as well?
-static CRITICAL_SECTION waveInCriticalSection;
-static volatile int waveInFreeBlockCount;
-static volatile int waveInNumFreed = MAX_NUM_STREAM_PACKETS;
-static WAVEHDR* waveInBlocks;
-static int waveInHeadBlock;
-static int waveInTailBlock;
+//HWAVEIN hWaveIn;
+//// can i use wfx for wave in as well?
+//static CRITICAL_SECTION waveInCriticalSection;
+//static volatile int waveInFreeBlockCount;
+//static volatile int waveInNumFreed = MAX_NUM_STREAM_PACKETS;
+//static WAVEHDR* waveInBlocks;
+//static int waveInHeadBlock;
+//static int waveInTailBlock;
 
 HANDLE ReadyToPlayEvent;
 HANDLE ReadyToSendEvent;
@@ -392,103 +392,103 @@ void terminate_audio_api() {
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void startRecording(HANDLE ReadyToSendEvent)
-{
-	DWORD ThreadId;
-
-	// initialize waveIn module variables
-	waveInBlocks = allocateBlocks(AUDIO_BLOCK_SIZE, BLOCK_COUNT);
-	waveInFreeBlockCount = BLOCK_COUNT;
-	waveInHeadBlock = 0;
-	waveInTailBlock = 0;
-	InitializeCriticalSection(&waveInCriticalSection);
-
-	// try to open the default wave in device
-	if (waveInOpen(
-		&hWaveIn,
-		WAVE_MAPPER,
-		&wfx,
-		(DWORD_PTR)waveInProc,
-		(DWORD_PTR)&waveInFreeBlockCount,
-		CALLBACK_FUNCTION
-	) != MMSYSERR_NOERROR) {
-		ExitProcess(1);
-	}
-
-	// start recordAudioThreadFunc thread
-	if ((AudioRecorderThread = CreateThread(NULL, 0, recordAudioThreadFunc, (LPVOID)ReadyToSendEvent, 0, &ThreadId)) == NULL)
-	{
-		update_client_msgs("Failed creating AudioRecorderThread with error " + std::to_string(GetLastError()));
-		return;
-	}
-}
-
-static void CALLBACK waveInProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
-{
-	/*
-	 * pointer to free block counter
-	 */
-	int* freeBlockCounter = (int*)dwInstance;
-	/*
-	 * ignore calls that occur due to openining and closing the
-	 * device.
-	 */
-
-	if (uMsg != WOM_DONE) {
-		return;
-	}
-
-	// DASHA - not sure what to do here....
-	//waveInNumFreed++;
-
-	//EnterCriticalSection(&waveInCriticalSection);
-	//waveInFreeBlockCount++;
-	//char debug_buf[512];
-	//sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", waveInFreeBlockCount);
-	//OutputDebugStringA(debug_buf);
-	//LeaveCriticalSection(&waveInCriticalSection);
-
-	////TriggerEvent(ReadyToPlayEvent);
-	//if (waveInNumFreed >= MAX_NUM_STREAM_PACKETS && waveInFreeBlockCount >= MAX_NUM_STREAM_PACKETS) {
-	//	waveInNumFreed = 1;
-	//}
-}
-
-DWORD WINAPI recordAudioThreadFunc(LPVOID lpParameter)
-{
-	WAVEHDR* head;
-	WAVEHDR* tail;
-	DWORD Index;
-	isRecordingAudio = TRUE;
-	HANDLE readyEvent = (HANDLE)lpParameter;
-
-	// DASHA - not sure what to do here...
-	// when do you use head and when do you use tail?
-
-	while (isRecordingAudio)
-	{
-		while (waveInTailBlock != waveInHeadBlock)
-		{
-			//tail = &waveInBlocks[waveInTailBlock];
-			head = &waveInBlocks[waveInHeadBlock];
-
-			waveInPrepareHeader(hWaveIn, head, sizeof(WAVEHDR));
-			waveInAddBuffer(hWaveIn, head, sizeof(WAVEHDR));
-			waveInStart(hWaveIn);
-
-			//waveInTailBlock++;
-			//waveInTailBlock %= BLOCK_COUNT;
-			waveInHeadBlock++;
-			waveInHeadBlock %= BLOCK_COUNT;
-		}
-
-		TriggerEvent(readyEvent); //ReadyToSend
-	}
-	return 0;
-}
-
-LPSTR getRecordedAudioBuffer()
-{
-	// DASHA - not sure what to do here....
-	// return waveInBlocks? first block?
-}
+//void startRecording(HANDLE ReadyToSendEvent)
+//{
+//	DWORD ThreadId;
+//
+//	// initialize waveIn module variables
+//	waveInBlocks = allocateBlocks(AUDIO_BLOCK_SIZE, BLOCK_COUNT);
+//	waveInFreeBlockCount = BLOCK_COUNT;
+//	waveInHeadBlock = 0;
+//	waveInTailBlock = 0;
+//	InitializeCriticalSection(&waveInCriticalSection);
+//
+//	// try to open the default wave in device
+//	if (waveInOpen(
+//		&hWaveIn,
+//		WAVE_MAPPER,
+//		&wfx,
+//		(DWORD_PTR)waveInProc,
+//		(DWORD_PTR)&waveInFreeBlockCount,
+//		CALLBACK_FUNCTION
+//	) != MMSYSERR_NOERROR) {
+//		ExitProcess(1);
+//	}
+//
+//	// start recordAudioThreadFunc thread
+//	if ((AudioRecorderThread = CreateThread(NULL, 0, recordAudioThreadFunc, (LPVOID)ReadyToSendEvent, 0, &ThreadId)) == NULL)
+//	{
+//		update_client_msgs("Failed creating AudioRecorderThread with error " + std::to_string(GetLastError()));
+//		return;
+//	}
+//}
+//
+//static void CALLBACK waveInProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
+//{
+//	/*
+//	 * pointer to free block counter
+//	 */
+//	int* freeBlockCounter = (int*)dwInstance;
+//	/*
+//	 * ignore calls that occur due to openining and closing the
+//	 * device.
+//	 */
+//
+//	if (uMsg != WOM_DONE) {
+//		return;
+//	}
+//
+//	// DASHA - not sure what to do here....
+//	//waveInNumFreed++;
+//
+//	//EnterCriticalSection(&waveInCriticalSection);
+//	//waveInFreeBlockCount++;
+//	//char debug_buf[512];
+//	//sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", waveInFreeBlockCount);
+//	//OutputDebugStringA(debug_buf);
+//	//LeaveCriticalSection(&waveInCriticalSection);
+//
+//	////TriggerEvent(ReadyToPlayEvent);
+//	//if (waveInNumFreed >= MAX_NUM_STREAM_PACKETS && waveInFreeBlockCount >= MAX_NUM_STREAM_PACKETS) {
+//	//	waveInNumFreed = 1;
+//	//}
+//}
+//
+//DWORD WINAPI recordAudioThreadFunc(LPVOID lpParameter)
+//{
+//	WAVEHDR* head;
+//	WAVEHDR* tail;
+//	DWORD Index;
+//	isRecordingAudio = TRUE;
+//	HANDLE readyEvent = (HANDLE)lpParameter;
+//
+//	// DASHA - not sure what to do here...
+//	// when do you use head and when do you use tail?
+//
+//	while (isRecordingAudio)
+//	{
+//		while (waveInTailBlock != waveInHeadBlock)
+//		{
+//			//tail = &waveInBlocks[waveInTailBlock];
+//			head = &waveInBlocks[waveInHeadBlock];
+//
+//			waveInPrepareHeader(hWaveIn, head, sizeof(WAVEHDR));
+//			waveInAddBuffer(hWaveIn, head, sizeof(WAVEHDR));
+//			waveInStart(hWaveIn);
+//
+//			//waveInTailBlock++;
+//			//waveInTailBlock %= BLOCK_COUNT;
+//			waveInHeadBlock++;
+//			waveInHeadBlock %= BLOCK_COUNT;
+//		}
+//
+//		TriggerEvent(readyEvent); //ReadyToSend
+//	}
+//	return 0;
+//}
+//
+//LPSTR getRecordedAudioBuffer()
+//{
+//	// DASHA - not sure what to do here....
+//	// return waveInBlocks? first block?
+//}

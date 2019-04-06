@@ -307,18 +307,18 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
 
-	// start audio recording thread
-	HANDLE ReadyToSendEvent;
-	initialize_events_gen(&ReadyToSendEvent, L"AudioSendReady");
-	startRecording(ReadyToSendEvent);
+	//// start audio recording thread
+	//HANDLE ReadyToSendEvent;
+	//initialize_events_gen(&ReadyToSendEvent, L"AudioSendReady");
+	//startRecording(ReadyToSendEvent);
 
 	while (TRUE)
 	{
 		// wait for block to fill up
-		WaitForSingleObject(ReadyToSendEvent, INFINITE);
+		/*WaitForSingleObject(ReadyToSendEvent, INFINITE);
 		ResetEvent(ReadyToSendEvent);
 
-		getRecordedAudioBuffer();
+		getRecordedAudioBuffer();*/
 
 		if (sendto(sending_voip_socket, buf, data_size, 0, (struct sockaddr *)&connect_addr, connect_addr_len) != data_size)
 		{
