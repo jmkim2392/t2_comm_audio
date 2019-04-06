@@ -425,6 +425,9 @@ void terminateFileStream()
 {
 	if (isReceivingFileStream) 
 	{
+		num_packet = 0;
+		total_packet = 0;
+		packetNUmRecv = 0;
 		isReceivingFileStream = FALSE;
 		TriggerWSAEvent(FileStreamSocketInfo->CompletedEvent);
 		TriggerWSAEvent(FileStreamSocketInfo->EventTrigger);

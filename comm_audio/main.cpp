@@ -518,25 +518,27 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 		case IDOK:
 			// get the input and initialize filereq/filestream
 			GetDlgItemText(hwnd, IDM_FILE_LIST_DROPDOWN, filename, MAX_INPUT_LENGTH);
+			
 			if (wcslen(filename) == 0)
 			{
-				MessageBox(hwnd, L"You must select a file", L"", MB_OK);
+				update_client_msgs("Incorrect File name.");
 			}
 			else
 			{
-				EnableWindow(control_panel_hwnd, TRUE);
-				EndDialog(hwnd, wParam);
 				if (selectedFeatureType == IDM_FILE_REQUEST_TYPE)
 				{
+					reset_client_request_receiver();
 					request_wav_file(filename);
 				}
 				else
 				{
+					reset_client_request_receiver();
 					request_file_stream(filename);
 					show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
 				}
 			}
-			
+			EnableWindow(control_panel_hwnd, TRUE);
+			EndDialog(hwnd, wParam);
 
 			break;
 		case IDCANCEL:

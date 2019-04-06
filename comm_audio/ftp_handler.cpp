@@ -382,17 +382,25 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 		return;
 	}
 
-	if (BytesTransferred != FTP_PACKET_SIZE)
-	{
-		if (SI->DataBuf.buf[BytesTransferred] == FILE_NOT_FOUND)
-		{
-			finalize_ftp("File Not Found on server.");
-		}
-		else if (SI->DataBuf.buf[BytesTransferred] == TRANSFER_COMPLETE)
-		{
-			finalize_ftp("File transfer completed.");
-		}
-	}
+	//if (BytesTransferred != FTP_PACKET_SIZE)
+	//{
+	//	if (SI->DataBuf.buf[BytesTransferred] == FILE_NOT_FOUND)
+	//	{
+	//		finalize_ftp("File Not Found on server.");
+	//		isReceivingFile = FALSE;
+	//		TriggerWSAEvent(SI->CompletedEvent);
+	//		WSAResetEvent(SI->CompletedEvent);
+	//		return;
+	//	}
+	//	else if (SI->DataBuf.buf[BytesTransferred] == TRANSFER_COMPLETE)
+	//	{
+	//		finalize_ftp("File transfer completed.");
+	//		isReceivingFile = FALSE;
+	//		TriggerWSAEvent(SI->CompletedEvent);
+	//		WSAResetEvent(SI->CompletedEvent);
+	//		return;
+	//	}
+	//}
 
 	Flags = 0;
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));

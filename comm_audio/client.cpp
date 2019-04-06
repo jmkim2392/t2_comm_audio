@@ -337,8 +337,6 @@ void request_file_stream(LPCWSTR filename)
 	std::wstring temp_msg = std::wstring(filename) + packetMsgDelimiter + current_device_ip + packetMsgDelimiter + udp_port_num + packetMsgDelimiter;
 	LPCWSTR stream_req_msg = temp_msg.c_str();
 
-	reset_client_request_receiver();
-
 	send_request_to_svr(AUDIO_STREAM_REQUEST_TYPE, stream_req_msg);
 	isStreaming = TRUE;
 }

@@ -387,6 +387,8 @@ void terminateAudioApi()
 {
 	if (isPlayingAudio)
 	{
+		waveFreeBlockCount = BLOCK_COUNT;
+		numFreed = MAX_NUM_STREAM_PACKETS;
 		isPlayingAudio = FALSE;
 		TriggerEvent(ReadyToPlayEvent);
 		TriggerEvent(BufferOpenToWriteEvent);
