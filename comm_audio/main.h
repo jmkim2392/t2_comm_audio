@@ -31,6 +31,7 @@ typedef struct _SOCKET_INFORMATION {
 	CHAR AUDIO_BUFFER[AUDIO_BLOCK_SIZE];
 	WSABUF DataBuf;
 	WSAEVENT CompletedEvent;
+	WSAEVENT FtpCompletedEvent;
 	HANDLE EventTrigger;
 	SOCKADDR_IN Sock_addr;
 	DWORD BytesSEND;
@@ -42,7 +43,7 @@ typedef struct _BROADCAST_INFO {
 	int portNum;
 } BROADCAST_INFO, *LPBROADCAST_INFO;
 
-static HWND parent_hwnd, child_hwnd, control_panel_hwnd;
+static HWND parent_hwnd, child_hwnd, control_panel_hwnd, popup;
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance, LPSTR lspszCmdParam, int nCmdShow);
 
@@ -66,3 +67,4 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 void update_status(std::string newStatus);
 
 void update_messages(std::vector<std::string> messages);
+void setup_file_list_dropdown(std::vector<std::string> options);

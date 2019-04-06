@@ -24,7 +24,9 @@
 --------------------------------------------------------------------------------------*/
 #include "server.h"
 
-SOCKET tcp_accept_socket;
+namespace fs = std::filesystem;
+
+SOCKET svr_tcp_accept_socket;
 SOCKET udp_audio_socket;
 
 SOCKET RequestSocket;
@@ -78,7 +80,7 @@ std::vector<std::string> server_msgs;
 void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port) 
 {
 	DWORD ThreadId;
-	
+
 	//open tcp socket 
 	initialize_wsa(tcp_port, &InternetAddr);
 	initialize_wsa_events(&AcceptEvent);
@@ -86,9 +88,9 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	initialize_wsa_events(&StreamCompletedEvent);
 	initialize_events_gen(&ResumeSendEvent, L"ResumeSend");
 
-	open_socket(&tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
+	open_socket(&svr_tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
 
-	if (bind(tcp_accept_socket, (PSOCKADDR)&InternetAddr,
+	if (bind(svr_tcp_accept_socket, (PSOCKADDR)&InternetAddr,
 		sizeof(InternetAddr)) == SOCKET_ERROR)
 	{
 		printf("bind() failed with error %d\n", WSAGetLastError());
@@ -104,14 +106,13 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	start_request_handler();
 	//start_broadcast(&udp_audio_socket, udp_port);
 
-	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&tcp_accept_socket, 0, &ThreadId)) == NULL)
+	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&svr_tcp_accept_socket, 0, &ThreadId)) == NULL)
 	{
 		update_server_msgs("Failed to create AcceptThread " + std::to_string(GetLastError()));
 
 		return;
 	}
 
-	//LPCWSTR temp = get_device_ip();
 	add_new_thread(ThreadId);
 	update_server_msgs("Server online..");
 	update_status(connectedMsg);
@@ -175,7 +176,7 @@ void start_request_receiver()
 	tcp_socket_info.tcp_socket = RequestSocket;
 	tcp_socket_info.CompleteEvent = RequestReceivedEvent;
 
-	if ((RequestReceiverThread = CreateThread(NULL, 0, RequestReceiverThreadFunc, (LPVOID)&tcp_socket_info, 0, &ThreadId)) == NULL)
+	if ((RequestReceiverThread = CreateThread(NULL, 0, SvrRequestReceiverThreadFunc, (LPVOID)&tcp_socket_info, 0, &ThreadId)) == NULL)
 	{
 		update_server_msgs("Failed to create RequestReceiverThread " + std::to_string(GetLastError()));
 		return;
@@ -476,7 +477,7 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 	}*/
 
 	initialize_file_stream(&udp_audio_socket, &client_addr_udp, NULL, ResumeSendEvent);
-	
+
 	if (open_file_to_stream(filename) == 0) {
 		if ((StreamingThread = CreateThread(NULL, 0, SendStreamThreadFunc, (LPVOID)StreamCompletedEvent, 0, &ThreadId)) == NULL)
 		{
@@ -486,31 +487,9 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 		add_new_thread(ThreadId);
 	}
 	else {
-		send_file_not_found_packet_udp();
+		update_server_msgs("Failed to open requested file " + std::to_string(GetLastError()));
+		return;
 	}
-}
-
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	terminate_server
---
---	DATE:			March 8, 2019
---
---	REVISIONS:		March 8, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void terminate_server()
---
---	RETURNS:		void
---
---	NOTES:
---	TODO implement the rest of server cleanup functions to safely terminate program
---------------------------------------------------------------------------------------*/
-void terminate_server()
-{
-	isAcceptingConnections = FALSE;
 }
 
 /*-------------------------------------------------------------------------------------
@@ -562,4 +541,102 @@ void update_server_msgs(std::string message)
 --------------------------------------------------------------------------------------*/
 void resume_streaming() {
 	TriggerEvent(ResumeSendEvent);
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	send_request_to_clnt
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void send_request_to_clnt(std::string msg)
+--									std::string msg - message to send to client
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to send a request packet to the connected client
+--------------------------------------------------------------------------------------*/
+void send_request_to_clnt(std::string msg)
+{
+	size_t i;
+	DWORD SendBytes;
+	WSABUF DataBuf;
+	OVERLAPPED Overlapped;
+
+	DataBuf.buf = (char*)msg.c_str();
+	DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+
+	ZeroMemory(&Overlapped, sizeof(WSAOVERLAPPED));
+
+	if (WSASend(tcp_socket_info.tcp_socket, &DataBuf, 1, &SendBytes, 0, &Overlapped, NULL) == SOCKET_ERROR)
+	{
+		if (WSAGetLastError() != WSA_IO_PENDING)
+		{
+			update_server_msgs("Send Request failed with error " + std::to_string(WSAGetLastError()));
+			return;
+		}
+	}
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	get_file_list
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void get_file_list()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to retrieve a list of wav files in the same directory of exe
+--------------------------------------------------------------------------------------*/
+std::vector<std::string> get_file_list()
+{
+	std::vector<std::string> file_list;
+	std::string file;
+	size_t pos = 0;
+
+	for (const auto & entry : std::filesystem::directory_iterator(fs::current_path()))
+	{
+		file = entry.path().filename().string();
+		if (file.find(wavExtension) != std::string::npos) {
+			file_list.push_back(file);
+		}
+	}
+	return file_list;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	terminate_server
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void terminate_server()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	TODO implement the rest of server cleanup functions to safely terminate program
+--------------------------------------------------------------------------------------*/
+void terminate_server()
+{
+	isAcceptingConnections = FALSE;
 }

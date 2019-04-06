@@ -33,12 +33,13 @@ static WAVEHDR* waveBlocks;
 static int waveHeadBlock;
 static int waveTailBlock;
 
-HANDLE ReadyToPlayEvent;
 HANDLE AudioPlayerThread;
 HANDLE BufRdySignalerThread;
 
 BOOL isPlayingAudio = FALSE;
+
 HANDLE BufferOpenToWriteEvent;
+HANDLE ReadyToPlayEvent;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_audio_device
@@ -271,7 +272,7 @@ DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter)
 	{
 		WaitForSingleObject(readyEvent, INFINITE);
 		ResetEvent(readyEvent);
-		send_request(AUDIO_BUFFER_RDY_TYPE, L"RDY");
+		send_request_to_svr(AUDIO_BUFFER_RDY_TYPE, L"RDY");
 	}
 	return 0;
 }
@@ -374,5 +375,8 @@ void freeBlocks(WAVEHDR* blockArray)
 --	TODO: may need to implement later, for now nothing
 --------------------------------------------------------------------------------------*/
 void terminate_audio_api() {
-
+	isPlayingAudio = FALSE;
+	TriggerEvent(ReadyToPlayEvent);
+	TriggerEvent(BufferOpenToWriteEvent);
+	freeBlocks(waveBlocks);
 }

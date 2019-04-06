@@ -66,7 +66,7 @@ void initialize_ftp(SOCKET* socket, WSAEVENT ftpCompletedEvent)
 {
 	buf = (char*)malloc(FTP_PACKET_SIZE);
 
-	ftp_complete_packet[0] = FTP_COMPLETE;
+	ftp_complete_packet[0] = TRANSFER_COMPLETE;
 	file_not_found_packet[0] = FILE_NOT_FOUND;
 
 	// Create a socket information structure to associate with the accepted socket.
@@ -332,7 +332,8 @@ DWORD WINAPI ReceiveFileThreadFunc(LPVOID lpParameter)
 				break;
 			}
 
-			if (!isReceivingFile) {
+			if (!isReceivingFile) 
+			{
 				close_file();
 			}
 		}
@@ -392,14 +393,18 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 		
 		isReceivingFile = FALSE;
 		TriggerWSAEvent(SI->CompletedEvent);
+		WSAResetEvent(SI->CompletedEvent);
 		return;
 	}
 
-	if (BytesTransferred != FTP_PACKET_SIZE) {
-		if (SI->DataBuf.buf[BytesTransferred] == FILE_NOT_FOUND) {
+	if (BytesTransferred != FTP_PACKET_SIZE) 
+	{
+		if (SI->DataBuf.buf[BytesTransferred] == FILE_NOT_FOUND) 
+		{
 			finalize_ftp("File Not Found on server.");
 		}
-		else if (SI->DataBuf.buf[BytesTransferred] == FTP_COMPLETE) {
+		else if (SI->DataBuf.buf[BytesTransferred] == TRANSFER_COMPLETE) 
+		{
 			finalize_ftp("File transfer completed.");
 		}
 	}
