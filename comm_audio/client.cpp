@@ -108,7 +108,7 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
 
-	initialize_audio_device();
+	initialize_waveout_device();
 
 	if (isConnected) {
 		update_client_msgs("Connected to server");
@@ -384,28 +384,32 @@ void request_voip()
 		return;
 	}
 
+	///// Keishi: Here wavein should come in
+	// ===========================
 	// struct with VoipCompleted event and port
-	LPVOIP_INFO sending_thread_params;
-	if ((sending_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
-		sizeof(VOIP_INFO))) == NULL)
-	{
-		//terminate_connection();
-		return;
-	}
-	sending_thread_params->CompletedEvent = VoipCompleted;
-	sending_thread_params->Ip_addr = ip_addr;
-	sending_thread_params->Udp_Port = sending_port;
+	//LPVOIP_INFO sending_thread_params;
+	//if ((sending_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
+	//	sizeof(VOIP_INFO))) == NULL)
+	//{
+	//	//terminate_connection();
+	//	return;
+	//}
+	//sending_thread_params->CompletedEvent = VoipCompleted;
+	//sending_thread_params->Ip_addr = ip_addr;
+	//sending_thread_params->Udp_Port = sending_port;
 
-	HANDLE SenderThread;
-	DWORD SenderThreadId;
-	if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)sending_thread_params, 0, &SenderThreadId)) == NULL)
-	{
-		update_client_msgs("Failed creating Voip Sending Thread with error " + std::to_string(GetLastError()));
-		return;
-	}
+	//HANDLE SenderThread;
+	//DWORD SenderThreadId;
+	//if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)sending_thread_params, 0, &SenderThreadId)) == NULL)
+	//{
+	//	update_client_msgs("Failed creating Voip Sending Thread with error " + std::to_string(GetLastError()));
+	//	return;
+	//}
 
-	add_new_thread_gen(clientThreads, ReceiverThreadId, cl_threadCount++);
-	add_new_thread_gen(clientThreads, SenderThreadId, cl_threadCount++);
+	//add_new_thread_gen(clientThreads, ReceiverThreadId, cl_threadCount++);
+	//add_new_thread_gen(clientThreads, SenderThreadId, cl_threadCount++);
+	// ===========================
+	//startRecording();
 }
 
 /*-------------------------------------------------------------------------------------

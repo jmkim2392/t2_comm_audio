@@ -25,22 +25,14 @@
 #include "audio_api.h"
 
 HWAVEOUT hWaveOut; /* device handle */
-WAVEFORMATEX wfx; /* look this up in your documentation */
+WAVEFORMATEX wfx;
+WAVEFORMATEX wfx_win;
 static CRITICAL_SECTION waveCriticalSection;
 static volatile int waveFreeBlockCount;
 static volatile int numFreed = MAX_NUM_STREAM_PACKETS;
 static WAVEHDR* waveBlocks;
 static int waveHeadBlock;
 static int waveTailBlock;
-
-HWAVEIN hWaveIn;
-// can i use wfx for wave in as well?
-static CRITICAL_SECTION waveInCriticalSection;
-static volatile int waveInFreeBlockCount;
-static volatile int waveInNumFreed = MAX_NUM_STREAM_PACKETS;
-static WAVEHDR* waveInBlocks;
-static int waveInHeadBlock;
-static int waveInTailBlock;
 
 HANDLE ReadyToPlayEvent;
 HANDLE ReadyToSendEvent;
@@ -51,6 +43,19 @@ HANDLE AudioRecorderThread;
 BOOL isPlayingAudio = FALSE;
 BOOL isRecordingAudio = FALSE;
 HANDLE BufferOpenToWriteEvent;
+
+
+///////////////////////////////////////////////////
+// WaveIN
+HWAVEIN hWaveIn;
+BYTE *win_buf1;
+BYTE *win_buf2;
+WAVEHDR whdr1;
+WAVEHDR whdr2;
+BOOL blReset = FALSE;
+int WIN_SRATE = 44100;
+MMRESULT win_mret;
+
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_audio_device
@@ -70,7 +75,7 @@ HANDLE BufferOpenToWriteEvent;
 --	NOTES:
 --	Call this function to setup the audio device and audio playing feature
 --------------------------------------------------------------------------------------*/
-void initialize_audio_device()
+void initialize_waveout_device()
 {
 	// KTODO: Probably inintialize wave in device here too.
 	DWORD ThreadId;
@@ -392,52 +397,145 @@ void terminate_audio_api() {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
+// Wave In
 
-void startRecording(HANDLE ReadyToSendEvent)
+void initialize_wavein_device(HWND hWndDlg)
 {
-	DWORD ThreadId;
+	win_buf1 = (BYTE*)malloc(WIN_SRATE);
+	win_buf2 = (BYTE*)malloc(WIN_SRATE);
 
-	// initialize waveIn module variables
-	waveInBlocks = allocateBlocks(AUDIO_BLOCK_SIZE, BLOCK_COUNT);
-	waveInFreeBlockCount = BLOCK_COUNT;
-	waveInHeadBlock = 0;
-	waveInTailBlock = 0;
-	InitializeCriticalSection(&waveInCriticalSection);
+	wfx_win.nSamplesPerSec = WIN_SRATE; /* sample rate */
+	wfx_win.wBitsPerSample = 16; /* sample size */
+	wfx_win.nChannels = 2; /* channels*/
+	wfx_win.cbSize = 0; /* size of _extra_ info */
+	wfx_win.wFormatTag = WAVE_FORMAT_PCM;
+	wfx_win.nBlockAlign = (wfx_win.wBitsPerSample * wfx_win.nChannels) >> 3;
+	wfx_win.nAvgBytesPerSec = wfx_win.nBlockAlign * wfx_win.nSamplesPerSec;
 
-	// try to open the default wave in device
-	if (waveInOpen(
-		&hWaveIn,
-		WAVE_MAPPER,
-		&wfx,
-		(DWORD_PTR)waveInProc,
-		(DWORD_PTR)&waveInFreeBlockCount,
-		CALLBACK_FUNCTION
-	) != MMSYSERR_NOERROR) {
-		ExitProcess(1);
+	whdr1.lpData = (LPSTR)win_buf1;
+	whdr1.dwBufferLength = WIN_SRATE;
+	whdr1.dwBytesRecorded = 0;
+	whdr1.dwFlags = 0;
+	whdr1.dwLoops = 1;
+	whdr1.lpNext = NULL;
+	whdr1.dwUser = 0;
+	whdr1.reserved = 0;
+
+	whdr2.lpData = (LPSTR)win_buf1;
+	whdr2.dwBufferLength = WIN_SRATE;
+	whdr2.dwBytesRecorded = 0;
+	whdr2.dwFlags = 0;
+	whdr2.dwLoops = 1;
+	whdr2.lpNext = NULL;
+	whdr2.dwUser = 0;
+	whdr2.reserved = 0;
+
+	//win_mret = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx_win, (DWORD)parent_hwnd, 0, CALLBACK_WINDOW);
+	win_mret = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx_win, (DWORD)hWndDlg, 0, CALLBACK_WINDOW);
+	//win_mret = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx_win, (DWORD_PTR)waveInProc, 0, CALLBACK_FUNCTION);
+	if (win_mret == MMSYSERR_NOERROR) {
+		OutputDebugStringA("good");
+		// From WIM_OPEN
+
+		win_mret = waveInPrepareHeader(hWaveIn, &whdr1, sizeof(WAVEHDR));
+		if (win_mret == MMSYSERR_NOERROR) {
+			OutputDebugStringA("good");
+		}
+		else {
+			OutputDebugStringA("bad");
+		}
+		win_mret = waveInPrepareHeader(hWaveIn, &whdr2, sizeof(WAVEHDR));
+		if (win_mret == MMSYSERR_NOERROR) {
+			OutputDebugStringA("good");
+		}
+		else {
+			OutputDebugStringA("bad");
+		}
 	}
 
-	// start recordAudioThreadFunc thread
-	if ((AudioRecorderThread = CreateThread(NULL, 0, recordAudioThreadFunc, (LPVOID)ReadyToSendEvent, 0, &ThreadId)) == NULL)
-	{
-		update_client_msgs("Failed creating AudioRecorderThread with error " + std::to_string(GetLastError()));
-		return;
-	}
 }
 
-static void CALLBACK waveInProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
+//void startRecording(HANDLE ReadyToSendEvent)
+void startRecording()
 {
+	//DWORD ThreadId;
+
+	// initialize waveIn module variables
+	//waveInBlocks = allocateBlocks(AUDIO_BLOCK_SIZE, BLOCK_COUNT);
+	//waveInFreeBlockCount = BLOCK_COUNT;
+	//waveInHeadBlock = 0;
+	//waveInTailBlock = 0;
+	//InitializeCriticalSection(&waveInCriticalSection);
+
+	// try to open the default wave in device
+	//if (waveInOpen(
+	//	&hWaveIn,
+	//	WAVE_MAPPER,
+	//	&wfx,
+	//	(DWORD_PTR)waveInProc,
+	//	(DWORD_PTR)&waveInFreeBlockCount,
+	//	CALLBACK_FUNCTION
+	//) != MMSYSERR_NOERROR) {
+	//	ExitProcess(1);
+	//}
+	waveInStart(hWaveIn);
+
+	// start recordAudioThreadFunc thread
+	//if ((AudioRecorderThread = CreateThread(NULL, 0, recordAudioThreadFunc, (LPVOID)ReadyToSendEvent, 0, &ThreadId)) == NULL)
+	//{
+	//	update_client_msgs("Failed creating AudioRecorderThread with error " + std::to_string(GetLastError()));
+	//	return;
+	//}
+}
+
+void wave_in_add_buffer(PWAVEHDR pwhdr, size_t size) 
+{
+	waveInAddBuffer(hWaveIn, pwhdr, size);
+}
+
+void wave_in_add_buffer()
+{
+	win_mret = waveInAddBuffer(hWaveIn, &whdr1, sizeof(WAVEHDR));
+	if (win_mret == MMSYSERR_NOERROR) {
+		OutputDebugStringA("good");
+	}
+	else {
+		OutputDebugStringA("bad add");
+	}
+	win_mret = waveInAddBuffer(hWaveIn, &whdr2, sizeof(WAVEHDR));
+	if (win_mret == MMSYSERR_NOERROR) {
+		OutputDebugStringA("ccc");
+	}
+	else {
+		OutputDebugStringA("bad add2");
+	}
+
+}
+
+
+
+void close_win_device()
+{
+	waveInUnprepareHeader(hWaveIn, &whdr1, sizeof(WAVEHDR));
+	waveInUnprepareHeader(hWaveIn, &whdr2, sizeof(WAVEHDR));
+	free(win_buf1);
+	free(win_buf2);
+}
+
+//static void CALLBACK waveInProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
+//{
 	/*
 	 * pointer to free block counter
 	 */
-	int* freeBlockCounter = (int*)dwInstance;
+	//int* freeBlockCounter = (int*)dwInstance;
 	/*
 	 * ignore calls that occur due to openining and closing the
 	 * device.
 	 */
 
-	if (uMsg != WOM_DONE) {
-		return;
-	}
+	//if (uMsg != WOM_DONE) {
+	//	return;
+	//}
 
 	// DASHA - not sure what to do here....
 	//waveInNumFreed++;
@@ -453,40 +551,40 @@ static void CALLBACK waveInProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, 
 	//if (waveInNumFreed >= MAX_NUM_STREAM_PACKETS && waveInFreeBlockCount >= MAX_NUM_STREAM_PACKETS) {
 	//	waveInNumFreed = 1;
 	//}
-}
+//}
 
-DWORD WINAPI recordAudioThreadFunc(LPVOID lpParameter)
-{
-	WAVEHDR* head;
-	WAVEHDR* tail;
-	DWORD Index;
-	isRecordingAudio = TRUE;
-	HANDLE readyEvent = (HANDLE)lpParameter;
-
-	// DASHA - not sure what to do here...
-	// when do you use head and when do you use tail?
-
-	while (isRecordingAudio)
-	{
-		while (waveInTailBlock != waveInHeadBlock)
-		{
-			//tail = &waveInBlocks[waveInTailBlock];
-			head = &waveInBlocks[waveInHeadBlock];
-
-			waveInPrepareHeader(hWaveIn, head, sizeof(WAVEHDR));
-			waveInAddBuffer(hWaveIn, head, sizeof(WAVEHDR));
-			waveInStart(hWaveIn);
-
-			//waveInTailBlock++;
-			//waveInTailBlock %= BLOCK_COUNT;
-			waveInHeadBlock++;
-			waveInHeadBlock %= BLOCK_COUNT;
-		}
-
-		TriggerEvent(readyEvent); //ReadyToSend
-	}
-	return 0;
-}
+//DWORD WINAPI recordAudioThreadFunc(LPVOID lpParameter)
+//{
+//	WAVEHDR* head;
+//	WAVEHDR* tail;
+//	DWORD Index;
+//	isRecordingAudio = TRUE;
+//	HANDLE readyEvent = (HANDLE)lpParameter;
+//
+//	// DASHA - not sure what to do here...
+//	// when do you use head and when do you use tail?
+//
+//	while (isRecordingAudio)
+//	{
+//		while (waveInTailBlock != waveInHeadBlock)
+//		{
+//			//tail = &waveInBlocks[waveInTailBlock];
+//			head = &waveInBlocks[waveInHeadBlock];
+//
+//			waveInPrepareHeader(hWaveIn, head, sizeof(WAVEHDR));
+//			waveInAddBuffer(hWaveIn, head, sizeof(WAVEHDR));
+//			waveInStart(hWaveIn);
+//
+//			//waveInTailBlock++;
+//			//waveInTailBlock %= BLOCK_COUNT;
+//			waveInHeadBlock++;
+//			waveInHeadBlock %= BLOCK_COUNT;
+//		}
+//
+//		TriggerEvent(readyEvent); //ReadyToSend
+//	}
+//	return 0;
+//}
 
 //LPSTR getRecordedAudioBuffer()
 //{
@@ -494,3 +592,52 @@ DWORD WINAPI recordAudioThreadFunc(LPVOID lpParameter)
 	// return waveInBlocks? first block?
 	//return "helloc";
 //}
+//static void CALLBACK waveInProc(HWAVEIN hWaveIn, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD lp)
+//{
+//
+//	switch (uMsg) {
+//
+//	case WIM_OPEN:
+//		OutputDebugStringA("open");
+//		break;
+//	case WIM_DATA:
+//		// post message to process this input block received
+//		// NOTE: callback cannot call other waveform functions
+//		//....................................................
+//
+//		//PostMessage((HWND)dwInstance, USR_INBLOCK, 0, dwParam1);
+//
+//
+//		// Dont need for network
+//		OutputDebugStringA("data");
+//		char sbuf[512];
+//		sprintf_s(sbuf, "%d\n", ((PWAVEHDR)lp)->dwBytesRecorded);
+//		update_client_msgs(sbuf);
+//		// Dont need for network
+//
+//		//if (blReset || !bTmp) {
+//		//if (blReset) {
+//			//			waveInClose(hWaveIn);
+//			//blReset = FALSE;
+//			//return 0;
+//			//break;
+//		//}
+//
+//
+//		// Call WSASend Recv here
+//		// WSASend(socket_to_send_to_peer, ((PWAVEHDR)lp).lpData, 1, ((PWAVEHDR)lp).dwBytesRecorded, 0, &Overlapped, NULL)
+//
+//		//waveInAddBuffer(hWaveIn, (PWAVEHDR)lp, sizeof(WAVEHDR));
+//
+//		break;
+//	case WIM_CLOSE:
+//		OutputDebugStringA("wim close");
+//		//waveInUnprepareHeader(hWaveIn, &whdr1, sizeof(WAVEHDR));
+//		//waveInUnprepareHeader(hWaveIn, &whdr2, sizeof(WAVEHDR));
+//		free(win_buf1);
+//		free(win_buf2);
+//		break; // don't care
+//
+//	}
+//}
+//

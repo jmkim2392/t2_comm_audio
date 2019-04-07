@@ -291,11 +291,13 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 	connect_addr.sin_family = AF_INET;
 	connect_addr.sin_port = htons(udp_port);
 	connect_addr_len = sizeof(connect_addr);
+	OutputDebugString((LPCWSTR)ip_addr);
 
 	// Convert ip address from LPCWSTR to const char*
-	//WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, params->Ip_addr, -1, ip_addr, sizeof(ip_addr), NULL, NULL);
+	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, params->Ip_addr, -1, ip_addr, sizeof(ip_addr), NULL, NULL);
 
 	// Get host name of ip address
+	// KTODO: Remove hardcoded hostname
 	//if ((hp = gethostbyname(ip_addr)) == NULL)
 	if ((hp = gethostbyname("localhost")) == NULL)
 	{
