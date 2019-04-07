@@ -26,6 +26,7 @@
 
 struct sockaddr_in sender_addr;
 int sender_addr_len;
+int voipPacketNumRecv = 0;
 
 char *voip_send_buf;
 LPSOCKET_INFORMATION VoipSendSocketInfo;
@@ -226,6 +227,7 @@ void start_receiving_voip(LPCWSTR ip_addr, LPCWSTR udp_port)
 --------------------------------------------------------------------------------------*/
 void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags)
 {
+	// Need to have almost same contents as FileStream_ReceiveRoutine
 	DWORD RecvBytes;
 	DWORD Flags;
 
@@ -263,15 +265,21 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 		return;
 	}
 
+	voipPacketNumRecv++;
+	update_client_msgs("PacketRecv: " + std::to_string(voipPacketNumRecv));
+	update_server_msgs("PacketRecv: " + std::to_string(voipPacketNumRecv));
+
 	Flags = 0;
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 
-	update_client_msgs("Received data");
-	update_server_msgs("Received data");
+//	update_client_msgs("Received data");
+//	update_server_msgs("Received data");
 
 	//writeToAudioBuffer(SI->DataBuf.buf);
 
-	memset(SI->DataBuf.buf, 0, SI->DataBuf.len);
+	//memset(SI->DataBuf.buf, 0, SI->DataBuf.len);
+
+	writeToAudioBuffer(SI->DataBuf.buf);
 
 	//SI->DataBuf.buf = SI->AUDIO_BUFFER;
 	SI->DataBuf.buf = SI->VOIP_RECV_BUFFER;

@@ -527,6 +527,9 @@ void start_voip(std::string client_ip_addr) {
 		//terminate_connection();
 		return;
 	}
+
+	initialize_waveout_device();
+
 	receiving_thread_params->CompletedEvent = VoipCompleted;
 	receiving_thread_params->Ip_addr = ip_addr;
 	receiving_thread_params->Udp_Port = receiving_port;
