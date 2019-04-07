@@ -353,7 +353,7 @@ void join_multicast_stream() {
 		WSACleanup();
 		return;
 	}
-	add_new_thread(ThreadId);
+	add_new_thread_gen(clntThreads, multicast_receive_thread);
 }
 
 void disconnect_multicast() {

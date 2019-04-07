@@ -304,7 +304,7 @@ void start_broadcast()
 		isBroadcasting = FALSE;
 		return;
 	}
-	add_new_thread(ThreadId);
+	add_new_thread_gen(svrThreads, BroadCastThread);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -351,31 +351,31 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 	return 0;
 }
 
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	add_new_thread
---
---	DATE:			March 8, 2019
---
---	REVISIONS:		March 8, 2019
---					March 14, 2019 - JK - Set for removal to use new function - SEE NOTES
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void add_new_thread(DWORD threadId) 
---								DWORD threadId - the threadId to add
---
---	RETURNS:		void
---
---	NOTES:
---	DEPRECATED - USE function in general_functions
---	Call this function to add a new thread to maintain the list of active threads
---------------------------------------------------------------------------------------*/
-void add_new_thread(DWORD threadId) 
-{
-	serverThreads[svr_threadCount++] = threadId;
-}
+///*-------------------------------------------------------------------------------------
+//--	FUNCTION:	add_new_thread
+//--
+//--	DATE:			March 8, 2019
+//--
+//--	REVISIONS:		March 8, 2019
+//--					March 14, 2019 - JK - Set for removal to use new function - SEE NOTES
+//--
+//--	DESIGNER:		Jason Kim
+//--
+//--	PROGRAMMER:		Jason Kim
+//--
+//--	INTERFACE:		void add_new_thread(DWORD threadId) 
+//--								DWORD threadId - the threadId to add
+//--
+//--	RETURNS:		void
+//--
+//--	NOTES:
+//--	DEPRECATED - USE function in general_functions
+//--	Call this function to add a new thread to maintain the list of active threads
+//--------------------------------------------------------------------------------------*/
+//void add_new_thread(DWORD threadId) 
+//{
+//	serverThreads[svr_threadCount++] = threadId;
+//}
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	start_ftp
