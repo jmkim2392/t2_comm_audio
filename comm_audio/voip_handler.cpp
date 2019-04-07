@@ -340,3 +340,87 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 
 	closesocket(sending_voip_socket);
 }
+
+void send_audio_block(PWAVEHDR whdr)
+{
+	//LPVOIP_INFO params = (LPVOIP_INFO)lpParameter;
+
+	LPCWSTR ip_addr = L"127.0.0.1";
+
+	// specify addr and port to bind to
+	LPCWSTR receiving_port = L"4982";
+	LPCWSTR sending_port = L"4981";
+
+
+	SOCKET sending_voip_socket;
+	struct sockaddr_in connect_addr;
+	int connect_addr_len;
+	HOSTENT *hp;
+	char ip_addr[MAX_PATH];
+
+	char buf[8192] = "hello";
+	int data_size = 8192;
+	BOOL bOptVal = FALSE;
+	int bOptLen = sizeof(BOOL);
+
+	// Convert udp_port from LPCWSTR to USHORT
+	LPCWSTR str_udp_port = (LPCWSTR)params->Udp_Port;
+	int int_udp_port = _wtoi(str_udp_port);
+	USHORT udp_port = (USHORT)int_udp_port;
+
+	// Create a datagram socket
+	if ((sending_voip_socket = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
+	{
+		perror("Can't create a socket");
+		exit(1);
+	}
+
+	// Set up address of device to send to
+	memset((char *)&connect_addr, 0, sizeof(connect_addr));
+	connect_addr.sin_family = AF_INET;
+	connect_addr.sin_port = htons(udp_port);
+	connect_addr_len = sizeof(connect_addr);
+	OutputDebugString((LPCWSTR)ip_addr);
+
+	// Convert ip address from LPCWSTR to const char*
+	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, params->Ip_addr, -1, ip_addr, sizeof(ip_addr), NULL, NULL);
+
+	// Get host name of ip address
+	// KTODO: Remove hardcoded hostname
+	//if ((hp = gethostbyname(ip_addr)) == NULL)
+	if ((hp = gethostbyname("localhost")) == NULL)
+	{
+		fprintf(stderr, "Can't get server's IP address\n");
+		exit(1);
+	}
+	memcpy((char *)&connect_addr.sin_addr, hp->h_addr, hp->h_length);
+
+	//set REUSEADDR for udp socket
+	if (setsockopt(sending_voip_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
+
+	// start audio recording thread
+	HANDLE ReadyToSendEvent;
+	initialize_events_gen(&ReadyToSendEvent, L"AudioSendReady");
+	//startRecording(ReadyToSendEvent);
+
+	// wait for block to fill up
+	//WaitForSingleObject(ReadyToSendEvent, INFINITE);
+	//ResetEvent(ReadyToSendEvent);
+
+	OutputDebugStringA("hello2");
+	//getRecordedAudioBuffer();
+
+	if (sendto(sending_voip_socket, buf, data_size, 0, (struct sockaddr *)&connect_addr, connect_addr_len) != data_size)
+	{
+		perror("sendto error");
+		exit(1);
+	}
+
+	update_client_msgs("Sent data");
+	update_server_msgs("Sent data");
+
+	//Sleep() is for slowing it down a little; normally filling up the buffer will slow it down
+	//Sleep(1000);
+}

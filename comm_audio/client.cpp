@@ -24,6 +24,8 @@
 
 SOCKET cl_tcp_req_socket;
 SOCKET cl_udp_audio_socket;
+SOCKET cl_udp_voip_recv_socket;
+SOCKET cl_udp_voip_send_socket;
 
 LPCWSTR tcp_port_num;
 LPCWSTR udp_port_num;

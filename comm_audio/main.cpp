@@ -635,7 +635,8 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 		//}
 
 	//	waveInAddBuffer(hWaveIn, (PWAVEHDR)lParam, sizeof(WAVEHDR));
-		wave_in_add_buffer((PWAVEHDR)lParam, sizeof(WAVEHDR));
+		//wave_in_add_buffer((PWAVEHDR)lParam, sizeof(WAVEHDR));
+		send_audio_block((PWAVEHDR)lParam);
 		break;
 	case WIM_CLOSE:
 		OutputDebugStringA("wim close");
