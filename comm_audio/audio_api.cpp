@@ -50,10 +50,23 @@ HANDLE BufferOpenToWriteEvent;
 HWAVEIN hWaveIn;
 BYTE *win_buf1;
 BYTE *win_buf2;
+BYTE *win_buf3;
+BYTE *win_buf4;
+BYTE *win_buf5;
+BYTE *win_buf6;
+BYTE *win_buf7;
+BYTE *win_buf8;
 WAVEHDR whdr1;
 WAVEHDR whdr2;
+WAVEHDR whdr3;
+WAVEHDR whdr4;
+WAVEHDR whdr5;
+WAVEHDR whdr6;
+WAVEHDR whdr7;
+WAVEHDR whdr8;
 BOOL blReset = FALSE;
-int WIN_SRATE = 44100;
+//int WIN_SRATE = 44100;
+int WIN_SRATE = 11025;
 MMRESULT win_mret;
 
 
@@ -75,7 +88,7 @@ MMRESULT win_mret;
 --	NOTES:
 --	Call this function to setup the audio device and audio playing feature
 --------------------------------------------------------------------------------------*/
-void initialize_waveout_device()
+void initialize_waveout_device(WAVEFORMATEX wfxparam)
 {
 	// KTODO: Probably inintialize wave in device here too.
 	DWORD ThreadId;
@@ -94,13 +107,24 @@ void initialize_waveout_device()
 	/*
 	 * set up the WAVEFORMATEX structure.
 	 */
-	wfx.nSamplesPerSec = 44100; /* sample rate */
-	wfx.wBitsPerSample = 16; /* sample size */
-	wfx.nChannels = 2; /* channels*/
-	wfx.cbSize = 0; /* size of _extra_ info */
-	wfx.wFormatTag = WAVE_FORMAT_PCM;
-	wfx.nBlockAlign = (wfx.wBitsPerSample * wfx.nChannels) >> 3;
-	wfx.nAvgBytesPerSec = wfx.nBlockAlign * wfx.nSamplesPerSec;
+	//wfx.nSamplesPerSec = 44100; /* sample rate */
+	//wfx.wBitsPerSample = 16; /* sample size */
+	//wfx.nSamplesPerSec = 11025; /* sample rate */
+	//wfx.wBitsPerSample = 8; /* sample size */
+	//wfx.nChannels = 2; /* channels*/
+	//wfx.cbSize = 0; /* size of _extra_ info */
+	//wfx.wFormatTag = WAVE_FORMAT_PCM;
+	//wfx.nBlockAlign = (wfx.wBitsPerSample * wfx.nChannels) >> 3;
+	//wfx.nAvgBytesPerSec = wfx.nBlockAlign * wfx.nSamplesPerSec;
+
+	wfx.nSamplesPerSec = wfxparam.nSamplesPerSec; /* sample rate */
+	wfx.wBitsPerSample = wfxparam.wBitsPerSample; /* sample size */
+	wfx.nChannels = wfxparam.nChannels; /* channels*/
+	wfx.cbSize = wfxparam.cbSize; /* size of _extra_ info */
+	wfx.wFormatTag = wfxparam.wFormatTag;
+	wfx.nBlockAlign = wfxparam.nBlockAlign;
+	wfx.nAvgBytesPerSec = wfx.nAvgBytesPerSec;
+
 	/*
 	 * try to open the default wave device. WAVE_MAPPER is
 	 * a constant defined in mmsystem.h, it always points to the
@@ -401,11 +425,19 @@ void terminate_audio_api() {
 
 void initialize_wavein_device(HWND hWndDlg)
 {
+	// KTODO: if this works and have time, change it to array or sth
 	win_buf1 = (BYTE*)malloc(WIN_SRATE);
 	win_buf2 = (BYTE*)malloc(WIN_SRATE);
+	win_buf3 = (BYTE*)malloc(WIN_SRATE);
+	win_buf4 = (BYTE*)malloc(WIN_SRATE);
+	win_buf5 = (BYTE*)malloc(WIN_SRATE);
+	win_buf6 = (BYTE*)malloc(WIN_SRATE);
+	win_buf7 = (BYTE*)malloc(WIN_SRATE);
+	win_buf8 = (BYTE*)malloc(WIN_SRATE);
 
 	wfx_win.nSamplesPerSec = WIN_SRATE; /* sample rate */
-	wfx_win.wBitsPerSample = 16; /* sample size */
+	//wfx_win.wBitsPerSample = 16; /* sample size */
+	wfx_win.wBitsPerSample = 8; /* sample size */
 	wfx_win.nChannels = 2; /* channels*/
 	wfx_win.cbSize = 0; /* size of _extra_ info */
 	wfx_win.wFormatTag = WAVE_FORMAT_PCM;
@@ -421,7 +453,7 @@ void initialize_wavein_device(HWND hWndDlg)
 	whdr1.dwUser = 0;
 	whdr1.reserved = 0;
 
-	whdr2.lpData = (LPSTR)win_buf1;
+	whdr2.lpData = (LPSTR)win_buf2;
 	whdr2.dwBufferLength = WIN_SRATE;
 	whdr2.dwBytesRecorded = 0;
 	whdr2.dwFlags = 0;
@@ -429,6 +461,61 @@ void initialize_wavein_device(HWND hWndDlg)
 	whdr2.lpNext = NULL;
 	whdr2.dwUser = 0;
 	whdr2.reserved = 0;
+
+	whdr3.lpData = (LPSTR)win_buf3;
+	whdr3.dwBufferLength = WIN_SRATE;
+	whdr3.dwBytesRecorded = 0;
+	whdr3.dwFlags = 0;
+	whdr3.dwLoops = 1;
+	whdr3.lpNext = NULL;
+	whdr3.dwUser = 0;
+	whdr3.reserved = 0;
+
+	whdr4.lpData = (LPSTR)win_buf4;
+	whdr4.dwBufferLength = WIN_SRATE;
+	whdr4.dwBytesRecorded = 0;
+	whdr4.dwFlags = 0;
+	whdr4.dwLoops = 1;
+	whdr4.lpNext = NULL;
+	whdr4.dwUser = 0;
+	whdr4.reserved = 0;
+
+	whdr5.lpData = (LPSTR)win_buf5;
+	whdr5.dwBufferLength = WIN_SRATE;
+	whdr5.dwBytesRecorded = 0;
+	whdr5.dwFlags = 0;
+	whdr5.dwLoops = 1;
+	whdr5.lpNext = NULL;
+	whdr5.dwUser = 0;
+	whdr5.reserved = 0;
+
+	whdr6.lpData = (LPSTR)win_buf6;
+	whdr6.dwBufferLength = WIN_SRATE;
+	whdr6.dwBytesRecorded = 0;
+	whdr6.dwFlags = 0;
+	whdr6.dwLoops = 1;
+	whdr6.lpNext = NULL;
+	whdr6.dwUser = 0;
+	whdr6.reserved = 0;
+
+	whdr7.lpData = (LPSTR)win_buf7;
+	whdr7.dwBufferLength = WIN_SRATE;
+	whdr7.dwBytesRecorded = 0;
+	whdr7.dwFlags = 0;
+	whdr7.dwLoops = 1;
+	whdr7.lpNext = NULL;
+	whdr7.dwUser = 0;
+	whdr7.reserved = 0;
+
+	whdr8.lpData = (LPSTR)win_buf8;
+	whdr8.dwBufferLength = WIN_SRATE;
+	whdr8.dwBytesRecorded = 0;
+	whdr8.dwFlags = 0;
+	whdr8.dwLoops = 1;
+	whdr8.lpNext = NULL;
+	whdr8.dwUser = 0;
+	whdr8.reserved = 0;
+
 
 	//win_mret = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx_win, (DWORD)parent_hwnd, 0, CALLBACK_WINDOW);
 	win_mret = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx_win, (DWORD)hWndDlg, 0, CALLBACK_WINDOW);
@@ -509,7 +596,12 @@ void wave_in_add_buffer()
 	else {
 		OutputDebugStringA("bad add2");
 	}
-
+	win_mret = waveInAddBuffer(hWaveIn, &whdr3, sizeof(WAVEHDR));
+	win_mret = waveInAddBuffer(hWaveIn, &whdr4, sizeof(WAVEHDR));
+	win_mret = waveInAddBuffer(hWaveIn, &whdr5, sizeof(WAVEHDR));
+	win_mret = waveInAddBuffer(hWaveIn, &whdr6, sizeof(WAVEHDR));
+	win_mret = waveInAddBuffer(hWaveIn, &whdr7, sizeof(WAVEHDR));
+	win_mret = waveInAddBuffer(hWaveIn, &whdr8, sizeof(WAVEHDR));
 }
 
 
@@ -518,8 +610,20 @@ void close_win_device()
 {
 	waveInUnprepareHeader(hWaveIn, &whdr1, sizeof(WAVEHDR));
 	waveInUnprepareHeader(hWaveIn, &whdr2, sizeof(WAVEHDR));
+	waveInUnprepareHeader(hWaveIn, &whdr3, sizeof(WAVEHDR));
+	waveInUnprepareHeader(hWaveIn, &whdr4, sizeof(WAVEHDR));
+	waveInUnprepareHeader(hWaveIn, &whdr5, sizeof(WAVEHDR));
+	waveInUnprepareHeader(hWaveIn, &whdr6, sizeof(WAVEHDR));
+	waveInUnprepareHeader(hWaveIn, &whdr7, sizeof(WAVEHDR));
+	waveInUnprepareHeader(hWaveIn, &whdr8, sizeof(WAVEHDR));
 	free(win_buf1);
 	free(win_buf2);
+	free(win_buf3);
+	free(win_buf4);
+	free(win_buf5);
+	free(win_buf6);
+	free(win_buf7);
+	free(win_buf8);
 }
 
 //static void CALLBACK waveInProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)

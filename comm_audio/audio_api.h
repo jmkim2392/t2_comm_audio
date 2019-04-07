@@ -4,7 +4,8 @@
 #include <mmsystem.h>
 #include "client.h"
 
-void initialize_waveout_device();
+//void initialize_waveout_device();
+void initialize_waveout_device(WAVEFORMATEX wfxparam);
 void CALLBACK waveOutProc(HWAVEOUT, UINT, DWORD, DWORD, DWORD);
 WAVEHDR* allocateBlocks(int size, int count);
 void freeBlocks(WAVEHDR* blockArray);

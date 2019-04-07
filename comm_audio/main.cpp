@@ -564,7 +564,9 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 			else {
 				request_file_stream(filename);
 				//request_file_stream(L"koto.wav");
-				show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
+
+				// KTODO: Ask Jason why it's showing VOIP. commented out by me
+				//show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
 			}
 
 			break;

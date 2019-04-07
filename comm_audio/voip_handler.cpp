@@ -400,74 +400,21 @@ void start_recording_voip()
 	startRecording();
 	while (TRUE)
 	{
-		OutputDebugStringA("hello2");
 		Sleep(1000);
 	}
-
 }
 
 void send_audio_block(PWAVEHDR pwhdr)
 {
-	//LPVOIP_INFO params = (LPVOIP_INFO)lpParameter;
-
-	//LPCWSTR ip_addr = L"127.0.0.1";
-
-	// specify addr and port to bind to
-	//LPCWSTR receiving_port = L"4982";
-	//LPCWSTR sending_port = L"4981";
-
-
-	//SOCKET sending_voip_socket;
-	//struct sockaddr_in connect_addr;
-	//int connect_addr_len;
-	//HOSTENT *hp;
-	//char ip_addr[MAX_PATH];
-
-	//char buf[8192] = "hello";
-	//KTODO: Remove hardcode byte for data_size
+	//KTODO: Remove hardcode byte for data_size, now this hasn't been used. may be used for error check
 	int data_size = 44100;
-	//BOOL bOptVal = FALSE;
-	//int bOptLen = sizeof(BOOL);
 
-	// Convert udp_port from LPCWSTR to USHORT
-	//LPCWSTR str_udp_port = (LPCWSTR)params->Udp_Port;
-	//int int_udp_port = _wtoi(str_udp_port);
-	//USHORT udp_port = (USHORT)int_udp_port;
-
-	// Create a datagram socket
-	//if ((sending_voip_socket = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
-	//{
-	//	perror("Can't create a socket");
-	//	exit(1);
-	//}
-
-	//set REUSEADDR for udp socket
-	//if (setsockopt(sending_voip_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
-	//	update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
-	//}
-
-	// start audio recording thread
-	//HANDLE ReadyToSendEvent;
-	//initialize_events_gen(&ReadyToSendEvent, L"AudioSendReady");
-	//startRecording(ReadyToSendEvent);
-
-	// wait for block to fill up
-	//WaitForSingleObject(ReadyToSendEvent, INFINITE);
-	//ResetEvent(ReadyToSendEvent);
-
-	OutputDebugStringA("hello2");
-	//getRecordedAudioBuffer();
 	size_t n;
-	//if (n = sendto(VoipSendSocketInfo->Socket, whdr->lpData, whdr->dwBytesRecorded, 0, (SOCKADDR *)&(VoipSendSocketInfo->Sock_addr), sizeof(VoipSendSocketInfo->Sock_addr)) != data_size)
-	//{
-	//	perror("sendto error");
-	//	exit(1);
-	//}
+
 	n = sendto(VoipSendSocketInfo->Socket, pwhdr->lpData, pwhdr->dwBytesRecorded, 0, (SOCKADDR *)&(VoipSendSocketInfo->Sock_addr), sizeof(VoipSendSocketInfo->Sock_addr));
 	char sbuf[512];
-	sprintf_s(sbuf, "%d\n", n);
+	sprintf_s(sbuf, "Sent: %d bytes\n", n);
 	update_client_msgs(sbuf);
-	// ****** NEXT: Seems 44100 sending, but the server is not receiving now
 
 	wave_in_add_buffer(pwhdr, sizeof(WAVEHDR));
 

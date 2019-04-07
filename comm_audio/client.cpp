@@ -95,7 +95,6 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	initialize_wsa(tcp_port, &cl_addr);
 	open_socket(&cl_tcp_req_socket, SOCK_STREAM, IPPROTO_TCP);
 
-
 	current_device_ip = get_device_ip();
 	setup_svr_addr(&server_addr_tcp, tcp_port, svr_ip_addr);
 	// TODO: make current dev IP consistent with hardcode localhost
@@ -127,7 +126,16 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
 
-	initialize_waveout_device();
+	WAVEFORMATEX wfx_fs_play;
+	wfx_fs_play.nSamplesPerSec = 44100; /* sample rate */
+	wfx_fs_play.wBitsPerSample = 16; /* sample size */
+	wfx_fs_play.nChannels = 2; /* channels*/
+	wfx_fs_play.cbSize = 0; /* size of _extra_ info */
+	wfx_fs_play.wFormatTag = WAVE_FORMAT_PCM;
+	wfx_fs_play.nBlockAlign = (wfx_fs_play.wBitsPerSample * wfx_fs_play.nChannels) >> 3;
+	wfx_fs_play.nAvgBytesPerSec = wfx_fs_play.nBlockAlign * wfx_fs_play.nSamplesPerSec;
+
+	initialize_waveout_device(wfx_fs_play);
 
 	if (isConnected) {
 		update_client_msgs("Connected to server");

@@ -528,7 +528,16 @@ void start_voip(std::string client_ip_addr) {
 		return;
 	}
 
-	initialize_waveout_device();
+	WAVEFORMATEX wfx_voip_play;
+	wfx_voip_play.nSamplesPerSec = 11025; /* sample rate */
+	wfx_voip_play.wBitsPerSample = 8; /* sample size */
+	wfx_voip_play.nChannels = 2; /* channels*/
+	wfx_voip_play.cbSize = 0; /* size of _extra_ info */
+	wfx_voip_play.wFormatTag = WAVE_FORMAT_PCM;
+	wfx_voip_play.nBlockAlign = (wfx_voip_play.wBitsPerSample * wfx_voip_play.nChannels) >> 3;
+	wfx_voip_play.nAvgBytesPerSec = wfx_voip_play.nBlockAlign * wfx_voip_play.nSamplesPerSec;
+
+	initialize_waveout_device(wfx_voip_play);
 
 	receiving_thread_params->CompletedEvent = VoipCompleted;
 	receiving_thread_params->Ip_addr = ip_addr;
