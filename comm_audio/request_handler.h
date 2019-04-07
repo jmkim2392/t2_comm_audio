@@ -28,3 +28,4 @@ void start_receiving_requests(SOCKET request_socket, WSAEVENT recvReqEvent, WSAE
 void parseFileListRequest(LPREQUEST_PACKET parsedPacket, std::string packet);
 std::string generateReqPacketWithData(int type, std::vector<std::string> messages);
 void getPacketType(LPREQUEST_PACKET parsedPacket, std::string packet);
+void terminateRequestHandler();

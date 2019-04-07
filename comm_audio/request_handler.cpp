@@ -5,7 +5,7 @@
 --
 --	FUNCTIONS:
 --					DWORD WINAPI SvrRequestReceiverThreadFunc(LPVOID lpParameter);
---					void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred, 
+--					void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 --												LPWSAOVERLAPPED Overlapped, DWORD InFlags);
 --					DWORD WINAPI HandleRequest(LPVOID lpParameter);
 --					void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet);
@@ -70,7 +70,6 @@ DWORD WINAPI SvrRequestReceiverThreadFunc(LPVOID lpParameter)
 			if (Index == WSA_WAIT_FAILED)
 			{
 				update_server_msgs("WSAWaitForMultipleEvents failed in Request Handler with error " + std::to_string(WSAGetLastError()));
-				terminate_connection();
 				return FALSE;
 			}
 
@@ -83,9 +82,11 @@ DWORD WINAPI SvrRequestReceiverThreadFunc(LPVOID lpParameter)
 
 		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
 
-		update_server_msgs("Client connected");
-		start_receiving_requests(req_handler_info->tcp_socket, req_handler_info->CompleteEvent, NULL);
-		
+		if (isAcceptingRequests)
+		{
+			update_server_msgs("Client connected");
+			start_receiving_requests(req_handler_info->tcp_socket, req_handler_info->CompleteEvent, NULL);
+		}
 	}
 	return TRUE;
 }
@@ -98,6 +99,7 @@ DWORD WINAPI ClntReqReceiverThreadFunc(LPVOID lpParameter)
 	DWORD BytesSent = 0;
 
 	req_handler_info = (LPTCP_SOCKET_INFO)lpParameter;
+
 	// Save the accept event in the event array.
 	EventArray[0] = req_handler_info->event;
 	isAcceptingRequests = TRUE;
@@ -106,29 +108,14 @@ DWORD WINAPI ClntReqReceiverThreadFunc(LPVOID lpParameter)
 
 	while (isAcceptingRequests)
 	{
-		while (isAcceptingRequests)
+		Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+
+		if (Index == WSA_WAIT_FAILED)
 		{
-			Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
-
-			if (Index == WSA_WAIT_FAILED)
-			{
-				update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
-				terminate_connection();
-				return FALSE;
-			}
-
-			if (Index != WAIT_IO_COMPLETION)
-			{
-				break;
-			}
-
-			if (!isAcceptingRequests) {
-				close_file_streaming();
-			}
+			update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
+			return FALSE;
 		}
 	}
-
-
 	return TRUE;
 }
 
@@ -206,8 +193,8 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	LPSOCKET_INFORMATION SI = (LPSOCKET_INFORMATION)Overlapped;
 
 	if (Error != 0)
-	{	
-		(Error == WSAECONNRESET)? update_server_msgs("Client disconnected") : update_server_msgs("I/O operation failed in Request Handler with error");
+	{
+		(Error == WSAECONNRESET) ? update_server_msgs("Client disconnected") : update_server_msgs("I/O operation failed in Request Handler with error");
 	}
 
 	if (BytesTransferred == 0)
@@ -227,15 +214,15 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 	if (BytesTransferred == DEFAULT_REQUEST_PACKET_SIZE)
 	{
 		request_buffer.put(SI->DataBuf.buf);
- 		SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+		SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
 		SI->BytesRECV = BytesTransferred;
 		TriggerWSAEvent(SI->CompletedEvent);
 	}
-	else if (BytesTransferred > 0) 
+	else if (BytesTransferred > 0)
 	{
 		packet = request_buffer.peek();
 		SI->BytesRECV += BytesTransferred;
-		if (packet.length() < DEFAULT_REQUEST_PACKET_SIZE) 
+		if (packet.length() < DEFAULT_REQUEST_PACKET_SIZE)
 		{
 			packet += SI->DataBuf.buf;
 			request_buffer.update(packet);
@@ -245,9 +232,9 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 				TriggerWSAEvent(SI->CompletedEvent);
 			}
 			else {
-				SI->DataBuf.len = (ULONG) (DEFAULT_REQUEST_PACKET_SIZE - packet.length());
+				SI->DataBuf.len = (ULONG)(DEFAULT_REQUEST_PACKET_SIZE - packet.length());
 			}
-		} 
+		}
 	}
 
 	if (SI->DataBuf.buf[0] == (FILE_LIST_TYPE + '0') && SI->BytesRECV == DEFAULT_REQUEST_PACKET_SIZE)
@@ -273,7 +260,7 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 --	DATE:			March 8, 2019
 --
 --	REVISIONS:		March 8, 2019
---					March 11, 2019 - JK - added packet parsing and request handling 
+--					March 11, 2019 - JK - added packet parsing and request handling
 --					April 4, 2019 - JK - added additional request handling for client side
 --
 --	DESIGNER:		Jason Kim
@@ -294,9 +281,9 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 	REQUEST_PACKET parsedPacket;
 	DWORD Index;
 	WSAEVENT EventArray[1];
-	
+
 	isAcceptingRequests = TRUE;
-	EventArray[0] = (WSAEVENT) lpParameter;
+	EventArray[0] = (WSAEVENT)lpParameter;
 
 	while (isAcceptingRequests)
 	{
@@ -307,56 +294,60 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 			if (Index == WSA_WAIT_FAILED)
 			{
 				update_server_msgs("WSAWaitForMultipleEvents failed in Request Handler with error");
-				terminate_connection();
 				return FALSE;
 			}
 
 			if (Index != WAIT_IO_COMPLETION)
 			{
-				// An accept() call event is ready - break the wait loop
 				break;
 			}
 		}
 		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
-
-		if (!request_buffer.empty()) {
-			request = request_buffer.get();
-			getPacketType(&parsedPacket, request);
-			if (!request.empty()) {
-				switch (parsedPacket.type) {
-				case WAV_FILE_REQUEST_TYPE:
-					parseRequest(&parsedPacket, request);
-					update_server_msgs("Received file transfer request for " + parsedPacket.message);
-					start_ftp(parsedPacket.message);
-					break;
-				case AUDIO_STREAM_REQUEST_TYPE:
-					parseRequest(&parsedPacket, request);
-					update_server_msgs("Received file stream request for " + parsedPacket.message);
-					start_file_stream(parsedPacket.message, parsedPacket.port_num, parsedPacket.ip_addr);
-					break;
-				case VOIP_REQUEST_TYPE:
-					// voip request
-					// parsedPacket.message should contain the client info
-					break;
-				case STREAM_COMPLETE_TYPE:
-					break;
-				case AUDIO_BUFFER_RDY_TYPE:
-					resume_streaming();
-					break;
-				case FILE_LIST_TYPE:
-					parseFileListRequest(&parsedPacket, request);
-					setup_file_list_dropdown(parsedPacket.file_list);
-					break;
-				case FILE_LIST_REQUEST_TYPE:
-					std::vector<std::string> list = get_file_list();
-					std::string msg = generateReqPacketWithData(FILE_LIST_TYPE, list);
-					send_request_to_clnt(msg);
-					break;
+		if (isAcceptingRequests)
+		{
+			if (!request_buffer.empty()) 
+			{
+				request = request_buffer.get();
+				getPacketType(&parsedPacket, request);
+				if (!request.empty())
+				{
+					switch (parsedPacket.type) 
+					{
+					case WAV_FILE_REQUEST_TYPE:
+						parseRequest(&parsedPacket, request);
+						update_server_msgs("Received file transfer request for " + parsedPacket.message);
+						start_ftp(parsedPacket.message);
+						break;
+					case AUDIO_STREAM_REQUEST_TYPE:
+						parseRequest(&parsedPacket, request);
+						update_server_msgs("Received file stream request for " + parsedPacket.message);
+						start_file_stream(parsedPacket.message, parsedPacket.port_num, parsedPacket.ip_addr);
+						break;
+					case VOIP_REQUEST_TYPE:
+						// voip request
+						// parsedPacket.message should contain the client info
+						break;
+					case STREAM_COMPLETE_TYPE:
+						start_client_terminate_file_stream();
+						break;
+					case AUDIO_BUFFER_RDY_TYPE:
+						resume_streaming();
+						break;
+					case FILE_LIST_TYPE:
+						parseFileListRequest(&parsedPacket, request);
+						setup_file_list_dropdown(parsedPacket.file_list);
+						break;
+					case FILE_LIST_REQUEST_TYPE:
+						std::vector<std::string> list = get_file_list();
+						std::string msg = generateReqPacketWithData(FILE_LIST_TYPE, list);
+						send_request_to_clnt(msg);
+						break;
+					}
 				}
 			}
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -395,7 +386,7 @@ void getPacketType(LPREQUEST_PACKET parsedPacket, std::string packet)
 --
 --	PROGRAMMER:		Jason Kim
 --
---	INTERFACE:		void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet) 
+--	INTERFACE:		void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 --									LPREQUEST_PACKET parsedPacket - packet struct to be populated
 --									std::string packet - the packet to parse
 --
@@ -404,13 +395,13 @@ void getPacketType(LPREQUEST_PACKET parsedPacket, std::string packet)
 --	NOTES:
 --	Call this function to parse a string packet received into packet struct
 --------------------------------------------------------------------------------------*/
-void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet) 
+void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 {
 	std::string temp_msg = packet.substr(1);
 	size_t pos = 0;
 	int i = 0;
 	while ((pos = temp_msg.find(packetMsgDelimiterStr)) != std::string::npos) {
-		switch (i++){
+		switch (i++) {
 		case 0:
 			parsedPacket->message = temp_msg.substr(0, pos);
 			break;
@@ -506,10 +497,14 @@ std::string generateReqPacketWithData(int type, std::vector<std::string> message
 {
 	std::string listStringified;
 	listStringified += std::to_string(type);
-	for (auto msg : messages) 
+	for (auto msg : messages)
 	{
 		listStringified += (msg + packetMsgDelimiterStr);
 	}
 	return listStringified;
 }
 
+void terminateRequestHandler()
+{
+	isAcceptingRequests = FALSE;
+}
