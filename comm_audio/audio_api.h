@@ -11,4 +11,3 @@ void freeBlocks(WAVEHDR* blockArray);
 void writeToAudioBuffer(LPSTR data);
 DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter);
 DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter);
-void terminateAudioApi();

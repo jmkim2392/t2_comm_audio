@@ -98,11 +98,6 @@ void open_socket(SOCKET* socket, int socket_type, int protocol_type)
 	}
 }
 
-void close_socket(SOCKET* socket)
-{
-	closesocket(*socket);
-}
-
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminate_connection
 --

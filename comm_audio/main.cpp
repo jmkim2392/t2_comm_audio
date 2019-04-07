@@ -190,27 +190,25 @@ void show_dialog(int type, HWND p_hwnd)
 	switch (type)
 	{
 	case IDM_SERVER:
-		popup = CreateDialog(hInstance, ServerDialogName, p_hwnd, (DLGPROC)ServerDialogProc);
+		hwndDlg = CreateDialog(hInstance, ServerDialogName, p_hwnd, (DLGPROC)ServerDialogProc);
 		break;
 	case IDM_CLIENT:
-		popup = CreateDialog(hInstance, ClientDialogName, p_hwnd, (DLGPROC)ClientDialogProc);
+		hwndDlg = CreateDialog(hInstance, ClientDialogName, p_hwnd, (DLGPROC)ClientDialogProc);
 		break;
 	case IDM_FILE_REQUEST_TYPE:
-		popup = CreateDialog(hInstance, FileReqDialogName, p_hwnd, (DLGPROC)FileReqProc);
-		send_request_to_svr(FILE_LIST_REQUEST_TYPE, L"FILELISTREQ");
+		hwndDlg = CreateDialog(hInstance, FileReqDialogName, p_hwnd, (DLGPROC)FileReqProc);
 		break;
 	case IDM_FILE_STREAM_TYPE:
-		popup = CreateDialog(hInstance, FileReqDialogName, p_hwnd, (DLGPROC)FileReqProc);
-		send_request_to_svr(FILE_LIST_REQUEST_TYPE, L"FILELISTREQ");
+		hwndDlg = CreateDialog(hInstance, FileReqDialogName, p_hwnd, (DLGPROC)FileReqProc);
 		break;
 	case IDM_VOIP_TYPE:
-		popup = CreateDialog(hInstance, StreamingDialogName, p_hwnd, (DLGPROC)StreamProc);
+		hwndDlg = CreateDialog(hInstance, StreamingDialogName, p_hwnd, (DLGPROC)StreamProc);
 		break;
 	case IDM_MULTICAST_TYPE:
-		popup = CreateDialog(hInstance, StreamingDialogName, p_hwnd, (DLGPROC)StreamProc);
+		hwndDlg = CreateDialog(hInstance, StreamingDialogName, p_hwnd, (DLGPROC)StreamProc);
 		break;
 	}
-	ShowWindow(popup, SW_SHOW);
+	ShowWindow(hwndDlg, SW_SHOW);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -380,10 +378,10 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 			show_control_panel(IDM_CLIENT);
 
 			//TODO: to uncomment after testing features
-			//initialize_client(tcp_port_num, udp_port_num, server_ip);
+			initialize_client(tcp_port_num, udp_port_num, server_ip);
 
 			//TODO: to remove after testing 
-			initialize_client(L"4985", L"4986", L"localhost");
+			//initialize_client(L"4985", L"4986", L"localhost");
 
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
@@ -424,7 +422,6 @@ LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 		switch (LOWORD(wParam))
 		{
 		case IDCANCEL:
-			terminate_server();
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
 			return 1;
@@ -462,7 +459,7 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 		case IDM_FILE_REQUEST_TYPE:
 			selectedFeatureType = IDM_FILE_REQUEST_TYPE;
 			show_dialog(IDM_FILE_REQUEST_TYPE, hwnd);
-			//enableButtons(FALSE);
+			enableButtons(FALSE);
 			break;
 		case IDM_FILE_STREAM_TYPE:
 			selectedFeatureType = IDM_FILE_STREAM_TYPE;
@@ -478,7 +475,6 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			break;
 		case IDCANCEL:
 			// Disconnect process
-			terminate_client();
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
 			return 1;
@@ -519,32 +515,27 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 		{
 		case IDOK:
 			// get the input and initialize filereq/filestream
-			GetDlgItemText(hwnd, IDM_FILE_LIST_DROPDOWN, filename, MAX_INPUT_LENGTH);
+			GetDlgItemText(hwnd, IDM_FILENAME, filename, MAX_INPUT_LENGTH);
 			
-			if (wcslen(filename) == 0)
-			{
-				update_client_msgs("Incorrect File name.");
-			}
-			else
-			{
-				if (selectedFeatureType == IDM_FILE_REQUEST_TYPE)
-				{
-					reset_client_request_receiver();
-					request_wav_file(filename);
-				}
-				else
-				{
-					reset_client_request_receiver();
-					request_file_stream(filename);
-					show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
-				}
-			}
 			EnableWindow(control_panel_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
+			if (selectedFeatureType == IDM_FILE_REQUEST_TYPE)
+			{
+				//TODO: to uncomment after testing features
+				request_wav_file(filename);
+
+				//TODO: to remove after testing 
+				//request_wav_file(L"Tester.wav");
+			}
+			else {
+				request_file_stream(filename);
+				//request_file_stream(L"koto.wav");
+				show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
+			}
 
 			break;
 		case IDCANCEL:
-			reset_client_request_receiver();
+			// Disconnect process
 			EnableWindow(control_panel_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
 			return 1;
@@ -581,11 +572,9 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 		{
 		case IDCANCEL:
 			// Disconnect process
-			start_client_terminate_file_stream();
 			EnableWindow(control_panel_hwnd, TRUE);
 			disconnect_multicast();
 			EndDialog(hwnd, wParam);
-        
 			return 1;
 		}
 	}
@@ -616,7 +605,7 @@ void update_status(std::string newStatus)
 	HWND status_message = GetDlgItem(control_panel_hwnd, IDM_STATUS);
 	LPWSTR widestr = new WCHAR[newStatus.length() + 1];
 
-	::MultiByteToWideChar(CP_ACP, 0, newStatus.c_str(), (int)newStatus.size(), widestr, (int)newStatus.length());
+	::MultiByteToWideChar(CP_ACP, 0, newStatus.c_str(), newStatus.size(), widestr, newStatus.length());
 
 	widestr[newStatus.length()] = 0;
 
@@ -654,48 +643,10 @@ void update_messages(std::vector<std::string> messages)
 		outputString += (msg + "\n");
 	}
 	output = new WCHAR[outputString.length() + 1];
-	::MultiByteToWideChar(CP_ACP, 0, outputString.c_str(), (int)outputString.size(), output, (int)outputString.length());
+	::MultiByteToWideChar(CP_ACP, 0, outputString.c_str(), outputString.size(), output, outputString.length());
 
 	output[outputString.length()] = 0;
 
 	SetWindowText(messageOutput, output);
 	delete[] output;
-}
-
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	setup_file_list_dropdown
---
---	DATE:			April 4, 2019
---
---	REVISIONS:		April 4, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void setup_file_list_dropdown(std::vector<std::string> options)
---									std::vector<std::string> options - list of options
---
---	RETURNS:		void
---
---	NOTES:
---	Call this function to populate the drop down menu
---------------------------------------------------------------------------------------*/
-void setup_file_list_dropdown(std::vector<std::string> options)
-{
-	HWND dropdown = GetDlgItem(popup, IDM_FILE_LIST_DROPDOWN);
-	LPWSTR output = new WCHAR[MAX_INPUT_LENGTH];
-
-	for (auto option : options)
-	{
-		memset(output, 0, MAX_INPUT_LENGTH);
-		::MultiByteToWideChar(CP_ACP, 0, option.c_str(), (int)option.size(), output, (int)option.length());
-		SendMessage(dropdown, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(output));
-	}
-	delete[] output;
-}
-
-void close_popup()
-{
-	EndDialog(popup, 0);
 }

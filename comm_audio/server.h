@@ -1,5 +1,4 @@
 #pragma once
-#include <filesystem>
 #include "main.h"
 #include "winsock_handler.h"
 #include "request_handler.h"
@@ -23,5 +22,3 @@ void terminate_server();
 void update_server_msgs(std::string message);
 void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr);
 void resume_streaming();
-void send_request_to_clnt(std::string msg);
-std::vector<std::string> get_file_list();

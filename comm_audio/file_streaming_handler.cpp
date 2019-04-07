@@ -38,8 +38,8 @@ BOOL isReceivingFileStream = FALSE;
 SOCKADDR_IN client;
 int client_len = sizeof(sockaddr_in);
 
-char fileStream_complete[AUDIO_PACKET_SIZE];
-char fileStream_not_found[AUDIO_PACKET_SIZE];
+char fileStream_complete[1];
+char fileStream_not_found[1];
 char *file_stream_buf;
 
 int num_packet = 0;
@@ -71,7 +71,6 @@ int packetNUmRecv = 0;
 void initialize_file_stream(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT fileStreamCompletedEvent, HANDLE eventTrigger)
 {
 	file_stream_buf = (char*)malloc(AUDIO_PACKET_SIZE);
-	strcpy_s(fileStream_complete, 18, "Transfer Complete");
 
 	// Create a socket information structure
 	if ((FileStreamSocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
@@ -86,7 +85,7 @@ void initialize_file_stream(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT fileStre
 	ZeroMemory(&(FileStreamSocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
 	FileStreamSocketInfo->BytesSEND = 0;
 	FileStreamSocketInfo->BytesRECV = 0;
-	if (addr != NULL)
+	if (addr != NULL) 
 	{
 		FileStreamSocketInfo->Sock_addr = *addr;
 	}
@@ -145,8 +144,45 @@ int open_file_to_stream(std::string filename)
 --	TODO: add proper closing of file after streaming finished
 --------------------------------------------------------------------------------------*/
 void close_file_streaming() {
-	fclose(requested_file_stream);
+
 }
+
+///*-------------------------------------------------------------------------------------
+//--	FUNCTION:	start_sending_file_stream
+//--
+//--	DATE:			March 31, 2019
+//--
+//--	REVISIONS:		March 31, 2019
+//--
+//--	DESIGNER:		Jason Kim
+//--
+//--	PROGRAMMER:		Jason Kim
+//--
+//--	INTERFACE:		void start_sending_file_stream()
+//--
+//--	RETURNS:		int - 0 for success, else file not found
+//--
+//--	NOTES:
+//--	Call this function to start sending the file stream
+//--------------------------------------------------------------------------------------*/
+//void start_sending_file_stream()
+//{
+//	memset(file_stream_buf, 0, AUDIO_PACKET_SIZE);
+//	int bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, requested_file_stream);
+//
+//	memcpy(FileStreamSocketInfo->DataBuf.buf, file_stream_buf, bytes_read);
+//	FileStreamSocketInfo->DataBuf.len = bytes_read;
+//	num_packet++;
+//	total_packet++;
+//	if (WSASendTo(FileStreamSocketInfo->Socket, &(FileStreamSocketInfo->DataBuf), 1, &SendBytes_FileStream, 0, (SOCKADDR *)&(FileStreamSocketInfo->Sock_addr), sizeof(FileStreamSocketInfo->Sock_addr), &(FileStreamSocketInfo->Overlapped), FileStream_SendRoutine) == SOCKET_ERROR)
+//	{
+//		if (WSAGetLastError() != WSA_IO_PENDING)
+//		{
+//			update_server_msgs("Send first udp packet failed with error " + std::to_string(WSAGetLastError()));
+//			return;
+//		}
+//	}
+//}
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	SendStreamThreadFunc
@@ -173,12 +209,12 @@ DWORD WINAPI SendStreamThreadFunc(LPVOID lpParameter)
 	WSAEVENT EventArray[1];
 	isReceivingFileStream = TRUE;
 	EventArray[0] = (WSAEVENT)lpParameter;
-
+	
 	memset(file_stream_buf, 0, AUDIO_PACKET_SIZE);
-	size_t bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, requested_file_stream);
+	int bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, requested_file_stream);
 
 	memcpy(FileStreamSocketInfo->DataBuf.buf, file_stream_buf, bytes_read);
-	FileStreamSocketInfo->DataBuf.len = (ULONG)bytes_read;
+	FileStreamSocketInfo->DataBuf.len = bytes_read;
 	num_packet++;
 	total_packet++;
 
@@ -196,15 +232,45 @@ DWORD WINAPI SendStreamThreadFunc(LPVOID lpParameter)
 
 		if (Index == WSA_WAIT_FAILED)
 		{
-			update_server_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
+			update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
+			terminate_connection();
 			return FALSE;
+		}
+
+		if (Index != WAIT_IO_COMPLETION)
+		{
+			break;
+		}
+
+		if (!isReceivingFileStream) {
+			close_file_streaming();
 		}
 	}
 
-	std::string termRequest = generateRequestPacket(STREAM_COMPLETE_TYPE, "FSTREAMTERM");
-	send_request_to_clnt(termRequest);
-	update_server_msgs("Completed File Stream");
 	return 0;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	send_file_not_found_packet_udp
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void send_file_not_found_packet_udp() 
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this thread to send a file not found udp packet to the client
+--	TODO
+--------------------------------------------------------------------------------------*/
+void send_file_not_found_packet_udp() {
+
 }
 
 /*-------------------------------------------------------------------------------------
@@ -231,20 +297,34 @@ DWORD WINAPI ReceiveStreamThreadFunc(LPVOID lpParameter)
 	DWORD Index;
 	WSAEVENT EventArray[1];
 	isReceivingFileStream = TRUE;
-	EventArray[0] = (WSAEVENT)lpParameter;
+	EventArray[0] = (WSAEVENT) lpParameter;
+
 	start_receiving_stream();
 
 	while (isReceivingFileStream)
 	{
-		Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
-
-		if (Index == WSA_WAIT_FAILED)
+		while (isReceivingFileStream)
 		{
-			update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
-			return FALSE;
+			Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+
+			if (Index == WSA_WAIT_FAILED)
+			{
+				update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
+				terminate_connection();
+				return FALSE;
+			}
+
+			if (Index != WAIT_IO_COMPLETION)
+			{
+				break;
+			}
+
+			if (!isReceivingFileStream) {
+				close_file_streaming();
+			}
 		}
 	}
-	update_client_msgs("Completed File Stream");
+
 	return 0;
 }
 
@@ -268,12 +348,9 @@ DWORD WINAPI ReceiveStreamThreadFunc(LPVOID lpParameter)
 --------------------------------------------------------------------------------------*/
 void start_receiving_stream()
 {
+	size_t i;
 	DWORD RecvBytes;
 	DWORD Flags = 0;
-
-	int iResult = 0;
-	int iOptVal = 0;
-	int iOptLen = sizeof(int);
 
 	ZeroMemory(&(FileStreamSocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
 	FileStreamSocketInfo->DataBuf.buf = FileStreamSocketInfo->AUDIO_BUFFER;
@@ -320,6 +397,33 @@ void CALLBACK FileStream_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPW
 		update_client_msgs("I/O operation failed with error " + std::to_string(Error));
 	}
 
+	//TODO: Implement end of file stream process here
+
+	//if (BytesTransferred == 0 || BytesTransferred == 1)
+	//{
+	//	//if (strncmp(SI->DataBuf.buf, file_not_found_packet, 1) == 0)
+	//	//{
+	//	//	//FILE NOT FOUND PROCESS
+	//	//	//update_client_msgs("File Not Found on server.");
+	//	//	finalize_ftp("File Not Found on server.");
+	//	//}
+	//	//else if (strncmp(SI->DataBuf.buf, ftp_complete_packet, 1) == 0)
+	//	//{
+	//	//	//FTP COMPLETE PROCESS
+	//	//	//update_client_msgs("File transfer completed.");
+	//	//	finalize_ftp("File transfer completed.");
+	//	//}
+	//	update_client_msgs("Closing ftp socket " + std::to_string(SI->Socket));
+
+	//	isReceivingFileStream = FALSE;
+	//	TriggerWSAEvent(SI->CompletedEvent);
+	//	return;
+	//}
+
+	if (BytesTransferred != AUDIO_PACKET_SIZE) {
+		return;
+	}
+
 	packetNUmRecv++;
 	update_client_msgs("PacketRecv: " + std::to_string(packetNUmRecv));
 
@@ -362,8 +466,7 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 	size_t bytes_read;
 	// Reference the WSAOVERLAPPED structure as a SOCKET_INFORMATION structure
 	LPSOCKET_INFORMATION SI = (LPSOCKET_INFORMATION)Overlapped;
-	DWORD dwWaitResult;
-
+	
 	num_packet++;
 	total_packet++;
 	update_server_msgs("Total Packets Sent: " + std::to_string(total_packet));
@@ -386,16 +489,10 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 
-	if (num_packet == MAX_NUM_STREAM_PACKETS)
-	{
-		dwWaitResult = WaitForSingleObject(SI->EventTrigger, 3000);
+	if (num_packet == MAX_NUM_STREAM_PACKETS) {
+		WaitForSingleObject(SI->EventTrigger ,INFINITE);
 		ResetEvent(SI->EventTrigger);
 		num_packet = 0;
-		if (dwWaitResult == WAIT_TIMEOUT)
-		{
-			terminateFileStream();
-			return;
-		}
 	}
 
 	if (!feof(requested_file_stream))
@@ -415,22 +512,21 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 			}
 		}
 	}
-	else {
-		terminateFileStream();
-	}
-	return;
-}
-
-void terminateFileStream()
-{
-	if (isReceivingFileStream) 
+	else
 	{
-		num_packet = 0;
-		total_packet = 0;
-		packetNUmRecv = 0;
-		isReceivingFileStream = FALSE;
-		TriggerWSAEvent(FileStreamSocketInfo->CompletedEvent);
-		TriggerWSAEvent(FileStreamSocketInfo->EventTrigger);
+		//TODO: SEND FILE STREAM COMPLETED PACKET TO CLIENT 
+		//SI->DataBuf.buf = ftp_complete_packet;
+		SI->DataBuf.len = 1;
+		update_server_msgs("File Stream completed");
+		/*if (WSASend(SI->Socket, &(SI->DataBuf), 1, &SendBytes, 0,
+			&(SI->Overlapped), NULL) == SOCKET_ERROR)
+		{
+			if (WSAGetLastError() != WSA_IO_PENDING)
+			{
+				update_server_msgs("WSASend() failed with error " + std::to_string(WSAGetLastError()));
+				return;
+			}
+		}*/
 	}
 }
 

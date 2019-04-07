@@ -15,14 +15,12 @@
 #define WAV_FILE_REQUEST_TYPE 1
 #define AUDIO_STREAM_REQUEST_TYPE 2
 #define VOIP_REQUEST_TYPE 3
-#define STREAM_COMPLETE_TYPE 4 
+#define AUDIO_BUFFER_FULL_TYPE 4
 #define AUDIO_BUFFER_RDY_TYPE 5
-#define FILE_LIST_TYPE 6
-#define FILE_LIST_REQUEST_TYPE 7
 
 // Control Packets
 #define FILE_NOT_FOUND 17 // DC1
-#define TRANSFER_COMPLETE 18 // DC2
+#define FTP_COMPLETE 18 // DC2
 
 #define WORKING_BUFFER_SIZE 15000
 #define MAX_TRIES 3
@@ -54,5 +52,3 @@ const std::string connectedMsg = "Connected";
 
 const LPCWSTR packetMsgDelimiter = L"|";
 const std::string packetMsgDelimiterStr = "|";
-const std::string fileListDelimiterStr = "/";
-const std::string wavExtension = ".wav";
