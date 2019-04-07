@@ -7,7 +7,7 @@
 #define TIMECAST_ADDR   "234.5.6.7"
 #define TIMECAST_PORT   8910
 #define TIMECAST_TTL    2
-#define LOOP_SEND		10000
+#define LOOP_SEND		20
 
 bool init_winsock(WSADATA *stWSAData);
 bool get_datagram_socket(SOCKET *hSocket);

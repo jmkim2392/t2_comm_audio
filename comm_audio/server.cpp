@@ -28,6 +28,7 @@ SOCKET tcp_accept_socket;
 SOCKET udp_audio_socket;
 
 SOCKET RequestSocket;
+SOCKET multicast_Socket;
 
 HANDLE AcceptThread;
 HANDLE RequestReceiverThread;
@@ -36,9 +37,16 @@ HANDLE StreamingThread;
 HANDLE BroadCastThread;
 
 TCP_SOCKET_INFO tcp_socket_info;
+BROADCAST_INFO bi;
 
 SOCKADDR_IN InternetAddr;
 SOCKADDR_IN client_addr_udp;
+SOCKADDR_IN multicast_stLclAddr, multicast_stDstAddr;
+
+struct ip_mreq stMreq;    /* Multicast interface structure */
+
+WSADATA stWSAData;
+
 
 BOOL isAcceptingConnections = FALSE;
 BOOL isBroadcasting = FALSE;
@@ -234,13 +242,7 @@ void start_request_handler()
 --------------------------------------------------------------------------------------*/
 void start_broadcast()
 {
-	SOCKADDR_IN stLclAddr, stDstAddr;
-	struct ip_mreq stMreq;        /* Multicast interface structure */
-	SOCKET hSocket;
-	WSADATA stWSAData;
-	WSAEVENT sendEvent;
-	BROADCAST_INFO bi;
-	HANDLE audio_buffering_thread;
+
 	DWORD ThreadId;
 
 	char achMCAddr[MAXADDRSTR] = TIMECAST_ADDR;
@@ -253,61 +255,56 @@ void start_broadcast()
 		return;
 	}
 
-	if (!get_datagram_socket(&hSocket)) {
+	if (!get_datagram_socket(&multicast_Socket)) {
 		WSACleanup();
 		isBroadcasting = FALSE;
 		return;
 	}
 
-	if (!bind_socket(&stLclAddr, &hSocket, 0)) {
-		closesocket(hSocket);
+	if (!bind_socket(&multicast_stLclAddr, &multicast_Socket, 0)) {
+		closesocket(multicast_Socket);
 		WSACleanup();
 		isBroadcasting = FALSE;
 		return;
 	}
 
-	if (!join_multicast_group(&stMreq, &hSocket, achMCAddr)) {
-		closesocket(hSocket);
+	if (!join_multicast_group(&stMreq, &multicast_Socket, achMCAddr)) {
+		closesocket(multicast_Socket);
 		WSACleanup();
 		isBroadcasting = FALSE;
 		return;
 	}
 
-	if (!set_ip_ttl(&hSocket, lTTL)) {
-		closesocket(hSocket);
+	if (!set_ip_ttl(&multicast_Socket, lTTL)) {
+		closesocket(multicast_Socket);
 		WSACleanup();
 		isBroadcasting = FALSE;
 		return;
 	}
 
-	if (!disable_loopback(&hSocket)) {
-		closesocket(hSocket);
+	if (!disable_loopback(&multicast_Socket)) {
+		closesocket(multicast_Socket);
 		WSACleanup();
 		isBroadcasting = FALSE;
 		return;
 	}
 
-	stDstAddr.sin_family = AF_INET;
-	stDstAddr.sin_addr.s_addr = inet_addr(achMCAddr);
-	stDstAddr.sin_port = htons(nPort);
+	multicast_stDstAddr.sin_family = AF_INET;
+	multicast_stDstAddr.sin_addr.s_addr = inet_addr(achMCAddr);
+	multicast_stDstAddr.sin_port = htons(nPort);
 
-	bi.hSocket = &hSocket;
-	bi.stDstAddr = &stDstAddr;
+	bi.hSocket = &multicast_Socket;
+	bi.stDstAddr = &multicast_stDstAddr;
 
 
 	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_data, (LPVOID)&bi, 0, &ThreadId)) == NULL) {
 		printf("CreateThread failed with error %d\n", GetLastError());
-		closesocket(hSocket);
+		closesocket(multicast_Socket);
 		WSACleanup();
 		isBroadcasting = FALSE;
 		return;
 	}
 	add_new_thread(ThreadId);
-	WaitForSingleObject(BroadCastThread, INFINITE);
-
-	closesocket(hSocket);
-	WSACleanup();
-	isBroadcasting = FALSE;
 }
 
 /*-------------------------------------------------------------------------------------
