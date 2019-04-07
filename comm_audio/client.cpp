@@ -24,16 +24,18 @@
 
 SOCKET cl_tcp_req_socket;
 SOCKET cl_udp_audio_socket;
-SOCKET cl_udp_voip_recv_socket;
 SOCKET cl_udp_voip_send_socket;
 
 LPCWSTR tcp_port_num;
 LPCWSTR udp_port_num;
+LPCWSTR voip_send_udp_port_num;
 std::wstring current_device_ip;
 
 SOCKADDR_IN cl_addr;
 SOCKADDR_IN server_addr_tcp;
 SOCKADDR_IN server_addr_udp;
+SOCKADDR_IN server_addr_voip_send_udp;
+SOCKADDR_IN voip_svr_addr_udp;
 int server_len;
 
 HANDLE FileReceiverThread;
@@ -81,6 +83,13 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	initialize_wsa(udp_port, &cl_addr);
 	open_socket(&cl_udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 
+	//open voip send socket
+	//KTODO: remove port number hardcoding
+	voip_send_udp_port_num = L"4981";
+	initialize_wsa(voip_send_udp_port_num, &cl_addr);
+	open_socket(&cl_udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
+	//setup_client_addr(&voip_svr_addr_udp, voip_send_udp_port_num, svr_ip_addr);
+
 	//open tcp socket 
 	tcp_port_num = tcp_port;
 	initialize_wsa(tcp_port, &cl_addr);
@@ -89,7 +98,11 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 
 	current_device_ip = get_device_ip();
 	setup_svr_addr(&server_addr_tcp, tcp_port, svr_ip_addr);
+	// TODO: make current dev IP consistent with hardcode localhost
+	// This is for client receiver
 	setup_svr_addr(&server_addr_udp, udp_port, current_device_ip.c_str());
+	// This is to send data to the voip server
+	setup_svr_addr(&server_addr_voip_send_udp, voip_send_udp_port_num, svr_ip_addr);
 
 	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr_tcp, sizeof(sockaddr)) == -1)
 	{
@@ -107,6 +120,10 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	}
 
 	if (setsockopt(cl_udp_audio_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
+
+	if (setsockopt(cl_udp_voip_send_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
 		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
 
@@ -344,11 +361,13 @@ void request_file_stream(LPCWSTR filename)
 --	NOTES:
 --	Call this function to request and start the voip process
 --------------------------------------------------------------------------------------*/
-void request_voip()
+void request_voip(HWND voipHwndDlg)
 {
 	WSAEVENT VoipCompleted;
 	initialize_wsa_events(&VoipCompleted);
 
+	//TODO: add receiver IP
+	initialize_voip_send(&cl_udp_voip_send_socket, &server_addr_voip_send_udp, VoipCompleted, NULL);
 	update_client_msgs("Requesting VOIP from server...");
 
 	// Make up a message to pass device ip address into request
@@ -359,6 +378,7 @@ void request_voip()
 	send_request(VOIP_REQUEST_TYPE, stream_req_msg);
 
 	// KTODO: Change the hardcoded loopback IP
+	// This is for client IP
 	//LPCWSTR ip_addr = current_device_ip.c_str();
 	LPCWSTR ip_addr = L"127.0.0.1";
 
@@ -411,7 +431,8 @@ void request_voip()
 	//add_new_thread_gen(clientThreads, ReceiverThreadId, cl_threadCount++);
 	//add_new_thread_gen(clientThreads, SenderThreadId, cl_threadCount++);
 	// ===========================
-	//startRecording();
+	startRecording();
+	//start_recording_voip();
 }
 
 /*-------------------------------------------------------------------------------------

@@ -27,6 +27,49 @@
 struct sockaddr_in sender_addr;
 int sender_addr_len;
 
+char *voip_send_buf;
+LPSOCKET_INFORMATION VoipSendSocketInfo;
+
+
+void initialize_voip_send(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipSendCompletedEvent, HANDLE eventTrigger)
+{
+	//file_stream_buf = (char*)malloc(AUDIO_PACKET_SIZE);
+
+	// Create a socket information structure
+	if ((VoipSendSocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
+		sizeof(SOCKET_INFORMATION))) == NULL)
+	{
+		//terminate_connection();
+		return;
+	}
+
+	// Fill in the details of the server socket to receive file from
+	VoipSendSocketInfo->Socket = *socket;
+	ZeroMemory(&(VoipSendSocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
+	VoipSendSocketInfo->BytesSEND = 0;
+	VoipSendSocketInfo->BytesRECV = 0;
+	if (addr != NULL) 
+	{
+		VoipSendSocketInfo->Sock_addr = *addr;
+	}
+
+	// KTODO: remove buf.len hardcode. this same as audio send buffer block size;
+	VoipSendSocketInfo->DataBuf.len = 44100;
+	VoipSendSocketInfo->DataBuf.buf = VoipSendSocketInfo->AUDIO_BUFFER;
+	if (voipSendCompletedEvent != NULL)
+	{
+		VoipSendSocketInfo->CompletedEvent = voipSendCompletedEvent;
+	}
+	if (eventTrigger != NULL)
+	{
+		VoipSendSocketInfo->EventTrigger = eventTrigger;
+	}
+}
+
+
+
+
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	ReceiverThreadFunc
 --
@@ -57,6 +100,7 @@ DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 
 	EventArray[0] = params->CompletedEvent;
 
+	OutputDebugStringA("launch server thread\n");
 	start_receiving_voip(params->Ip_addr, params->Udp_Port);
 
 	while (isReceivingFileStream)
@@ -147,8 +191,9 @@ void start_receiving_voip(LPCWSTR ip_addr, LPCWSTR udp_port)
 	}
 	ZeroMemory(&(VoipSocketInfo->Overlapped), sizeof(WSAOVERLAPPED));
 	VoipSocketInfo->Socket = receiving_voip_socket;
-	VoipSocketInfo->DataBuf.buf = VoipSocketInfo->AUDIO_BUFFER;
-	VoipSocketInfo->DataBuf.len = AUDIO_PACKET_SIZE;
+//	VoipSocketInfo->DataBuf.buf = VoipSocketInfo->AUDIO_BUFFER;
+	VoipSocketInfo->DataBuf.buf = VoipSocketInfo->VOIP_RECV_BUFFER;
+	VoipSocketInfo->DataBuf.len = VOIP_BLOCK_SIZE;
 	VoipSocketInfo->Sock_addr = curr_addr;
 
 	if (WSARecvFrom(VoipSocketInfo->Socket, &(VoipSocketInfo->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& sender_addr, &sender_addr_len, &(VoipSocketInfo->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
@@ -214,7 +259,7 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 	//	return;
 	//}
 
-	if (BytesTransferred != AUDIO_PACKET_SIZE) {
+	if (BytesTransferred != VOIP_BLOCK_SIZE) {
 		return;
 	}
 
@@ -228,7 +273,8 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 
 	memset(SI->DataBuf.buf, 0, SI->DataBuf.len);
 
-	SI->DataBuf.buf = SI->AUDIO_BUFFER;
+	//SI->DataBuf.buf = SI->AUDIO_BUFFER;
+	SI->DataBuf.buf = SI->VOIP_RECV_BUFFER;
 	if (WSARecvFrom(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& sender_addr, &sender_addr_len, &(SI->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
@@ -341,68 +387,60 @@ DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
 	closesocket(sending_voip_socket);
 }
 
-void send_audio_block(PWAVEHDR whdr)
+void start_recording_voip()
+{
+	startRecording();
+	while (TRUE)
+	{
+		OutputDebugStringA("hello2");
+		Sleep(1000);
+	}
+
+}
+
+void send_audio_block(PWAVEHDR pwhdr)
 {
 	//LPVOIP_INFO params = (LPVOIP_INFO)lpParameter;
 
-	LPCWSTR ip_addr = L"127.0.0.1";
+	//LPCWSTR ip_addr = L"127.0.0.1";
 
 	// specify addr and port to bind to
-	LPCWSTR receiving_port = L"4982";
-	LPCWSTR sending_port = L"4981";
+	//LPCWSTR receiving_port = L"4982";
+	//LPCWSTR sending_port = L"4981";
 
 
-	SOCKET sending_voip_socket;
-	struct sockaddr_in connect_addr;
-	int connect_addr_len;
-	HOSTENT *hp;
-	char ip_addr[MAX_PATH];
+	//SOCKET sending_voip_socket;
+	//struct sockaddr_in connect_addr;
+	//int connect_addr_len;
+	//HOSTENT *hp;
+	//char ip_addr[MAX_PATH];
 
-	char buf[8192] = "hello";
-	int data_size = 8192;
-	BOOL bOptVal = FALSE;
-	int bOptLen = sizeof(BOOL);
+	//char buf[8192] = "hello";
+	//KTODO: Remove hardcode byte for data_size
+	int data_size = 44100;
+	//BOOL bOptVal = FALSE;
+	//int bOptLen = sizeof(BOOL);
 
 	// Convert udp_port from LPCWSTR to USHORT
-	LPCWSTR str_udp_port = (LPCWSTR)params->Udp_Port;
-	int int_udp_port = _wtoi(str_udp_port);
-	USHORT udp_port = (USHORT)int_udp_port;
+	//LPCWSTR str_udp_port = (LPCWSTR)params->Udp_Port;
+	//int int_udp_port = _wtoi(str_udp_port);
+	//USHORT udp_port = (USHORT)int_udp_port;
 
 	// Create a datagram socket
-	if ((sending_voip_socket = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
-	{
-		perror("Can't create a socket");
-		exit(1);
-	}
-
-	// Set up address of device to send to
-	memset((char *)&connect_addr, 0, sizeof(connect_addr));
-	connect_addr.sin_family = AF_INET;
-	connect_addr.sin_port = htons(udp_port);
-	connect_addr_len = sizeof(connect_addr);
-	OutputDebugString((LPCWSTR)ip_addr);
-
-	// Convert ip address from LPCWSTR to const char*
-	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, params->Ip_addr, -1, ip_addr, sizeof(ip_addr), NULL, NULL);
-
-	// Get host name of ip address
-	// KTODO: Remove hardcoded hostname
-	//if ((hp = gethostbyname(ip_addr)) == NULL)
-	if ((hp = gethostbyname("localhost")) == NULL)
-	{
-		fprintf(stderr, "Can't get server's IP address\n");
-		exit(1);
-	}
-	memcpy((char *)&connect_addr.sin_addr, hp->h_addr, hp->h_length);
+	//if ((sending_voip_socket = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
+	//{
+	//	perror("Can't create a socket");
+	//	exit(1);
+	//}
 
 	//set REUSEADDR for udp socket
-	if (setsockopt(sending_voip_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
-		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
-	}
+	//if (setsockopt(sending_voip_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+	//	update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	//}
 
 	// start audio recording thread
-	HANDLE ReadyToSendEvent;
-	initialize_events_gen(&ReadyToSendEvent, L"AudioSendReady");
+	//HANDLE ReadyToSendEvent;
+	//initialize_events_gen(&ReadyToSendEvent, L"AudioSendReady");
 	//startRecording(ReadyToSendEvent);
 
 	// wait for block to fill up
@@ -411,15 +449,22 @@ void send_audio_block(PWAVEHDR whdr)
 
 	OutputDebugStringA("hello2");
 	//getRecordedAudioBuffer();
+	size_t n;
+	//if (n = sendto(VoipSendSocketInfo->Socket, whdr->lpData, whdr->dwBytesRecorded, 0, (SOCKADDR *)&(VoipSendSocketInfo->Sock_addr), sizeof(VoipSendSocketInfo->Sock_addr)) != data_size)
+	//{
+	//	perror("sendto error");
+	//	exit(1);
+	//}
+	n = sendto(VoipSendSocketInfo->Socket, pwhdr->lpData, pwhdr->dwBytesRecorded, 0, (SOCKADDR *)&(VoipSendSocketInfo->Sock_addr), sizeof(VoipSendSocketInfo->Sock_addr));
+	char sbuf[512];
+	sprintf_s(sbuf, "%d\n", n);
+	update_client_msgs(sbuf);
+	// ****** NEXT: Seems 44100 sending, but the server is not receiving now
 
-	if (sendto(sending_voip_socket, buf, data_size, 0, (struct sockaddr *)&connect_addr, connect_addr_len) != data_size)
-	{
-		perror("sendto error");
-		exit(1);
-	}
+	wave_in_add_buffer(pwhdr, sizeof(WAVEHDR));
 
-	update_client_msgs("Sent data");
-	update_server_msgs("Sent data");
+	//update_client_msgs("Sent data");
+	//update_server_msgs("Sent data");
 
 	//Sleep() is for slowing it down a little; normally filling up the buffer will slow it down
 	//Sleep(1000);

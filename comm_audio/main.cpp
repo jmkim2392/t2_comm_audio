@@ -238,7 +238,7 @@ void show_dialog(int type, HWND p_hwnd)
 		// So, these may have to be kicked after show stream dialog
 		// Tried callback method not window, but WIM_DATA is not called. (WIM_OPEN is called)
 		initialize_wavein_device(hwndDlg);
-		startRecording();
+		request_voip(hwndDlg);
 		break;
 	case IDM_MULTICAST_TYPE:
 		hwndDlg = CreateDialog(hInstance, StreamingDialogName, p_hwnd, (DLGPROC)StreamProc);
@@ -502,7 +502,6 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			show_dialog(IDM_FILE_STREAM_TYPE, hwnd);
 			break;
 		case IDM_VOIP_TYPE:
-			request_voip();
 			show_dialog(IDM_VOIP_TYPE, hwnd);
 			break;
 		case IDM_MULTICAST_TYPE:
@@ -624,9 +623,9 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 
 		//PostMessage((HWND)dwInstance, USR_INBLOCK, 0, dwParam1);
 		OutputDebugStringA("data");
-		char sbuf[512];
-		sprintf_s(sbuf, "%d\n", ((PWAVEHDR)lParam)->dwBytesRecorded);
-		update_client_msgs(sbuf);
+		//char sbuf[44100];
+		//sprintf_s(sbuf, "%d\n", ((PWAVEHDR)lParam)->dwBytesRecorded);
+		//update_client_msgs(sbuf);
 
 		//if (blReset) {
 			//waveInClose(hWaveIn);
