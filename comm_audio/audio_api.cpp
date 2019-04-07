@@ -159,9 +159,9 @@ static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance,
 	//OutputDebugStringA("Hello\n");
 	EnterCriticalSection(&waveCriticalSection);
 	waveFreeBlockCount++;
-	char debug_buf[512];
-	sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", waveFreeBlockCount);
-	OutputDebugStringA(debug_buf);
+	//char debug_buf[512];
+	//sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", waveFreeBlockCount);
+	//OutputDebugStringA(debug_buf);
 	//	(*freeBlockCounter)++;
 	LeaveCriticalSection(&waveCriticalSection);
 	TriggerEvent(ReadyToPlayEvent);

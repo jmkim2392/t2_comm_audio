@@ -7,15 +7,15 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 	FILE* fp;
 	DWORD SendBytes;
 
-	if (!fopen_s(&fp, "test.wav", "rb") == 0) {
-		OutputDebugString(L"Open file error\n");
-		exit(1);
-	}
 	file_stream_buf = (char*)malloc(AUDIO_PACKET_SIZE);
 	bi.DataBuf.buf = bi.AUDIO_BUFFER;
-	
 
 	for (int i = 0; i < LOOP_SEND; i++) {
+		if (!fopen_s(&fp, "koto.wav", "rb") == 0) {
+			OutputDebugString(L"Open file error\n");
+			exit(1);
+		}
+	
 		while (!feof(fp)) {
 			OutputDebugString(L"Sending\n");
 			memset(file_stream_buf, 0, AUDIO_PACKET_SIZE);
@@ -26,14 +26,15 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 			{
 				if (WSAGetLastError() != WSA_IO_PENDING)
 				{
-					OutputDebugString(L"Error\n");
+					OutputDebugString(L"Sending Error\n");
 					return FALSE;
 				}
 			}
 		}
+		fclose(fp);
 	}
 	OutputDebugString(L"Done\n");
-	fclose(fp);
+	
 	free(file_stream_buf);
 
 
