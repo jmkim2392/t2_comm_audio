@@ -33,14 +33,15 @@ static WAVEHDR* waveBlocks;
 static int waveHeadBlock;
 static int waveTailBlock;
 
-HANDLE ReadyToPlayEvent;
 HANDLE AudioPlayerThread;
 HANDLE BufRdySignalerThread;
 HANDLE bufferReadyEvent;
 
 BOOL isPlayingAudio = FALSE;
 BOOL multicast = FALSE;
+std::vector<HANDLE> audioThreads;
 HANDLE BufferOpenToWriteEvent;
+HANDLE ReadyToPlayEvent;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_audio_device
@@ -119,8 +120,10 @@ void initialize_audio_device(BOOL multicastFlag)
 			update_client_msgs("Failed creating BufRdySignalerThread with error " + std::to_string(GetLastError()));
 			return;
 		}
+    add_new_thread_gen(audioThreads, BufRdySignalerThread);
 	}
 	
+	add_new_thread_gen(audioThreads, AudioPlayerThread);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -248,7 +251,6 @@ void writeToAudioBuffer(LPSTR data)
 DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter) 
 {
 	WAVEHDR* tail;
-	DWORD Index;
 	isPlayingAudio = TRUE;
 	HANDLE readyEvent = (HANDLE)lpParameter;
 
@@ -256,13 +258,16 @@ DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter)
 	{
 		WaitForSingleObject(readyEvent, INFINITE);
 		ResetEvent(readyEvent);
-		while (waveTailBlock != waveHeadBlock) 
+		if (isPlayingAudio)
 		{
-			tail = &waveBlocks[waveTailBlock];
-			waveOutPrepareHeader(hWaveOut, tail, sizeof(WAVEHDR));
-			waveOutWrite(hWaveOut, tail, sizeof(WAVEHDR));
-			waveTailBlock++;
-			waveTailBlock %= BLOCK_COUNT;
+			while (waveTailBlock != waveHeadBlock)
+			{
+				tail = &waveBlocks[waveTailBlock];
+				waveOutPrepareHeader(hWaveOut, tail, sizeof(WAVEHDR));
+				waveOutWrite(hWaveOut, tail, sizeof(WAVEHDR));
+				waveTailBlock++;
+				waveTailBlock %= BLOCK_COUNT;
+			}
 		}
 	}
 	return 0;
@@ -296,7 +301,10 @@ DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter)
 	{
 		WaitForSingleObject(readyEvent, INFINITE);
 		ResetEvent(readyEvent);
-		send_request(AUDIO_BUFFER_RDY_TYPE, L"RDY");
+		if (isPlayingAudio)
+		{
+			send_request_to_svr(AUDIO_BUFFER_RDY_TYPE, L"RDY");
+		}
 	}
 	return 0;
 }
@@ -380,7 +388,7 @@ void freeBlocks(WAVEHDR* blockArray)
 }
 
 /*-------------------------------------------------------------------------------------
---	FUNCTION:	terminate_audio_api
+--	FUNCTION:	terminateAudioApi
 --
 --	DATE:			March 31, 2019
 --
@@ -390,7 +398,7 @@ void freeBlocks(WAVEHDR* blockArray)
 --
 --	PROGRAMMER:		Jason Kim
 --
---	INTERFACE:		void terminate_audio_api()
+--	INTERFACE:		void terminateAudioApi()
 --
 --	RETURNS:		void
 --
@@ -398,6 +406,15 @@ void freeBlocks(WAVEHDR* blockArray)
 --	Call this function to terminate the audio api
 --	TODO: may need to implement later, for now nothing
 --------------------------------------------------------------------------------------*/
-void terminate_audio_api() {
-
+void terminateAudioApi() 
+{
+	if (isPlayingAudio)
+	{
+		waveFreeBlockCount = BLOCK_COUNT;
+		numFreed = MAX_NUM_STREAM_PACKETS;
+		isPlayingAudio = FALSE;
+		TriggerEvent(ReadyToPlayEvent);
+		TriggerEvent(BufferOpenToWriteEvent);
+		freeBlocks(waveBlocks);
+	}
 }

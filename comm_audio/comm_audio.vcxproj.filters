@@ -72,6 +72,7 @@
     <ClInclude Include="multicast.h">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">
