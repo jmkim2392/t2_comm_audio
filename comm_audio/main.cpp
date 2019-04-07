@@ -472,6 +472,8 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			show_dialog(IDM_VOIP_TYPE, hwnd);
 			break;
 		case IDM_MULTICAST_TYPE:
+			join_multicast_stream();
+			OutputDebugString(L"Join multicast\n");
 			show_dialog(IDM_MULTICAST_TYPE, hwnd);
 			break;
 		case IDCANCEL:
@@ -581,6 +583,9 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 			// Disconnect process
 			start_client_terminate_file_stream();
 			EnableWindow(control_panel_hwnd, TRUE);
+			disconnect_multicast();
+			EndDialog(hwnd, wParam);
+        
 			return 1;
 		}
 	}

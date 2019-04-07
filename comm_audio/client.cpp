@@ -48,6 +48,7 @@ std::vector<std::string> client_msgs;
 std::vector<HANDLE> clntThreads;
 
 BOOL isConnected = TRUE;
+bool multicast_connected = false;
 BOOL isStreaming = FALSE;
 
 WSAEVENT FtpCompleted;
@@ -109,7 +110,7 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	start_client_request_receiver();
 	start_client_request_handler();
 
-	initialize_audio_device();
+	initialize_audio_device(0);
 
 	if (isConnected) 
 	{
@@ -339,6 +340,25 @@ void request_file_stream(LPCWSTR filename)
 
 	send_request_to_svr(AUDIO_STREAM_REQUEST_TYPE, stream_req_msg);
 	isStreaming = TRUE;
+}
+
+
+void join_multicast_stream() {
+	HANDLE multicast_receive_thread;
+	DWORD ThreadId;
+	multicast_connected = true;
+
+	if ((multicast_receive_thread = CreateThread(NULL, 0, receive_data, &multicast_connected, 0, &ThreadId)) == NULL) {
+		printf("CreateThread failed with error %d\n", GetLastError());
+		WSACleanup();
+		return;
+	}
+	add_new_thread_gen(clntThreads, multicast_receive_thread);
+}
+
+void disconnect_multicast() {
+	OutputDebugString(L"Disconnect_\n");
+	multicast_connected = false;
 }
 
 /*-------------------------------------------------------------------------------------

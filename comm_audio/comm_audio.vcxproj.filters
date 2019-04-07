@@ -31,6 +31,9 @@
     <ClCompile Include="audio_api.h">
       <Filter>Headers</Filter>
     </ClCompile>
+    <ClCompile Include="multicast.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="constants.h">
@@ -64,6 +67,9 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="file_streaming_handler.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="multicast.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />
