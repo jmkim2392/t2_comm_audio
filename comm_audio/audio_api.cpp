@@ -567,6 +567,8 @@ void startRecording()
 	//}
 	waveInStart(hWaveIn);
 
+	OutputDebugStringA("start wave in\n");
+
 	// start recordAudioThreadFunc thread
 	//if ((AudioRecorderThread = CreateThread(NULL, 0, recordAudioThreadFunc, (LPVOID)ReadyToSendEvent, 0, &ThreadId)) == NULL)
 	//{

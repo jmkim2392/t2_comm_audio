@@ -414,10 +414,10 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 			show_control_panel(IDM_CLIENT);
 
 			//TODO: to uncomment after testing features
-			//initialize_client(tcp_port_num, udp_port_num, server_ip);
+			initialize_client(tcp_port_num, udp_port_num, server_ip);
 
 			//TODO: to remove after testing 
-			initialize_client(L"4985", L"4986", L"localhost");
+			//initialize_client(L"4985", L"4986", L"localhost");
 
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
@@ -452,6 +452,8 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 --------------------------------------------------------------------------------------*/
 LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
+	initialize_wavein_device(hwnd);
+
 	switch (Message)
 	{
 	case WM_COMMAND:
@@ -625,18 +627,6 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 
 		//PostMessage((HWND)dwInstance, USR_INBLOCK, 0, dwParam1);
 		OutputDebugStringA("data");
-		//char sbuf[44100];
-		//sprintf_s(sbuf, "%d\n", ((PWAVEHDR)lParam)->dwBytesRecorded);
-		//update_client_msgs(sbuf);
-
-		//if (blReset) {
-			//waveInClose(hWaveIn);
-			//blReset = FALSE;
-			//return 0;
-		//}
-
-	//	waveInAddBuffer(hWaveIn, (PWAVEHDR)lParam, sizeof(WAVEHDR));
-		//wave_in_add_buffer((PWAVEHDR)lParam, sizeof(WAVEHDR));
 		send_audio_block((PWAVEHDR)lParam);
 		break;
 	case WIM_CLOSE:

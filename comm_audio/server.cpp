@@ -26,6 +26,8 @@
 
 SOCKET tcp_accept_socket;
 SOCKET udp_audio_socket;
+SOCKET udp_voip_receive_socket;
+SOCKET udp_voip_send_socket;
 
 SOCKET RequestSocket;
 
@@ -40,6 +42,9 @@ BROADCAST_INFO broadcast_info;
 
 SOCKADDR_IN InternetAddr;
 SOCKADDR_IN client_addr_udp;
+
+LPCWSTR voip_send_port_num;
+LPCWSTR voip_receive_port_num;
 
 BOOL isAcceptingConnections = FALSE;
 BOOL isBroadcasting = FALSE;
@@ -101,6 +106,28 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	//open udp socket
 	initialize_wsa(udp_port, &InternetAddr);
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
+
+	//open udp send socket
+	voip_send_port_num = L"4982";
+	initialize_wsa(voip_send_port_num, &InternetAddr);
+	open_socket(&udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
+
+	//open udp receive socket
+	voip_receive_port_num = L"4981";
+	initialize_wsa(voip_receive_port_num, &InternetAddr);
+	open_socket(&udp_voip_receive_socket, SOCK_DGRAM, IPPROTO_UDP);
+
+	if (bind(udp_voip_receive_socket, (struct sockaddr *)&InternetAddr, sizeof(sockaddr)) == SOCKET_ERROR) {
+		update_status(disconnectedMsg);
+		update_client_msgs("Failed to bind udp socket " + std::to_string(WSAGetLastError()));
+	}
+
+	BOOL bOptVal = FALSE;
+	int bOptLen = sizeof(BOOL);
+	//set REUSEADDR for udp socket
+	if (setsockopt(udp_voip_receive_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
 
 	start_request_receiver();
 	start_request_handler();
@@ -510,23 +537,14 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 --	NOTES:
 --	Call this function to start the voip process
 --------------------------------------------------------------------------------------*/
-void start_voip(std::string client_ip_addr) {
+void start_voip(std::string client_port_num, std::string client_ip_addr)
+{
 	LPCWSTR receiving_port = L"4981";
 	LPCWSTR sending_port = L"4982";
-
-	std::wstring temp_str = std::wstring(client_ip_addr.begin(), client_ip_addr.end());
-	//KTODO: Change the hardcoded loopback IP
-	//LPCWSTR ip_addr = temp_str.c_str();
 	LPCWSTR ip_addr = L"127.0.0.1";
 
-	// struct with VoipCompleted event and port
-	LPVOIP_INFO receiving_thread_params;
-	if ((receiving_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
-		sizeof(VOIP_INFO))) == NULL)
-	{
-		//terminate_connection();
-		return;
-	}
+	setup_client_addr(&client_addr_udp, client_port_num, client_ip_addr);
+	initialize_voip(&udp_voip_receive_socket, &udp_voip_send_socket, &client_addr_udp, VoipCompleted, NULL);
 
 	WAVEFORMATEX wfx_voip_play;
 	wfx_voip_play.nSamplesPerSec = 11025; /* sample rate */
@@ -539,6 +557,15 @@ void start_voip(std::string client_ip_addr) {
 
 	initialize_waveout_device(wfx_voip_play);
 
+
+	// struct with VoipCompleted event and port
+	LPVOIP_INFO receiving_thread_params;
+	if ((receiving_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
+		sizeof(VOIP_INFO))) == NULL)
+	{
+		//terminate_connection();
+		return;
+	}
 	receiving_thread_params->CompletedEvent = VoipCompleted;
 	receiving_thread_params->Ip_addr = ip_addr;
 	receiving_thread_params->Udp_Port = receiving_port;
@@ -551,28 +578,31 @@ void start_voip(std::string client_ip_addr) {
 		return;
 	}
 
+	startRecording();
+
+
 	// struct with VoipCompleted event and port
-	LPVOIP_INFO sending_thread_params;
-	if ((sending_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
-		sizeof(VOIP_INFO))) == NULL)
-	{
-		//terminate_connection();
-		return;
-	}
-	sending_thread_params->CompletedEvent = VoipCompleted;
-	sending_thread_params->Ip_addr = ip_addr;
-	sending_thread_params->Udp_Port = sending_port;
+	//LPVOIP_INFO sending_thread_params;
+	//if ((sending_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
+	//	sizeof(VOIP_INFO))) == NULL)
+	//{
+	//	//terminate_connection();
+	//	return;
+	//}
+	//sending_thread_params->CompletedEvent = VoipCompleted;
+	//sending_thread_params->Ip_addr = ip_addr;
+	//sending_thread_params->Udp_Port = sending_port;
 
-	HANDLE SenderThread;
-	DWORD SenderThreadId;
-	if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)sending_thread_params, 0, &SenderThreadId)) == NULL)
-	{
-		update_client_msgs("Failed creating Voip Sending Thread with error " + std::to_string(GetLastError()));
-		return;
-	}
+	//HANDLE SenderThread;
+	//DWORD SenderThreadId;
+	//if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)sending_thread_params, 0, &SenderThreadId)) == NULL)
+	//{
+	//	update_client_msgs("Failed creating Voip Sending Thread with error " + std::to_string(GetLastError()));
+	//	return;
+	//}
 
-	add_new_thread_gen(serverThreads, ReceiverThreadId, svr_threadCount++);
-	add_new_thread_gen(serverThreads, SenderThreadId, svr_threadCount++);
+	//add_new_thread_gen(serverThreads, ReceiverThreadId, svr_threadCount++);
+	//add_new_thread_gen(serverThreads, SenderThreadId, svr_threadCount++);
 }
 
 /*-------------------------------------------------------------------------------------

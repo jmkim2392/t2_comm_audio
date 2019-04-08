@@ -286,7 +286,7 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 				case VOIP_REQUEST_TYPE:
 					// voip request
 					// parsedPacket.message should contain the client info
-					start_voip(parsedPacket.ip_addr);
+					start_voip(parsedPacket.port_num, parsedPacket.ip_addr);
 					break;
 				case AUDIO_BUFFER_FULL_TYPE:
 					break;
