@@ -15,7 +15,6 @@ void start_request_handler();
 void start_broadcast();
 void initialize_events();
 DWORD WINAPI connection_monitor(LPVOID tcp_socket);
-DWORD WINAPI broadcast_audio(LPVOID broadcastInfo);
 void add_new_thread(DWORD threadId);
 void start_ftp(std::string filename);
 void start_file_stream(std::string filename, std::string client_port_num, std::string client_ip_addr);

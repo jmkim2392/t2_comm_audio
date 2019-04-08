@@ -170,7 +170,6 @@ static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance,
 	TriggerEvent(ReadyToPlayEvent);
 
 	if (multicast && (waveFreeBlockCount >= BLOCK_COUNT)) {
-		OutputDebugString(L"Multicast\n");
 		TriggerEvent(bufferReadyEvent);
 
 	} else if (numFreed >= MAX_NUM_STREAM_PACKETS && waveFreeBlockCount >= MAX_NUM_STREAM_PACKETS) {

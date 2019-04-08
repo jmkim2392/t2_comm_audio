@@ -4,13 +4,19 @@
 --	PROGRAM:		Comm_Audio
 --
 --	FUNCTIONS:
---					void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
---					void start_request_receiver()
---					void start_request_handler()
---					void initialize_events()
---					DWORD WINAPI connection_monitor(LPVOID tcp_socket)
---					void add_new_thread(DWORD threadId)
---					void terminate_server()
+--					void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port);
+--					void start_request_receiver();
+--					void start_request_handler();
+--					void start_broadcast();
+--					DWORD WINAPI connection_monitor(LPVOID tcp_socket);
+--					void start_ftp(std::string filename);
+--					void start_file_stream(std::string filename, std::string client_port_num, std::string client_ip_addr);
+--					void terminate_server();
+--					void update_server_msgs(std::string message);
+--					void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr);
+--					void resume_streaming();
+--					void send_request_to_clnt(std::string msg);
+--
 --
 --	DATE:			March 8, 2019
 --
@@ -224,21 +230,20 @@ void start_request_handler()
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	start_broadcast
 --
---	DATE:			March 11, 2019
+--	DATE:			April 5, 2019
 --
---	REVISIONS:		March 11, 2019
+--	REVISIONS:		April 5, 2019
 --
---	DESIGNER:		Jason Kim
+--	DESIGNER:		Phat Le
 --
---	PROGRAMMER:		Jason Kim
+--	PROGRAMMER:		Phat Le
 --
---	INTERFACE:		void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
---								SOCKET* socket - the udp Socket to multicast
---								LPCWSTR udp_port - udp port number
---	RETURNS:		DWORD
+--	INTERFACE:		start_broadcast()
+--
+--	RETURNS:		void
 --
 --	NOTES:
---	Call this function to initialize and start multicasting audio to clients
+--	Call this function start broadcast
 --------------------------------------------------------------------------------------*/
 void start_broadcast()
 {
