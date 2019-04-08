@@ -88,18 +88,18 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	//open voip send socket
 	//KTODO: remove port number hardcoding
 	voip_send_udp_port_num = L"4981";
-	initialize_wsa(voip_send_udp_port_num, &cl_addr);
+	initialize_wsa(voip_send_udp_port_num, &server_addr_voip_send_udp);
 	open_socket(&cl_udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
-	setup_svr_addr(&voip_svr_addr_udp, voip_send_udp_port_num, svr_ip_addr);
+	setup_svr_addr(&server_addr_voip_send_udp, voip_send_udp_port_num, svr_ip_addr);
 
 	//open voip receive socket
 	voip_receive_udp_port_num = L"4982";
-	initialize_wsa(voip_receive_udp_port_num, &cl_addr);
+	initialize_wsa(voip_receive_udp_port_num, &server_addr_udp);
 	open_socket(&cl_udp_voip_receive_socket, SOCK_DGRAM, IPPROTO_UDP);
-	/*setup_svr_addr(&cl_addr, voip_receive_udp_port_num, current_device_ip.c_str());*/
+	setup_svr_addr(&server_addr_udp, voip_receive_udp_port_num, current_device_ip.c_str());
 
 
-	if (bind(cl_udp_voip_receive_socket, (struct sockaddr *)&cl_addr, sizeof(sockaddr)) == SOCKET_ERROR) {
+	if (bind(cl_udp_voip_receive_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
 		update_status(disconnectedMsg);
 		update_client_msgs("Failed to bind udp socket " + std::to_string(WSAGetLastError()));
 	}
@@ -397,6 +397,9 @@ void request_voip(HWND voipHwndDlg)
 	WSAEVENT VoipCompleted;
 	initialize_wsa_events(&VoipCompleted);
 
+
+
+	//setup_svr_addr(&server_addr_udp, voip_receive_udp_port_num, current_device_ip);
 	initialize_voip(&cl_udp_voip_receive_socket, &cl_udp_voip_send_socket, &server_addr_voip_send_udp, VoipCompleted, NULL);
 
 	// send request to voip

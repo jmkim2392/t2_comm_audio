@@ -274,6 +274,8 @@ void show_control_panel(int type)
 	{
 	case IDM_SERVER:
 		control_panel_hwnd = CreateDialog(hInstance, ServerControlPanelName, parent_hwnd, (DLGPROC)ServerControlPanelProc);
+		initialize_wavein_device(control_panel_hwnd);
+		update_server_msgs("initialized wave in");
 		break;
 	case IDM_CLIENT:
 		control_panel_hwnd = CreateDialog(hInstance, ClientControlPanelName, parent_hwnd, (DLGPROC)ClientControlPanelProc);
@@ -452,7 +454,6 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 --------------------------------------------------------------------------------------*/
 LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
-	initialize_wavein_device(hwnd);
 
 	switch (Message)
 	{
@@ -464,6 +465,25 @@ LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			EndDialog(hwnd, wParam);
 			return 1;
 		}
+	case WIM_OPEN:
+		//MMRESULT win_mret2;
+		OutputDebugStringA("WIMOPEN\n");
+		wave_in_add_buffer();
+
+		break;
+	case WIM_DATA:
+		// post message to process this input block received
+		// NOTE: callback cannot call other waveform functions
+		//....................................................
+
+		//PostMessage((HWND)dwInstance, USR_INBLOCK, 0, dwParam1);
+		OutputDebugStringA("data");
+		send_audio_block((PWAVEHDR)lParam);
+		break;
+	case WIM_CLOSE:
+		OutputDebugStringA("wim close");
+		close_win_device();
+		break;
 	}
 	return 0;
 }

@@ -114,10 +114,10 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 
 	//open udp receive socket
 	voip_receive_port_num = L"4981";
-	initialize_wsa(voip_receive_port_num, &InternetAddr);
+	initialize_wsa(voip_receive_port_num, &client_addr_udp);
 	open_socket(&udp_voip_receive_socket, SOCK_DGRAM, IPPROTO_UDP);
 
-	if (bind(udp_voip_receive_socket, (struct sockaddr *)&InternetAddr, sizeof(sockaddr)) == SOCKET_ERROR) {
+	if (bind(udp_voip_receive_socket, (struct sockaddr *)&client_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
 		update_status(disconnectedMsg);
 		update_client_msgs("Failed to bind udp socket " + std::to_string(WSAGetLastError()));
 	}
