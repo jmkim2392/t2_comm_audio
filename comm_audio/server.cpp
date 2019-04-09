@@ -24,7 +24,9 @@
 --------------------------------------------------------------------------------------*/
 #include "server.h"
 
-SOCKET tcp_accept_socket;
+namespace fs = std::filesystem;
+
+SOCKET svr_tcp_accept_socket;
 SOCKET udp_audio_socket;
 SOCKET udp_voip_receive_socket;
 SOCKET udp_voip_send_socket;
@@ -51,14 +53,14 @@ BOOL isAcceptingConnections = FALSE;
 BOOL isBroadcasting = FALSE;
 WSAEVENT AcceptEvent;
 WSAEVENT RequestReceivedEvent;
-
 WSAEVENT StreamCompletedEvent;
 WSAEVENT VoipCompleted;
 
 HANDLE ResumeSendEvent;
 
-DWORD serverThreads[20];
+HANDLE serverThreads[20];
 int svr_threadCount = 0;
+std::vector<HANDLE> svrThreads;
 
 std::vector<std::string> server_msgs;
 
@@ -85,7 +87,7 @@ std::vector<std::string> server_msgs;
 void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port) 
 {
 	DWORD ThreadId;
-	
+
 	//open tcp socket 
 	initialize_wsa(tcp_port, &InternetAddr);
 	initialize_wsa_events(&AcceptEvent);
@@ -94,9 +96,9 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	initialize_wsa_events(&VoipCompleted);
 	initialize_events_gen(&ResumeSendEvent, L"ResumeSend");
 
-	open_socket(&tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
+	open_socket(&svr_tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
 
-	if (bind(tcp_accept_socket, (PSOCKADDR)&InternetAddr,
+	if (bind(svr_tcp_accept_socket, (PSOCKADDR)&InternetAddr,
 		sizeof(InternetAddr)) == SOCKET_ERROR)
 	{
 		printf("bind() failed with error %d\n", WSAGetLastError());
@@ -134,22 +136,21 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	start_request_handler();
 	//start_broadcast(&udp_audio_socket, udp_port);
 
-	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&tcp_accept_socket, 0, &ThreadId)) == NULL)
+	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&svr_tcp_accept_socket, 0, &ThreadId)) == NULL)
 	{
 		update_server_msgs("Failed to create AcceptThread " + std::to_string(GetLastError()));
 
 		return;
 	}
 
-	//LPCWSTR temp = get_device_ip();
-	add_new_thread(ThreadId);
+
+	add_new_thread_gen(svrThreads, AcceptThread);
 	update_server_msgs("Server online..");
 	update_status(connectedMsg);
 }
 
 void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr)
 {
-	size_t i;
 	int port;
 	char* port_num = (char *)malloc(MAX_INPUT_LENGTH);
 	char* ip = (char *)malloc(MAX_INPUT_LENGTH);
@@ -205,12 +206,12 @@ void start_request_receiver()
 	tcp_socket_info.tcp_socket = RequestSocket;
 	tcp_socket_info.CompleteEvent = RequestReceivedEvent;
 
-	if ((RequestReceiverThread = CreateThread(NULL, 0, RequestReceiverThreadFunc, (LPVOID)&tcp_socket_info, 0, &ThreadId)) == NULL)
+	if ((RequestReceiverThread = CreateThread(NULL, 0, SvrRequestReceiverThreadFunc, (LPVOID)&tcp_socket_info, 0, &ThreadId)) == NULL)
 	{
 		update_server_msgs("Failed to create RequestReceiverThread " + std::to_string(GetLastError()));
 		return;
 	}
-	add_new_thread(ThreadId);
+	add_new_thread_gen(svrThreads, RequestReceiverThread);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -241,50 +242,50 @@ void start_request_handler()
 		update_server_msgs("Failed to create RequestHandler Thread " + std::to_string(GetLastError()));
 		return;
 	}
-	add_new_thread(ThreadId);
+	add_new_thread_gen(svrThreads, RequestHandlerThread);
 }
 
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	start_broadcast
---
---	DATE:			March 11, 2019
---
---	REVISIONS:		March 11, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
---								SOCKET* socket - the udp Socket to multicast
---								LPCWSTR udp_port - udp port number
---	RETURNS:		DWORD
---
---	NOTES:
---	Call this function to initialize and start multicasting audio to clients
---------------------------------------------------------------------------------------*/
-void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
-{
-	DWORD ThreadId;
-	size_t i;
-	int portNum;
-	char* port_num = (char *)malloc(MAX_INPUT_LENGTH);
-
-	isBroadcasting = TRUE;
-
-	wcstombs_s(&i, port_num, MAX_INPUT_LENGTH, udp_port, MAX_INPUT_LENGTH);
-	portNum = atoi(port_num);
-
-	broadcast_info.portNum = portNum;
-	broadcast_info.udpSocket = *socket;
-
-	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_audio, (LPVOID)&broadcast_info, 0, &ThreadId)) == NULL)
-	{
-		printf("CreateThread failed with error %d\n", GetLastError());
-		return;
-	}
-	add_new_thread(ThreadId);
-}
+///*-------------------------------------------------------------------------------------
+//--	FUNCTION:	start_broadcast
+//--
+//--	DATE:			March 11, 2019
+//--
+//--	REVISIONS:		March 11, 2019
+//--
+//--	DESIGNER:		Jason Kim
+//--
+//--	PROGRAMMER:		Jason Kim
+//--
+//--	INTERFACE:		void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
+//--								SOCKET* socket - the udp Socket to multicast
+//--								LPCWSTR udp_port - udp port number
+//--	RETURNS:		DWORD
+//--
+//--	NOTES:
+//--	Call this function to initialize and start multicasting audio to clients
+//--------------------------------------------------------------------------------------*/
+//void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
+//{
+//	DWORD ThreadId;
+//	size_t i;
+//	int portNum;
+//	char* port_num = (char *)malloc(MAX_INPUT_LENGTH);
+//
+//	isBroadcasting = TRUE;
+//
+//	wcstombs_s(&i, port_num, MAX_INPUT_LENGTH, udp_port, MAX_INPUT_LENGTH);
+//	portNum = atoi(port_num);
+//
+//	broadcast_info.portNum = portNum;
+//	broadcast_info.udpSocket = *socket;
+//
+//	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_audio, (LPVOID)&broadcast_info, 0, &ThreadId)) == NULL)
+//	{
+//		printf("CreateThread failed with error %d\n", GetLastError());
+//		return;
+//	}
+//	add_new_thread(ThreadId);
+//}
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	connection_monitor
@@ -409,31 +410,31 @@ DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
 	return 0;
 }
 
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	add_new_thread
---
---	DATE:			March 8, 2019
---
---	REVISIONS:		March 8, 2019
---					March 14, 2019 - JK - Set for removal to use new function - SEE NOTES
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void add_new_thread(DWORD threadId) 
---								DWORD threadId - the threadId to add
---
---	RETURNS:		void
---
---	NOTES:
---	DEPRECATED - USE function in general_functions
---	Call this function to add a new thread to maintain the list of active threads
---------------------------------------------------------------------------------------*/
-void add_new_thread(DWORD threadId) 
-{
-	serverThreads[svr_threadCount++] = threadId;
-}
+///*-------------------------------------------------------------------------------------
+//--	FUNCTION:	add_new_thread
+//--
+//--	DATE:			March 8, 2019
+//--
+//--	REVISIONS:		March 8, 2019
+//--					March 14, 2019 - JK - Set for removal to use new function - SEE NOTES
+//--
+//--	DESIGNER:		Jason Kim
+//--
+//--	PROGRAMMER:		Jason Kim
+//--
+//--	INTERFACE:		void add_new_thread(DWORD threadId) 
+//--								DWORD threadId - the threadId to add
+//--
+//--	RETURNS:		void
+//--
+//--	NOTES:
+//--	DEPRECATED - USE function in general_functions
+//--	Call this function to add a new thread to maintain the list of active threads
+//--------------------------------------------------------------------------------------*/
+//void add_new_thread(DWORD threadId) 
+//{
+//	serverThreads[svr_threadCount++] = threadId;
+//}
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	start_ftp
@@ -505,18 +506,19 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 		update_server_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}*/
 
-	initialize_file_stream(&udp_audio_socket, &client_addr_udp, NULL, ResumeSendEvent);
-	
+	initialize_file_stream(&udp_audio_socket, &client_addr_udp, StreamCompletedEvent, ResumeSendEvent);
+
 	if (open_file_to_stream(filename) == 0) {
 		if ((StreamingThread = CreateThread(NULL, 0, SendStreamThreadFunc, (LPVOID)StreamCompletedEvent, 0, &ThreadId)) == NULL)
 		{
 			update_server_msgs("Failed to create Streaming Thread " + std::to_string(WSAGetLastError()));
 			return;
 		}
-		add_new_thread(ThreadId);
+		add_new_thread_gen(svrThreads, StreamingThread);
 	}
 	else {
-		send_file_not_found_packet_udp();
+		update_server_msgs("Failed to open requested file " + std::to_string(GetLastError()));
+		return;
 	}
 }
 
@@ -609,29 +611,6 @@ void start_voip(std::string client_port_num, std::string client_ip_addr)
 }
 
 /*-------------------------------------------------------------------------------------
---	FUNCTION:	terminate_server
---
---	DATE:			March 8, 2019
---
---	REVISIONS:		March 8, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void terminate_server()
---
---	RETURNS:		void
---
---	NOTES:
---	TODO implement the rest of server cleanup functions to safely terminate program
---------------------------------------------------------------------------------------*/
-void terminate_server()
-{
-	isAcceptingConnections = FALSE;
-}
-
-/*-------------------------------------------------------------------------------------
 --	FUNCTION:	update_server_msgs
 --
 --	DATE:			March 31, 2019
@@ -680,4 +659,120 @@ void update_server_msgs(std::string message)
 --------------------------------------------------------------------------------------*/
 void resume_streaming() {
 	TriggerEvent(ResumeSendEvent);
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	send_request_to_clnt
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void send_request_to_clnt(std::string msg)
+--									std::string msg - message to send to client
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to send a request packet to the connected client
+--------------------------------------------------------------------------------------*/
+void send_request_to_clnt(std::string msg)
+{
+	DWORD SendBytes;
+	WSABUF DataBuf;
+	OVERLAPPED Overlapped;
+
+	DataBuf.buf = (char*)msg.c_str();
+	DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
+
+	ZeroMemory(&Overlapped, sizeof(WSAOVERLAPPED));
+
+	if (WSASend(tcp_socket_info.tcp_socket, &DataBuf, 1, &SendBytes, 0, &Overlapped, NULL) == SOCKET_ERROR)
+	{
+		if (WSAGetLastError() != WSA_IO_PENDING)
+		{
+			update_server_msgs("Send Request failed with error " + std::to_string(WSAGetLastError()));
+			return;
+		}
+	}
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	get_file_list
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void get_file_list()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to retrieve a list of wav files in the same directory of exe
+--------------------------------------------------------------------------------------*/
+std::vector<std::string> get_file_list()
+{
+	std::vector<std::string> file_list;
+	std::string file;
+	size_t pos = 0;
+
+	for (const auto & entry : std::filesystem::directory_iterator(fs::current_path()))
+	{
+		file = entry.path().filename().string();
+		if (file.find(wavExtension) != std::string::npos) {
+			file_list.push_back(file);
+		}
+	}
+	return file_list;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	terminate_server
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void terminate_server()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	TODO implement the rest of server cleanup functions to safely terminate program
+--------------------------------------------------------------------------------------*/
+void terminate_server()
+{
+	isAcceptingConnections = FALSE;
+
+	// close all server's feature threads
+	terminateAudioApi();
+	terminateFtpHandler();
+	terminateFileStream();
+	terminateRequestHandler();
+
+	// trigger all events to unblock threads
+	TriggerWSAEvent(RequestReceivedEvent);
+
+	// check if all client initialized threads have been terminated
+	WaitForMultipleObjects((int)svrThreads.size(), svrThreads.data(), TRUE, INFINITE);
+
+	// clear residual msgs
+	server_msgs.clear();
+
+	close_socket(&svr_tcp_accept_socket);
+	close_socket(&udp_audio_socket);
+	terminate_connection();
 }

@@ -42,6 +42,9 @@ HANDLE AudioRecorderThread;
 
 BOOL isPlayingAudio = FALSE;
 BOOL isRecordingAudio = FALSE;
+
+std::vector<HANDLE> audioThreads;
+
 HANDLE BufferOpenToWriteEvent;
 
 
@@ -148,11 +151,14 @@ void initialize_waveout_device(WAVEFORMATEX wfxparam)
 		update_client_msgs("Failed creating AudioPlayerThread with error " + std::to_string(GetLastError()));
 		return;
 	}
+	add_new_thread_gen(audioThreads, AudioPlayerThread);
+
 	if ((BufRdySignalerThread = CreateThread(NULL, 0, bufReadySignalingThreadFunc, (LPVOID)BufferOpenToWriteEvent, 0, &ThreadId)) == NULL)
 	{
 		update_client_msgs("Failed creating BufRdySignalerThread with error " + std::to_string(GetLastError()));
 		return;
 	}
+	add_new_thread_gen(audioThreads, BufRdySignalerThread);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -266,7 +272,6 @@ void writeToAudioBuffer(LPSTR data)
 DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter) 
 {
 	WAVEHDR* tail;
-	DWORD Index;
 	isPlayingAudio = TRUE;
 	HANDLE readyEvent = (HANDLE)lpParameter;
 
@@ -274,13 +279,16 @@ DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter)
 	{
 		WaitForSingleObject(readyEvent, INFINITE);
 		ResetEvent(readyEvent);
-		while (waveTailBlock != waveHeadBlock) 
+		if (isPlayingAudio)
 		{
-			tail = &waveBlocks[waveTailBlock];
-			waveOutPrepareHeader(hWaveOut, tail, sizeof(WAVEHDR));
-			waveOutWrite(hWaveOut, tail, sizeof(WAVEHDR));
-			waveTailBlock++;
-			waveTailBlock %= BLOCK_COUNT;
+			while (waveTailBlock != waveHeadBlock)
+			{
+				tail = &waveBlocks[waveTailBlock];
+				waveOutPrepareHeader(hWaveOut, tail, sizeof(WAVEHDR));
+				waveOutWrite(hWaveOut, tail, sizeof(WAVEHDR));
+				waveTailBlock++;
+				waveTailBlock %= BLOCK_COUNT;
+			}
 		}
 	}
 	return 0;
@@ -314,7 +322,10 @@ DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter)
 	{
 		WaitForSingleObject(readyEvent, INFINITE);
 		ResetEvent(readyEvent);
-		send_request(AUDIO_BUFFER_RDY_TYPE, L"RDY");
+		if (isPlayingAudio)
+		{
+			send_request_to_svr(AUDIO_BUFFER_RDY_TYPE, L"RDY");
+		}
 	}
 	return 0;
 }
@@ -397,28 +408,6 @@ void freeBlocks(WAVEHDR* blockArray)
 	HeapFree(GetProcessHeap(), 0, blockArray);
 }
 
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	terminate_audio_api
---
---	DATE:			March 31, 2019
---
---	REVISIONS:		March 31, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void terminate_audio_api()
---
---	RETURNS:		void
---
---	NOTES:
---	Call this function to terminate the audio api
---	TODO: may need to implement later, for now nothing
---------------------------------------------------------------------------------------*/
-void terminate_audio_api() {
-
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 // Wave In
@@ -542,39 +531,10 @@ void initialize_wavein_device(HWND hWndDlg)
 
 }
 
-//void startRecording(HANDLE ReadyToSendEvent)
 void startRecording()
 {
-	//DWORD ThreadId;
-
-	// initialize waveIn module variables
-	//waveInBlocks = allocateBlocks(AUDIO_BLOCK_SIZE, BLOCK_COUNT);
-	//waveInFreeBlockCount = BLOCK_COUNT;
-	//waveInHeadBlock = 0;
-	//waveInTailBlock = 0;
-	//InitializeCriticalSection(&waveInCriticalSection);
-
-	// try to open the default wave in device
-	//if (waveInOpen(
-	//	&hWaveIn,
-	//	WAVE_MAPPER,
-	//	&wfx,
-	//	(DWORD_PTR)waveInProc,
-	//	(DWORD_PTR)&waveInFreeBlockCount,
-	//	CALLBACK_FUNCTION
-	//) != MMSYSERR_NOERROR) {
-	//	ExitProcess(1);
-	//}
 	waveInStart(hWaveIn);
-
 	OutputDebugStringA("start wave in\n");
-
-	// start recordAudioThreadFunc thread
-	//if ((AudioRecorderThread = CreateThread(NULL, 0, recordAudioThreadFunc, (LPVOID)ReadyToSendEvent, 0, &ThreadId)) == NULL)
-	//{
-	//	update_client_msgs("Failed creating AudioRecorderThread with error " + std::to_string(GetLastError()));
-	//	return;
-	//}
 }
 
 void wave_in_add_buffer(PWAVEHDR pwhdr, size_t size) 
@@ -628,122 +588,34 @@ void close_win_device()
 	free(win_buf8);
 }
 
-//static void CALLBACK waveInProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
-//{
-	/*
-	 * pointer to free block counter
-	 */
-	//int* freeBlockCounter = (int*)dwInstance;
-	/*
-	 * ignore calls that occur due to openining and closing the
-	 * device.
-	 */
-
-	//if (uMsg != WOM_DONE) {
-	//	return;
-	//}
-
-	// DASHA - not sure what to do here....
-	//waveInNumFreed++;
-
-	//EnterCriticalSection(&waveInCriticalSection);
-	//waveInFreeBlockCount++;
-	//char debug_buf[512];
-	//sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", waveInFreeBlockCount);
-	//OutputDebugStringA(debug_buf);
-	//LeaveCriticalSection(&waveInCriticalSection);
-
-	////TriggerEvent(ReadyToPlayEvent);
-	//if (waveInNumFreed >= MAX_NUM_STREAM_PACKETS && waveInFreeBlockCount >= MAX_NUM_STREAM_PACKETS) {
-	//	waveInNumFreed = 1;
-	//}
-//}
-
-//DWORD WINAPI recordAudioThreadFunc(LPVOID lpParameter)
-//{
-//	WAVEHDR* head;
-//	WAVEHDR* tail;
-//	DWORD Index;
-//	isRecordingAudio = TRUE;
-//	HANDLE readyEvent = (HANDLE)lpParameter;
-//
-//	// DASHA - not sure what to do here...
-//	// when do you use head and when do you use tail?
-//
-//	while (isRecordingAudio)
-//	{
-//		while (waveInTailBlock != waveInHeadBlock)
-//		{
-//			//tail = &waveInBlocks[waveInTailBlock];
-//			head = &waveInBlocks[waveInHeadBlock];
-//
-//			waveInPrepareHeader(hWaveIn, head, sizeof(WAVEHDR));
-//			waveInAddBuffer(hWaveIn, head, sizeof(WAVEHDR));
-//			waveInStart(hWaveIn);
-//
-//			//waveInTailBlock++;
-//			//waveInTailBlock %= BLOCK_COUNT;
-//			waveInHeadBlock++;
-//			waveInHeadBlock %= BLOCK_COUNT;
-//		}
-//
-//		TriggerEvent(readyEvent); //ReadyToSend
-//	}
-//	return 0;
-//}
-
-//LPSTR getRecordedAudioBuffer()
-//{
-	// DASHA - not sure what to do here....
-	// return waveInBlocks? first block?
-	//return "helloc";
-//}
-//static void CALLBACK waveInProc(HWAVEIN hWaveIn, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD lp)
-//{
-//
-//	switch (uMsg) {
-//
-//	case WIM_OPEN:
-//		OutputDebugStringA("open");
-//		break;
-//	case WIM_DATA:
-//		// post message to process this input block received
-//		// NOTE: callback cannot call other waveform functions
-//		//....................................................
-//
-//		//PostMessage((HWND)dwInstance, USR_INBLOCK, 0, dwParam1);
-//
-//
-//		// Dont need for network
-//		OutputDebugStringA("data");
-//		char sbuf[512];
-//		sprintf_s(sbuf, "%d\n", ((PWAVEHDR)lp)->dwBytesRecorded);
-//		update_client_msgs(sbuf);
-//		// Dont need for network
-//
-//		//if (blReset || !bTmp) {
-//		//if (blReset) {
-//			//			waveInClose(hWaveIn);
-//			//blReset = FALSE;
-//			//return 0;
-//			//break;
-//		//}
-//
-//
-//		// Call WSASend Recv here
-//		// WSASend(socket_to_send_to_peer, ((PWAVEHDR)lp).lpData, 1, ((PWAVEHDR)lp).dwBytesRecorded, 0, &Overlapped, NULL)
-//
-//		//waveInAddBuffer(hWaveIn, (PWAVEHDR)lp, sizeof(WAVEHDR));
-//
-//		break;
-//	case WIM_CLOSE:
-//		OutputDebugStringA("wim close");
-//		//waveInUnprepareHeader(hWaveIn, &whdr1, sizeof(WAVEHDR));
-//		//waveInUnprepareHeader(hWaveIn, &whdr2, sizeof(WAVEHDR));
-//		free(win_buf1);
-//		free(win_buf2);
-//		break; // don't care
-//
-//	}
-//}
-//
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	terminateAudioApi
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void terminateAudioApi()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to terminate the audio api
+--	TODO: may need to implement later, for now nothing
+--------------------------------------------------------------------------------------*/
+void terminateAudioApi() 
+{
+	if (isPlayingAudio)
+	{
+		waveFreeBlockCount = BLOCK_COUNT;
+		numFreed = MAX_NUM_STREAM_PACKETS;
+		isPlayingAudio = FALSE;
+		TriggerEvent(ReadyToPlayEvent);
+		TriggerEvent(BufferOpenToWriteEvent);
+		freeBlocks(waveBlocks);
+	}
+}

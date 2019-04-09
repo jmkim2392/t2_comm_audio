@@ -15,4 +15,5 @@ static LPCWSTR connection_mode;
 
 void initialize_wsa(LPCWSTR port_number, SOCKADDR_IN* InternetAddr);
 void open_socket(SOCKET* socket, int socket_type, int protocol_type);
+void close_socket(SOCKET* socket);
 void terminate_connection();
