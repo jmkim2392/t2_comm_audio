@@ -727,3 +727,16 @@ void update_messages(std::vector<std::string> messages)
 	SetWindowText(messageOutput, output);
 	delete[] output;
 }
+// this doesn't work
+//void start_Server_Stream() 
+//{
+//	HWND hwndDlg;
+//	hwndDlg = CreateDialog(hInstance, StreamingDialogName, control_panel_hwnd, (DLGPROC)StreamProc);
+//	initialize_wavein_device(hwndDlg);
+//	update_server_msgs("initialized wave in");
+//	ShowWindow(hwndDlg, SW_SHOW);
+//	// KTODO: Find somewhere more appropriate to kick the followings.
+//	// However, when pop up dialog, the parent main window seems not receiving window message
+//	// So, these may have to be kicked after show stream dialog
+//	// Tried callback method not window, but WIM_DATA is not called. (WIM_OPEN is called)
+//}

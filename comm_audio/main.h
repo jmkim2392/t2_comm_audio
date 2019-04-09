@@ -76,3 +76,5 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 void update_status(std::string newStatus);
 
 void update_messages(std::vector<std::string> messages);
+
+void start_Server_Stream();

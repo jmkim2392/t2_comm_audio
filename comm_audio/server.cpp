@@ -42,6 +42,7 @@ BROADCAST_INFO broadcast_info;
 
 SOCKADDR_IN InternetAddr;
 SOCKADDR_IN client_addr_udp;
+SOCKADDR_IN svr_udp_voip_sendto_addr;
 
 LPCWSTR voip_send_port_num;
 LPCWSTR voip_receive_port_num;
@@ -109,7 +110,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 
 	//open udp send socket
 	voip_send_port_num = L"4982";
-	initialize_wsa(voip_send_port_num, &InternetAddr);
+	initialize_wsa(voip_send_port_num, &svr_udp_voip_sendto_addr);
 	open_socket(&udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
 
 	//open udp receive socket
@@ -118,8 +119,8 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	open_socket(&udp_voip_receive_socket, SOCK_DGRAM, IPPROTO_UDP);
 
 	if (bind(udp_voip_receive_socket, (struct sockaddr *)&client_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
+		update_client_msgs("Failed to bind voip udp socket " + std::to_string(WSAGetLastError()));
 		update_status(disconnectedMsg);
-		update_client_msgs("Failed to bind udp socket " + std::to_string(WSAGetLastError()));
 	}
 
 	BOOL bOptVal = FALSE;
@@ -539,12 +540,14 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 --------------------------------------------------------------------------------------*/
 void start_voip(std::string client_port_num, std::string client_ip_addr)
 {
+	//start_Server_Stream();
+
 	LPCWSTR receiving_port = L"4981";
 	LPCWSTR sending_port = L"4982";
 	LPCWSTR ip_addr = L"127.0.0.1";
 
-	setup_client_addr(&client_addr_udp, client_port_num, client_ip_addr);
-	initialize_voip(&udp_voip_receive_socket, &udp_voip_send_socket, &client_addr_udp, VoipCompleted, NULL);
+	setup_client_addr(&svr_udp_voip_sendto_addr, client_port_num, client_ip_addr);
+	initialize_voip(&udp_voip_receive_socket, &udp_voip_send_socket, &svr_udp_voip_sendto_addr, VoipCompleted, NULL);
 
 	WAVEFORMATEX wfx_voip_play;
 	wfx_voip_play.nSamplesPerSec = 11025; /* sample rate */

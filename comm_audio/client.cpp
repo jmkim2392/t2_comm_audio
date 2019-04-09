@@ -37,6 +37,7 @@ SOCKADDR_IN cl_addr;
 SOCKADDR_IN server_addr_tcp;
 SOCKADDR_IN server_addr_udp;
 SOCKADDR_IN server_addr_voip_send_udp;
+SOCKADDR_IN cl_udp_voip_receive_addr;
 SOCKADDR_IN voip_svr_addr_udp;
 int server_len;
 
@@ -94,14 +95,14 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 
 	//open voip receive socket
 	voip_receive_udp_port_num = L"4982";
-	initialize_wsa(voip_receive_udp_port_num, &server_addr_udp);
+	initialize_wsa(voip_receive_udp_port_num, &cl_udp_voip_receive_addr);
 	open_socket(&cl_udp_voip_receive_socket, SOCK_DGRAM, IPPROTO_UDP);
-	setup_svr_addr(&server_addr_udp, voip_receive_udp_port_num, current_device_ip.c_str());
+	//setup_svr_addr(&cl_udp_voip_receive_addr, voip_receive_udp_port_num, svr_ip_addr);
 
 
-	if (bind(cl_udp_voip_receive_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
+	if (bind(cl_udp_voip_receive_socket, (struct sockaddr *)&cl_udp_voip_receive_addr, sizeof(sockaddr)) == SOCKET_ERROR) {
+		update_client_msgs("Failed to bind voip udp socket " + std::to_string(WSAGetLastError()));
 		update_status(disconnectedMsg);
-		update_client_msgs("Failed to bind udp socket " + std::to_string(WSAGetLastError()));
 	}
 
 	//set REUSEADDR for udp socket
@@ -120,7 +121,7 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	// This is for client receiver
 	setup_svr_addr(&server_addr_udp, udp_port, current_device_ip.c_str());
 	// This is to send data to the voip server
-	setup_svr_addr(&server_addr_voip_send_udp, voip_send_udp_port_num, svr_ip_addr);
+	//setup_svr_addr(&server_addr_voip_send_udp, voip_send_udp_port_num, svr_ip_addr);
 
 	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr_tcp, sizeof(sockaddr)) == -1)
 	{
@@ -390,16 +391,13 @@ void request_file_stream(LPCWSTR filename)
 --------------------------------------------------------------------------------------*/
 void request_voip(HWND voipHwndDlg)
 {
-	LPCWSTR receiving_port = L"4981";
-	LPCWSTR sending_port = L"4982";
+	LPCWSTR receiving_port = L"4982";
+	LPCWSTR sending_port = L"4981";
 	LPCWSTR ip_addr = L"127.0.0.1";
 
 	WSAEVENT VoipCompleted;
 	initialize_wsa_events(&VoipCompleted);
 
-
-
-	//setup_svr_addr(&server_addr_udp, voip_receive_udp_port_num, current_device_ip);
 	initialize_voip(&cl_udp_voip_receive_socket, &cl_udp_voip_send_socket, &server_addr_voip_send_udp, VoipCompleted, NULL);
 
 	// send request to voip
