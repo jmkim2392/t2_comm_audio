@@ -319,10 +319,10 @@ LRESULT CALLBACK ServerDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 			show_control_panel(IDM_SERVER);
 
 			//TODO: to uncomment after testing features
-			//initialize_server(tcp_port_num, udp_port_num);
+			initialize_server(tcp_port_num, udp_port_num);
 
 			//TODO: to remove after testing 
-			initialize_server(L"4985", L"4986");
+			//initialize_server(L"4985", L"4986");
 
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
@@ -380,10 +380,10 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 			show_control_panel(IDM_CLIENT);
 
 			//TODO: to uncomment after testing features
-			//initialize_client(tcp_port_num, udp_port_num, server_ip);
+			initialize_client(tcp_port_num, udp_port_num, server_ip);
 
 			//TODO: to remove after testing 
-			initialize_client(L"4985", L"4986", L"localhost");
+			//initialize_client(L"4985", L"4986", L"localhost");
 
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
@@ -472,8 +472,6 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			show_dialog(IDM_VOIP_TYPE, hwnd);
 			break;
 		case IDM_MULTICAST_TYPE:
-			join_multicast_stream();
-			OutputDebugString(L"Join multicast\n");
 			show_dialog(IDM_MULTICAST_TYPE, hwnd);
 			break;
 		case IDCANCEL:
@@ -529,16 +527,17 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 			{
 				if (selectedFeatureType == IDM_FILE_REQUEST_TYPE)
 				{
-					reset_client_request_receiver();
+					//reset_client_request_receiver();
 					request_wav_file(filename);
 				}
 				else
 				{
-					reset_client_request_receiver();
+					//reset_client_request_receiver();
 					request_file_stream(filename);
 					show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
 				}
 			}
+			reset_client_request_receiver();
 			EnableWindow(control_panel_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
 
@@ -583,9 +582,6 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 			// Disconnect process
 			start_client_terminate_file_stream();
 			EnableWindow(control_panel_hwnd, TRUE);
-			disconnect_multicast();
-			EndDialog(hwnd, wParam);
-        
 			return 1;
 		}
 	}

@@ -28,9 +28,9 @@ namespace fs = std::filesystem;
 
 SOCKET svr_tcp_accept_socket;
 SOCKET udp_audio_socket;
+SOCKET svr_tcp_ftp_socket;
 
 SOCKET RequestSocket;
-SOCKET multicast_Socket;
 
 HANDLE AcceptThread;
 HANDLE RequestReceiverThread;
@@ -38,20 +38,18 @@ HANDLE RequestHandlerThread;
 HANDLE StreamingThread;
 HANDLE BroadCastThread;
 
+LPCWSTR svr_tcp_ftp_port = L"4984";
+
 TCP_SOCKET_INFO tcp_socket_info;
-BROADCAST_INFO bi;
+BROADCAST_INFO broadcast_info;
 
 SOCKADDR_IN InternetAddr;
 SOCKADDR_IN client_addr_udp;
-SOCKADDR_IN multicast_stLclAddr, multicast_stDstAddr;
-
-struct ip_mreq stMreq;    /* Multicast interface structure */
-
-WSADATA stWSAData;
-
+SOCKADDR_IN client_addr_tcp_ftp;
 
 BOOL isAcceptingConnections = FALSE;
 BOOL isBroadcasting = FALSE;
+BOOL ftpSocketReady = FALSE;
 WSAEVENT AcceptEvent;
 WSAEVENT RequestReceivedEvent;
 WSAEVENT StreamCompletedEvent;
@@ -108,9 +106,16 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	initialize_wsa(udp_port, &InternetAddr);
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 
+
+	//open tcp ftp socket 
+	// tcp_ftp_port_num should be dynamically decremented from req port number; currently hardcoded
+	initialize_wsa(svr_tcp_ftp_port, &InternetAddr);
+	open_socket(&svr_tcp_ftp_socket, SOCK_STREAM, IPPROTO_TCP);
+
+
 	start_request_receiver();
 	start_request_handler();
-	start_broadcast();
+	//start_broadcast(&udp_audio_socket, udp_port);
 
 	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&svr_tcp_accept_socket, 0, &ThreadId)) == NULL)
 	{
@@ -221,91 +226,47 @@ void start_request_handler()
 	add_new_thread_gen(svrThreads, RequestHandlerThread);
 }
 
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	start_broadcast
---
---	DATE:			March 11, 2019
---
---	REVISIONS:		March 11, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
---								SOCKET* socket - the udp Socket to multicast
---								LPCWSTR udp_port - udp port number
---	RETURNS:		DWORD
---
---	NOTES:
---	Call this function to initialize and start multicasting audio to clients
---------------------------------------------------------------------------------------*/
-void start_broadcast()
-{
-
-	DWORD ThreadId;
-
-	char achMCAddr[MAXADDRSTR] = TIMECAST_ADDR;
-	u_short nPort = TIMECAST_PORT;
-	u_long  lTTL = TIMECAST_TTL;
-	isBroadcasting = TRUE;
-
-	if (!init_winsock(&stWSAData)) {
-		isBroadcasting = FALSE;
-		return;
-	}
-
-	if (!get_datagram_socket(&multicast_Socket)) {
-		WSACleanup();
-		isBroadcasting = FALSE;
-		return;
-	}
-
-	if (!bind_socket(&multicast_stLclAddr, &multicast_Socket, 0)) {
-		closesocket(multicast_Socket);
-		WSACleanup();
-		isBroadcasting = FALSE;
-		return;
-	}
-
-	if (!join_multicast_group(&stMreq, &multicast_Socket, achMCAddr)) {
-		closesocket(multicast_Socket);
-		WSACleanup();
-		isBroadcasting = FALSE;
-		return;
-	}
-
-	if (!set_ip_ttl(&multicast_Socket, lTTL)) {
-		closesocket(multicast_Socket);
-		WSACleanup();
-		isBroadcasting = FALSE;
-		return;
-	}
-
-	if (!disable_loopback(&multicast_Socket)) {
-		closesocket(multicast_Socket);
-		WSACleanup();
-		isBroadcasting = FALSE;
-		return;
-	}
-
-	multicast_stDstAddr.sin_family = AF_INET;
-	multicast_stDstAddr.sin_addr.s_addr = inet_addr(achMCAddr);
-	multicast_stDstAddr.sin_port = htons(nPort);
-
-	bi.hSocket = &multicast_Socket;
-	bi.stDstAddr = &multicast_stDstAddr;
-
-
-	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_data, (LPVOID)&bi, 0, &ThreadId)) == NULL) {
-		printf("CreateThread failed with error %d\n", GetLastError());
-		closesocket(multicast_Socket);
-		WSACleanup();
-		isBroadcasting = FALSE;
-		return;
-	}
-	add_new_thread_gen(svrThreads, BroadCastThread);
-}
+///*-------------------------------------------------------------------------------------
+//--	FUNCTION:	start_broadcast
+//--
+//--	DATE:			March 11, 2019
+//--
+//--	REVISIONS:		March 11, 2019
+//--
+//--	DESIGNER:		Jason Kim
+//--
+//--	PROGRAMMER:		Jason Kim
+//--
+//--	INTERFACE:		void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
+//--								SOCKET* socket - the udp Socket to multicast
+//--								LPCWSTR udp_port - udp port number
+//--	RETURNS:		DWORD
+//--
+//--	NOTES:
+//--	Call this function to initialize and start multicasting audio to clients
+//--------------------------------------------------------------------------------------*/
+//void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
+//{
+//	DWORD ThreadId;
+//	size_t i;
+//	int portNum;
+//	char* port_num = (char *)malloc(MAX_INPUT_LENGTH);
+//
+//	isBroadcasting = TRUE;
+//
+//	wcstombs_s(&i, port_num, MAX_INPUT_LENGTH, udp_port, MAX_INPUT_LENGTH);
+//	portNum = atoi(port_num);
+//
+//	broadcast_info.portNum = portNum;
+//	broadcast_info.udpSocket = *socket;
+//
+//	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_audio, (LPVOID)&broadcast_info, 0, &ThreadId)) == NULL)
+//	{
+//		printf("CreateThread failed with error %d\n", GetLastError());
+//		return;
+//	}
+//	add_new_thread(ThreadId);
+//}
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	connection_monitor
@@ -347,6 +308,85 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 			update_server_msgs("WSASetEvent(AccentEvent) failed with error " + std::to_string(WSAGetLastError()));
 			return WSAGetLastError();
 		}
+	}
+	return 0;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	broadcast_audio
+--
+--	DATE:			March 11, 2019
+--
+--	REVISIONS:		March 11, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
+--									LPVOID broadcastInfo - struct for multicasting
+--
+--	RETURNS:		DWORD
+--
+--	NOTES:
+--	Thread function for multicasting an audio stream to clients.
+	//TODO: Current implementation is for testing only and uses Broadcast.
+	// Will be reimplemented with Multicast as required by Phat
+--------------------------------------------------------------------------------------*/
+DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
+{
+	int retVal;
+	BOOL bOpt;
+	SOCKADDR_IN   to;
+	LPBROADCAST_INFO broadcast_info;
+	WSABUF DataBuf;
+	WSAOVERLAPPED Overlapped;
+	DWORD BytesSent = 0;
+	DWORD Flags = 0;
+
+	std::string tempMsg = "Testing Broadcast";
+
+	broadcast_info = (LPBROADCAST_INFO)broadcastInfo;
+
+	bOpt = TRUE;
+	isBroadcasting = TRUE;
+
+	retVal = setsockopt(broadcast_info->udpSocket, SOL_SOCKET, SO_BROADCAST, (char *)&bOpt, sizeof(bOpt));
+	//TODO: temp for testing to be removed
+	//retVal = setsockopt(broadcast_info->udpSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOpt, sizeof(bOpt));
+	if (retVal == SOCKET_ERROR)
+	{
+		printf("setsockopt(SO_BROADCAST) failed: %d\n",
+			WSAGetLastError());
+		return -1;
+	}
+	to.sin_family = AF_INET;
+	to.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+	to.sin_port = htons(broadcast_info->portNum);
+
+	// Make sure the Overlapped struct is zeroed out
+	SecureZeroMemory((PVOID)&Overlapped, sizeof(WSAOVERLAPPED));
+
+	// Create an event handle and setup the overlapped structure.
+	Overlapped.hEvent = WSACreateEvent();
+	if (Overlapped.hEvent == WSA_INVALID_EVENT) {
+		printf("WSACreateEvent failed with error: %d\n", WSAGetLastError());
+		WSACleanup();
+		return -1;
+	}
+
+	// while flag on and no error
+	while (isBroadcasting) 
+	{
+		DataBuf.len = 1024;
+		DataBuf.buf = &tempMsg[0u];
+		retVal = WSASendTo(broadcast_info->udpSocket, &DataBuf, 1, &BytesSent, Flags,(SOCKADDR *)&to, sizeof(to), &Overlapped, NULL);
+		if (retVal == SOCKET_ERROR)
+		{
+			printf("sendto() failed: %d\n", WSAGetLastError());
+			break;
+		}
+		Sleep(10000);
 	}
 	return 0;
 }
@@ -397,10 +437,29 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 --	Call this function to check if file requested by client exists and begin sending file
 --	if doesn't exist, send file_not_found packet
 --------------------------------------------------------------------------------------*/
-void start_ftp(std::string filename) 
+void start_ftp(std::string filename, std::string ip_addr) 
 {
+	LPWSTR ip = new WCHAR[ip_addr.length() + 1];
+
+	::MultiByteToWideChar(CP_ACP, 0, ip_addr.c_str(), (int)ip_addr.size(), ip, (int)ip_addr.length());
+
+	ip[ip_addr.length()] = 0;
+
+	setup_svr_addr(&client_addr_tcp_ftp, svr_tcp_ftp_port, ip);
+
+	if (!ftpSocketReady) 
+	{
+		// connect to tcp request socket
+		if (connect(svr_tcp_ftp_socket, (struct sockaddr *)&client_addr_tcp_ftp, sizeof(sockaddr)) == -1)
+		{
+			update_status(disconnectedMsg);
+			update_server_msgs("Failed to connect to client for ftp " + std::to_string(WSAGetLastError()));
+		}
+		ftpSocketReady = TRUE;
+	}
+	
 	update_server_msgs("Starting File Transfer");
-	initialize_ftp(&tcp_socket_info.tcp_socket, NULL);
+	initialize_ftp(&svr_tcp_ftp_socket, NULL);
 	(open_file(filename) == 0) ? start_sending_file() : send_file_not_found_packet();
 }
 
