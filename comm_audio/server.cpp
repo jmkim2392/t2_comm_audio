@@ -31,6 +31,7 @@ SOCKET udp_audio_socket;
 SOCKET svr_tcp_ftp_socket;
 
 SOCKET RequestSocket;
+SOCKET multicast_Socket;
 
 HANDLE AcceptThread;
 HANDLE RequestReceiverThread;
@@ -41,11 +42,16 @@ HANDLE BroadCastThread;
 LPCWSTR svr_tcp_ftp_port = L"4984";
 
 TCP_SOCKET_INFO tcp_socket_info;
-BROADCAST_INFO broadcast_info;
+BROADCAST_INFO bi;
 
 SOCKADDR_IN InternetAddr;
 SOCKADDR_IN client_addr_udp;
 SOCKADDR_IN client_addr_tcp_ftp;
+SOCKADDR_IN multicast_stLclAddr, multicast_stDstAddr;
+
+struct ip_mreq stMreq;    /* Multicast interface structure */
+
+WSADATA stWSAData;
 
 BOOL isAcceptingConnections = FALSE;
 BOOL isBroadcasting = FALSE;
@@ -115,7 +121,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 
 	start_request_receiver();
 	start_request_handler();
-	//start_broadcast(&udp_audio_socket, udp_port);
+	start_broadcast();
 
 	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&svr_tcp_accept_socket, 0, &ThreadId)) == NULL)
 	{
@@ -245,28 +251,72 @@ void start_request_handler()
 //--	NOTES:
 //--	Call this function to initialize and start multicasting audio to clients
 //--------------------------------------------------------------------------------------*/
-//void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
-//{
-//	DWORD ThreadId;
-//	size_t i;
-//	int portNum;
-//	char* port_num = (char *)malloc(MAX_INPUT_LENGTH);
-//
-//	isBroadcasting = TRUE;
-//
-//	wcstombs_s(&i, port_num, MAX_INPUT_LENGTH, udp_port, MAX_INPUT_LENGTH);
-//	portNum = atoi(port_num);
-//
-//	broadcast_info.portNum = portNum;
-//	broadcast_info.udpSocket = *socket;
-//
-//	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_audio, (LPVOID)&broadcast_info, 0, &ThreadId)) == NULL)
-//	{
-//		printf("CreateThread failed with error %d\n", GetLastError());
-//		return;
-//	}
-//	add_new_thread(ThreadId);
-//}
+void start_broadcast()
+{	
+	DWORD ThreadId;
+
+
+	char achMCAddr[MAXADDRSTR] = TIMECAST_ADDR;	
+	u_short nPort = TIMECAST_PORT;	
+	u_long  lTTL = TIMECAST_TTL;	
+	isBroadcasting = TRUE;	
+
+	if (!init_winsock(&stWSAData)) {
+		isBroadcasting = FALSE;	
+		return;
+	}
+
+	if (!get_datagram_socket(&multicast_Socket)) {	
+		WSACleanup();
+		isBroadcasting = FALSE;	
+		return;	
+	}
+
+	if (!bind_socket(&multicast_stLclAddr, &multicast_Socket, 0)) {
+		closesocket(multicast_Socket);
+		WSACleanup();
+		isBroadcasting = FALSE;
+		return;
+	}
+
+	if (!join_multicast_group(&stMreq, &multicast_Socket, achMCAddr)) {
+		closesocket(multicast_Socket);
+		WSACleanup();
+		isBroadcasting = FALSE;
+		return;
+	}
+
+	if (!set_ip_ttl(&multicast_Socket, lTTL)) {
+		closesocket(multicast_Socket);
+		WSACleanup();
+		isBroadcasting = FALSE;
+		return;
+	}
+
+	if (!disable_loopback(&multicast_Socket)) {
+		closesocket(multicast_Socket);
+		WSACleanup();
+		isBroadcasting = FALSE;
+		return;
+	}
+
+	multicast_stDstAddr.sin_family = AF_INET;
+	multicast_stDstAddr.sin_addr.s_addr = inet_addr(achMCAddr);
+	multicast_stDstAddr.sin_port = htons(nPort);
+
+	bi.hSocket = &multicast_Socket;
+	bi.stDstAddr = &multicast_stDstAddr;
+
+
+	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_data, (LPVOID)&bi, 0, &ThreadId)) == NULL) {
+		printf("CreateThread failed with error %d\n", GetLastError());
+		closesocket(multicast_Socket);
+		WSACleanup();
+		isBroadcasting = FALSE;
+		return;
+	}
+	add_new_thread_gen(svrThreads, BroadCastThread);
+}
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	connection_monitor
@@ -311,111 +361,6 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 	}
 	return 0;
 }
-
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	broadcast_audio
---
---	DATE:			March 11, 2019
---
---	REVISIONS:		March 11, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
---									LPVOID broadcastInfo - struct for multicasting
---
---	RETURNS:		DWORD
---
---	NOTES:
---	Thread function for multicasting an audio stream to clients.
-	//TODO: Current implementation is for testing only and uses Broadcast.
-	// Will be reimplemented with Multicast as required by Phat
---------------------------------------------------------------------------------------*/
-DWORD WINAPI broadcast_audio(LPVOID broadcastInfo)
-{
-	int retVal;
-	BOOL bOpt;
-	SOCKADDR_IN   to;
-	LPBROADCAST_INFO broadcast_info;
-	WSABUF DataBuf;
-	WSAOVERLAPPED Overlapped;
-	DWORD BytesSent = 0;
-	DWORD Flags = 0;
-
-	std::string tempMsg = "Testing Broadcast";
-
-	broadcast_info = (LPBROADCAST_INFO)broadcastInfo;
-
-	bOpt = TRUE;
-	isBroadcasting = TRUE;
-
-	retVal = setsockopt(broadcast_info->udpSocket, SOL_SOCKET, SO_BROADCAST, (char *)&bOpt, sizeof(bOpt));
-	//TODO: temp for testing to be removed
-	//retVal = setsockopt(broadcast_info->udpSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOpt, sizeof(bOpt));
-	if (retVal == SOCKET_ERROR)
-	{
-		printf("setsockopt(SO_BROADCAST) failed: %d\n",
-			WSAGetLastError());
-		return -1;
-	}
-	to.sin_family = AF_INET;
-	to.sin_addr.s_addr = htonl(INADDR_BROADCAST);
-	to.sin_port = htons(broadcast_info->portNum);
-
-	// Make sure the Overlapped struct is zeroed out
-	SecureZeroMemory((PVOID)&Overlapped, sizeof(WSAOVERLAPPED));
-
-	// Create an event handle and setup the overlapped structure.
-	Overlapped.hEvent = WSACreateEvent();
-	if (Overlapped.hEvent == WSA_INVALID_EVENT) {
-		printf("WSACreateEvent failed with error: %d\n", WSAGetLastError());
-		WSACleanup();
-		return -1;
-	}
-
-	// while flag on and no error
-	while (isBroadcasting) 
-	{
-		DataBuf.len = 1024;
-		DataBuf.buf = &tempMsg[0u];
-		retVal = WSASendTo(broadcast_info->udpSocket, &DataBuf, 1, &BytesSent, Flags,(SOCKADDR *)&to, sizeof(to), &Overlapped, NULL);
-		if (retVal == SOCKET_ERROR)
-		{
-			printf("sendto() failed: %d\n", WSAGetLastError());
-			break;
-		}
-		Sleep(10000);
-	}
-	return 0;
-}
-
-///*-------------------------------------------------------------------------------------
-//--	FUNCTION:	add_new_thread
-//--
-//--	DATE:			March 8, 2019
-//--
-//--	REVISIONS:		March 8, 2019
-//--					March 14, 2019 - JK - Set for removal to use new function - SEE NOTES
-//--
-//--	DESIGNER:		Jason Kim
-//--
-//--	PROGRAMMER:		Jason Kim
-//--
-//--	INTERFACE:		void add_new_thread(DWORD threadId) 
-//--								DWORD threadId - the threadId to add
-//--
-//--	RETURNS:		void
-//--
-//--	NOTES:
-//--	DEPRECATED - USE function in general_functions
-//--	Call this function to add a new thread to maintain the list of active threads
-//--------------------------------------------------------------------------------------*/
-//void add_new_thread(DWORD threadId) 
-//{
-//	serverThreads[svr_threadCount++] = threadId;
-//}
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	start_ftp

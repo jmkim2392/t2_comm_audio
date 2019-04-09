@@ -4,7 +4,7 @@
 --	PROGRAM:		Comm_Audio
 --
 --	FUNCTIONS:
---					void initialize_audio_device();
+--					initialize_audio_device(BOOL multicast);
 --					void CALLBACK waveOutProc(HWAVEOUT, UINT, DWORD, DWORD, DWORD);
 --					WAVEHDR* allocateBlocks(int size, int count);
 --					void freeBlocks(WAVEHDR* blockArray);
@@ -35,9 +35,11 @@ static int waveTailBlock;
 
 HANDLE AudioPlayerThread;
 HANDLE BufRdySignalerThread;
+HANDLE bufferReadyEvent;
 std::vector<HANDLE> audioThreads;
 
 BOOL isPlayingAudio = FALSE;
+BOOL multicast = FALSE;
 
 HANDLE BufferOpenToWriteEvent;
 HANDLE ReadyToPlayEvent;
@@ -53,16 +55,18 @@ HANDLE ReadyToPlayEvent;
 --
 --	PROGRAMMER:		Keishi Asai, Jason Kim
 --
---	INTERFACE:		void initialize_audio_device()
+--	INTERFACE:		initialize_audio_device(BOOL multicastFlag);
 --
 --	RETURNS:		void
 --
 --	NOTES:
 --	Call this function to setup the audio device and audio playing feature
 --------------------------------------------------------------------------------------*/
-void initialize_audio_device()
+void initialize_audio_device(BOOL multicastFlag)
 {
 	DWORD ThreadId;
+
+	multicast = multicastFlag;
 
 	/*
 	 * initialise the module variables
@@ -109,12 +113,18 @@ void initialize_audio_device()
 	}
 	add_new_thread_gen(audioThreads, AudioPlayerThread);
 
-	if ((BufRdySignalerThread = CreateThread(NULL, 0, bufReadySignalingThreadFunc, (LPVOID)BufferOpenToWriteEvent, 0, &ThreadId)) == NULL)
-	{
-		update_client_msgs("Failed creating BufRdySignalerThread with error " + std::to_string(GetLastError()));
-		return;
+	if (multicast) {
+		initialize_events_gen(&bufferReadyEvent, L"MulticastEvent");
 	}
-	add_new_thread_gen(audioThreads, BufRdySignalerThread);
+	else {
+		initialize_events_gen(&BufferOpenToWriteEvent, L"BufferReadyToWrite");
+		if ((BufRdySignalerThread = CreateThread(NULL, 0, bufReadySignalingThreadFunc, (LPVOID)BufferOpenToWriteEvent, 0, &ThreadId)) == NULL)
+		{
+			update_client_msgs("Failed creating BufRdySignalerThread with error " + std::to_string(GetLastError()));
+			return;
+		}
+		add_new_thread_gen(audioThreads, BufRdySignalerThread);
+	}
 }
 
 /*-------------------------------------------------------------------------------------
@@ -150,16 +160,18 @@ static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance,
 		return;
 	}
 	numFreed++;
-	//OutputDebugStringA("Hello\n");
+
 	EnterCriticalSection(&waveCriticalSection);
 	waveFreeBlockCount++;
-	char debug_buf[512];
-	sprintf_s(debug_buf, sizeof(debug_buf), "FreeB: %d\n", waveFreeBlockCount);
-	OutputDebugStringA(debug_buf);
-	//	(*freeBlockCounter)++;
+
 	LeaveCriticalSection(&waveCriticalSection);
 	TriggerEvent(ReadyToPlayEvent);
-	if (numFreed >= MAX_NUM_STREAM_PACKETS && waveFreeBlockCount >= MAX_NUM_STREAM_PACKETS) {
+
+	if (multicast && (waveFreeBlockCount >= BLOCK_COUNT)) {
+		TriggerEvent(bufferReadyEvent);
+	}
+	else if (numFreed >= MAX_NUM_STREAM_PACKETS && waveFreeBlockCount >= MAX_NUM_STREAM_PACKETS) 
+	{
 		numFreed = 1;
 		TriggerEvent(BufferOpenToWriteEvent);
 	}
@@ -201,9 +213,15 @@ void writeToAudioBuffer(LPSTR data)
 	waveFreeBlockCount--;
 	LeaveCriticalSection(&waveCriticalSection);
 	waveHeadBlock++;
+	if (multicast && (waveHeadBlock >= BLOCK_COUNT)) {
+		ResetEvent(bufferReadyEvent);
+	}
 	waveHeadBlock %= BLOCK_COUNT;
 	head->dwUser = 0;
 	TriggerEvent(ReadyToPlayEvent);
+	if (multicast) {
+		WaitForSingleObject(bufferReadyEvent, INFINITE);
+	}
 }
 
 /*-------------------------------------------------------------------------------------

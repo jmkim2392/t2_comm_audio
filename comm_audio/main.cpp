@@ -582,6 +582,8 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 			// Disconnect process
 			start_client_terminate_file_stream();
 			EnableWindow(control_panel_hwnd, TRUE);
+			disconnect_multicast();
+			EndDialog(hwnd, wParam);
 			return 1;
 		}
 	}
