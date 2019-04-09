@@ -668,6 +668,7 @@ std::vector<std::string> get_file_list()
 void terminate_server()
 {
 	isAcceptingConnections = FALSE;
+	ftpSocketReady = FALSE;
 
 	// close all server's feature threads
 	terminateAudioApi();
@@ -686,5 +687,6 @@ void terminate_server()
 
 	close_socket(&svr_tcp_accept_socket);
 	close_socket(&udp_audio_socket);
+	close_socket(&svr_tcp_ftp_socket);
 	terminate_connection();
 }

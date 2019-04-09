@@ -526,6 +526,8 @@ void terminate_client()
 {
 	// turn off all status flags to start terminating process
 	isConnected = FALSE;
+	isReceivingFile_Clnt = FALSE;
+	isFtpSocketReady = FALSE;
 
 	// close all client's feature threads
 	terminateAudioApi();
@@ -544,5 +546,8 @@ void terminate_client()
 
 	// close client sockets 
 	close_socket(&cl_tcp_req_socket);
+	close_socket(&cl_tcp_ftp_socket);
+	close_socket(&ftp_receivingSock);
+
 	terminate_connection();
 }
