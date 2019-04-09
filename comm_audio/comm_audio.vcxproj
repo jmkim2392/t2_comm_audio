@@ -138,7 +138,6 @@
     <ClInclude Include="gui_resource.h" />
     <ClInclude Include="multicast.h" />
     <ClInclude Include="request_handler.h" />
-    <ClInclude Include="resource.h" />
     <ClInclude Include="server.h" />
     <ClInclude Include="winsock_handler.h" />
     <ClInclude Include="constants.h" />

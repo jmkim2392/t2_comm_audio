@@ -28,6 +28,7 @@ namespace fs = std::filesystem;
 
 SOCKET svr_tcp_accept_socket;
 SOCKET udp_audio_socket;
+SOCKET svr_tcp_ftp_socket;
 
 SOCKET RequestSocket;
 SOCKET multicast_Socket;
@@ -38,20 +39,23 @@ HANDLE RequestHandlerThread;
 HANDLE StreamingThread;
 HANDLE BroadCastThread;
 
+LPCWSTR svr_tcp_ftp_port = L"4984";
+
 TCP_SOCKET_INFO tcp_socket_info;
 BROADCAST_INFO bi;
 
 SOCKADDR_IN InternetAddr;
 SOCKADDR_IN client_addr_udp;
+SOCKADDR_IN client_addr_tcp_ftp;
 SOCKADDR_IN multicast_stLclAddr, multicast_stDstAddr;
 
 struct ip_mreq stMreq;    /* Multicast interface structure */
 
 WSADATA stWSAData;
 
-
 BOOL isAcceptingConnections = FALSE;
 BOOL isBroadcasting = FALSE;
+BOOL ftpSocketReady = FALSE;
 WSAEVENT AcceptEvent;
 WSAEVENT RequestReceivedEvent;
 WSAEVENT StreamCompletedEvent;
@@ -107,6 +111,13 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	//open udp socket
 	initialize_wsa(udp_port, &InternetAddr);
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
+
+
+	//open tcp ftp socket 
+	// tcp_ftp_port_num should be dynamically decremented from req port number; currently hardcoded
+	initialize_wsa(svr_tcp_ftp_port, &InternetAddr);
+	open_socket(&svr_tcp_ftp_socket, SOCK_STREAM, IPPROTO_TCP);
+
 
 	start_request_receiver();
 	start_request_handler();
@@ -221,44 +232,44 @@ void start_request_handler()
 	add_new_thread_gen(svrThreads, RequestHandlerThread);
 }
 
-/*-------------------------------------------------------------------------------------
---	FUNCTION:	start_broadcast
---
---	DATE:			March 11, 2019
---
---	REVISIONS:		March 11, 2019
---
---	DESIGNER:		Jason Kim
---
---	PROGRAMMER:		Jason Kim
---
---	INTERFACE:		void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
---								SOCKET* socket - the udp Socket to multicast
---								LPCWSTR udp_port - udp port number
---	RETURNS:		DWORD
---
---	NOTES:
---	Call this function to initialize and start multicasting audio to clients
---------------------------------------------------------------------------------------*/
+///*-------------------------------------------------------------------------------------
+//--	FUNCTION:	start_broadcast
+//--
+//--	DATE:			March 11, 2019
+//--
+//--	REVISIONS:		March 11, 2019
+//--
+//--	DESIGNER:		Jason Kim
+//--
+//--	PROGRAMMER:		Jason Kim
+//--
+//--	INTERFACE:		void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
+//--								SOCKET* socket - the udp Socket to multicast
+//--								LPCWSTR udp_port - udp port number
+//--	RETURNS:		DWORD
+//--
+//--	NOTES:
+//--	Call this function to initialize and start multicasting audio to clients
+//--------------------------------------------------------------------------------------*/
 void start_broadcast()
-{
-
+{	
 	DWORD ThreadId;
 
-	char achMCAddr[MAXADDRSTR] = TIMECAST_ADDR;
-	u_short nPort = TIMECAST_PORT;
-	u_long  lTTL = TIMECAST_TTL;
-	isBroadcasting = TRUE;
+
+	char achMCAddr[MAXADDRSTR] = TIMECAST_ADDR;	
+	u_short nPort = TIMECAST_PORT;	
+	u_long  lTTL = TIMECAST_TTL;	
+	isBroadcasting = TRUE;	
 
 	if (!init_winsock(&stWSAData)) {
-		isBroadcasting = FALSE;
+		isBroadcasting = FALSE;	
 		return;
 	}
 
-	if (!get_datagram_socket(&multicast_Socket)) {
+	if (!get_datagram_socket(&multicast_Socket)) {	
 		WSACleanup();
-		isBroadcasting = FALSE;
-		return;
+		isBroadcasting = FALSE;	
+		return;	
 	}
 
 	if (!bind_socket(&multicast_stLclAddr, &multicast_Socket, 0)) {
@@ -351,32 +362,6 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 	return 0;
 }
 
-///*-------------------------------------------------------------------------------------
-//--	FUNCTION:	add_new_thread
-//--
-//--	DATE:			March 8, 2019
-//--
-//--	REVISIONS:		March 8, 2019
-//--					March 14, 2019 - JK - Set for removal to use new function - SEE NOTES
-//--
-//--	DESIGNER:		Jason Kim
-//--
-//--	PROGRAMMER:		Jason Kim
-//--
-//--	INTERFACE:		void add_new_thread(DWORD threadId) 
-//--								DWORD threadId - the threadId to add
-//--
-//--	RETURNS:		void
-//--
-//--	NOTES:
-//--	DEPRECATED - USE function in general_functions
-//--	Call this function to add a new thread to maintain the list of active threads
-//--------------------------------------------------------------------------------------*/
-//void add_new_thread(DWORD threadId) 
-//{
-//	serverThreads[svr_threadCount++] = threadId;
-//}
-
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	start_ftp
 --
@@ -397,10 +382,29 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 --	Call this function to check if file requested by client exists and begin sending file
 --	if doesn't exist, send file_not_found packet
 --------------------------------------------------------------------------------------*/
-void start_ftp(std::string filename) 
+void start_ftp(std::string filename, std::string ip_addr) 
 {
+	LPWSTR ip = new WCHAR[ip_addr.length() + 1];
+
+	::MultiByteToWideChar(CP_ACP, 0, ip_addr.c_str(), (int)ip_addr.size(), ip, (int)ip_addr.length());
+
+	ip[ip_addr.length()] = 0;
+
+	setup_svr_addr(&client_addr_tcp_ftp, svr_tcp_ftp_port, ip);
+
+	if (!ftpSocketReady) 
+	{
+		// connect to tcp request socket
+		if (connect(svr_tcp_ftp_socket, (struct sockaddr *)&client_addr_tcp_ftp, sizeof(sockaddr)) == -1)
+		{
+			update_status(disconnectedMsg);
+			update_server_msgs("Failed to connect to client for ftp " + std::to_string(WSAGetLastError()));
+		}
+		ftpSocketReady = TRUE;
+	}
+	
 	update_server_msgs("Starting File Transfer");
-	initialize_ftp(&tcp_socket_info.tcp_socket, NULL);
+	initialize_ftp(&svr_tcp_ftp_socket, NULL);
 	(open_file(filename) == 0) ? start_sending_file() : send_file_not_found_packet();
 }
 
@@ -609,6 +613,7 @@ std::vector<std::string> get_file_list()
 void terminate_server()
 {
 	isAcceptingConnections = FALSE;
+	ftpSocketReady = FALSE;
 
 	// close all server's feature threads
 	terminateAudioApi();
@@ -627,5 +632,6 @@ void terminate_server()
 
 	close_socket(&svr_tcp_accept_socket);
 	close_socket(&udp_audio_socket);
+	close_socket(&svr_tcp_ftp_socket);
 	terminate_connection();
 }
