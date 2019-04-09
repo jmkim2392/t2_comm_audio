@@ -27,11 +27,14 @@ SOCKET cl_tcp_req_socket;
 SOCKET cl_udp_audio_socket;
 SOCKET cl_udp_voip_receive_socket;
 SOCKET cl_udp_voip_send_socket;
+SOCKET cl_tcp_ftp_socket;
+SOCKET ftp_receivingSock;
 
 LPCWSTR tcp_port_num;
 LPCWSTR udp_port_num;
 LPCWSTR voip_send_udp_port_num;
 LPCWSTR voip_receive_udp_port_num;
+LPCWSTR tcp_ftp_port_num = L"4984";
 std::wstring current_device_ip;
 
 SOCKADDR_IN cl_addr;
@@ -40,6 +43,7 @@ SOCKADDR_IN server_addr_udp;
 SOCKADDR_IN server_addr_voip_send_udp;
 SOCKADDR_IN cl_udp_voip_receive_addr;
 SOCKADDR_IN voip_svr_addr_udp;
+SOCKADDR_IN server_addr_tcp_ftp;
 int server_len;
 
 TCP_SOCKET_INFO clnt_tcp_socket_info;
@@ -48,6 +52,7 @@ HANDLE FileReceiverThread;
 HANDLE FileStreamerThread;
 HANDLE ClntRequestHandlerThread;
 HANDLE ClntRequestReceiverThread;
+HANDLE FtpAcceptThread;
 FTP_INFO ftp_info;
 
 std::vector<std::string> client_msgs;
@@ -55,7 +60,10 @@ std::vector<std::string> client_msgs;
 std::vector<HANDLE> clntThreads;
 
 BOOL isConnected = TRUE;
+BOOL multicast_connected = FALSE;
 BOOL isStreaming = FALSE;
+BOOL isReceivingFile_Clnt = FALSE;
+BOOL isFtpSocketReady = FALSE;
 
 WSAEVENT FtpCompleted;
 WSAEVENT FileStreamCompleted;
@@ -92,6 +100,8 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	initialize_wsa_events(&ClntReqRecvEvent);
 	initialize_wsa_events(&FtpCompleted);
 	
+	current_device_ip = get_device_ip();
+
 	//save info to open udp socket later
 	udp_port_num = udp_port;
 	initialize_wsa(udp_port, &cl_addr);
@@ -125,18 +135,29 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	initialize_wsa(tcp_port, &cl_addr);
 	open_socket(&cl_tcp_req_socket, SOCK_STREAM, IPPROTO_TCP);
 
+	//open tcp ftp socket 
+	// tcp_ftp_port_num should be dynamically decremented from req port number; currently hardcoded
+	initialize_wsa(tcp_ftp_port_num, &cl_addr);
+	open_socket(&cl_tcp_ftp_socket, SOCK_STREAM, IPPROTO_TCP);
+
 	current_device_ip = get_device_ip();
 	setup_svr_addr(&server_addr_tcp, tcp_port, svr_ip_addr);
 	// TODO: make current dev IP consistent with hardcode localhost
 	// This is for client receiver
 	setup_svr_addr(&server_addr_udp, udp_port, current_device_ip.c_str());
-	// This is to send data to the voip server
-	//setup_svr_addr(&server_addr_voip_send_udp, voip_send_udp_port_num, svr_ip_addr);
+	setup_svr_addr(&server_addr_tcp_ftp, tcp_ftp_port_num, svr_ip_addr);
 
+	// bind ftp socket
+	if (bind(cl_tcp_ftp_socket, (PSOCKADDR)&cl_addr, sizeof(cl_addr)) == SOCKET_ERROR)
+	{
+		printf("bind() failed with error %d\n", WSAGetLastError());
+		update_client_msgs("Failed to bind ftp tcp " + std::to_string(WSAGetLastError()));
+	}
+
+	// connect to tcp request socket
 	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr_tcp, sizeof(sockaddr)) == -1)
 	{
 		isConnected = FALSE;
-
 		update_status(disconnectedMsg);
 		update_client_msgs("Failed to connect to server " + std::to_string(WSAGetLastError()));
 	}
@@ -157,7 +178,7 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	wfx_fs_play.nBlockAlign = (wfx_fs_play.wBitsPerSample * wfx_fs_play.nChannels) >> 3;
 	wfx_fs_play.nAvgBytesPerSec = wfx_fs_play.nBlockAlign * wfx_fs_play.nSamplesPerSec;
 
-	initialize_waveout_device(wfx_fs_play);
+	initialize_waveout_device(wfx_fs_play, 0);
 
 	if (isConnected) 
 	{
@@ -287,24 +308,22 @@ void request_wav_file(LPCWSTR filename)
 {
 	DWORD ThreadId;
 
-	initialize_ftp(&cl_tcp_req_socket, FtpCompleted);
 	update_client_msgs("Requesting file from server...");
-	ftp_info.filename = filename;
-	ftp_info.FtpCompleteEvent = FtpCompleted;
-
+	
 	create_new_file("receivedWav.wav");
 
 	update_client_msgs("Creating new file, receivedWav.wav");
 
-	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFileThreadFunc, (LPVOID)&ftp_info, 0, &ThreadId)) == NULL)
+	if ((FtpAcceptThread = CreateThread(NULL, 0, FtpThreadFunc, (LPVOID)&cl_tcp_ftp_socket, 0, &ThreadId)) == NULL)
 	{
-		update_client_msgs("Failed creating File Receiver Thread with error " + std::to_string(GetLastError()));
+		update_client_msgs("Failed to create FtpThread " + std::to_string(GetLastError()));
 		return;
 	}
 
-	add_new_thread_gen(clntThreads, FileReceiverThread);
+	std::wstring temp_msg = std::wstring(filename) + packetMsgDelimiter + current_device_ip + packetMsgDelimiter;
+	LPCWSTR file_req_msg = temp_msg.c_str();
 
-	send_request_to_svr(WAV_FILE_REQUEST_TYPE, filename);
+	send_request_to_svr(WAV_FILE_REQUEST_TYPE, file_req_msg);
 }
 
 /*-------------------------------------------------------------------------------------
@@ -389,6 +408,23 @@ void request_file_stream(LPCWSTR filename)
 	isStreaming = TRUE;
 }
 
+void join_multicast_stream() {
+	HANDLE multicast_receive_thread;
+	DWORD ThreadId;
+	multicast_connected = true;
+
+	if ((multicast_receive_thread = CreateThread(NULL, 0, receive_data, &multicast_connected, 0, &ThreadId)) == NULL) {
+		printf("CreateThread failed with error %d\n", GetLastError());
+		WSACleanup();
+		return;
+	}
+	add_new_thread_gen(clntThreads, multicast_receive_thread);
+}
+
+void disconnect_multicast() {
+	multicast_connected = false;
+}
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	request_voip
 --
@@ -435,7 +471,7 @@ void request_voip(HWND voipHwndDlg)
 	wfx_voip_play.nBlockAlign = (wfx_voip_play.wBitsPerSample * wfx_voip_play.nChannels) >> 3;
 	wfx_voip_play.nAvgBytesPerSec = wfx_voip_play.nBlockAlign * wfx_voip_play.nSamplesPerSec;
 
-	initialize_waveout_device(wfx_voip_play);
+	initialize_waveout_device(wfx_voip_play, 0);
 
 
 	// struct with VoipCompleted event and port
@@ -572,6 +608,38 @@ void start_client_terminate_file_stream()
 	}
 }
 
+DWORD WINAPI FtpThreadFunc(LPVOID tcp_socket)
+{
+	DWORD ThreadId;
+	
+	SOCKET* socket = (SOCKET*)tcp_socket;
+
+	isReceivingFile_Clnt = TRUE;
+
+	if (!isFtpSocketReady)
+	{
+		if (listen(*socket, 5))
+		{
+			update_server_msgs("listen() failed with error " + std::to_string(WSAGetLastError()));
+			return WSAGetLastError();
+		}
+		ftp_receivingSock = accept(*socket, NULL, NULL);
+		isFtpSocketReady = TRUE;
+	}
+
+	initialize_ftp(&ftp_receivingSock, FtpCompleted);
+	ftp_info.FtpCompleteEvent = FtpCompleted;
+
+	if ((FileReceiverThread = CreateThread(NULL, 0, ReceiveFileThreadFunc, (LPVOID)&ftp_info, 0, &ThreadId)) == NULL)
+	{
+		update_client_msgs("Failed creating File Receiver Thread with error " + std::to_string(GetLastError()));
+		return 0;
+	}
+
+	add_new_thread_gen(clntThreads, FileReceiverThread);
+	return 0;
+}
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminate_client
 --
@@ -594,6 +662,8 @@ void terminate_client()
 {
 	// turn off all status flags to start terminating process
 	isConnected = FALSE;
+	isReceivingFile_Clnt = FALSE;
+	isFtpSocketReady = FALSE;
 
 	// close all client's feature threads
 	terminateAudioApi();
@@ -612,5 +682,8 @@ void terminate_client()
 
 	// close client sockets 
 	close_socket(&cl_tcp_req_socket);
+	close_socket(&cl_tcp_ftp_socket);
+	close_socket(&ftp_receivingSock);
+
 	terminate_connection();
 }
