@@ -21,4 +21,6 @@ LPSTR getRecordedAudioBuffer();
 void wave_in_add_buffer(PWAVEHDR pwhdr, size_t size);
 void wave_in_add_buffer();
 void close_win_device();
+void setup_svr_multicast(HANDLE svrEvent);
+void change_device_volume(DWORD volume);
 void terminateAudioApi();

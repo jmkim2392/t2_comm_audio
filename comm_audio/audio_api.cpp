@@ -32,7 +32,6 @@ static volatile int numFreed = MAX_NUM_STREAM_PACKETS;
 static WAVEHDR* waveBlocks;
 static int waveHeadBlock;
 static int waveTailBlock;
-int num_blocks;
 
 HANDLE ReadyToPlayEvent;
 HANDLE ReadyToSendEvent;
@@ -40,6 +39,8 @@ HANDLE bufferReadyEvent;
 HANDLE AudioPlayerThread;
 HANDLE BufRdySignalerThread;
 HANDLE AudioRecorderThread;
+
+HANDLE SvrSendNextAudioEvent;
 
 BOOL isPlayingAudio = FALSE;
 BOOL isRecordingAudio = FALSE;
@@ -99,18 +100,12 @@ void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag, int bl
 	DWORD ThreadId;
 
 	multicast = multicastFlag;
-	if (multicast) {
-		num_blocks = MULTICAST_BLOCK_COUNT;
-	}
-	else {
-		num_blocks = BLOCK_COUNT;
-	}
 
 	/*
 	 * initialise the module variables
 	 */
-	waveBlocks = allocateBlocks(blockSize, num_blocks);
-	waveFreeBlockCount = num_blocks;
+	waveBlocks = allocateBlocks(blockSize, BLOCK_COUNT);
+	waveFreeBlockCount = BLOCK_COUNT;
 	waveHeadBlock = 0;
 	waveTailBlock = 0;
 	InitializeCriticalSection(&waveCriticalSection);
@@ -120,16 +115,6 @@ void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag, int bl
 	/*
 	 * set up the WAVEFORMATEX structure.
 	 */
-	//wfx.nSamplesPerSec = 44100; /* sample rate */
-	//wfx.wBitsPerSample = 16; /* sample size */
-	//wfx.nSamplesPerSec = 11025; /* sample rate */
-	//wfx.wBitsPerSample = 8; /* sample size */
-	//wfx.nChannels = 2; /* channels*/
-	//wfx.cbSize = 0; /* size of _extra_ info */
-	//wfx.wFormatTag = WAVE_FORMAT_PCM;
-	//wfx.nBlockAlign = (wfx.wBitsPerSample * wfx.nChannels) >> 3;
-	//wfx.nAvgBytesPerSec = wfx.nBlockAlign * wfx.nSamplesPerSec;
-
 	wfx.nSamplesPerSec = wfxparam.nSamplesPerSec; /* sample rate */
 	wfx.wBitsPerSample = wfxparam.wBitsPerSample; /* sample size */
 	wfx.nChannels = wfxparam.nChannels; /* channels*/
@@ -217,9 +202,13 @@ static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance,
 	LeaveCriticalSection(&waveCriticalSection);
 	TriggerEvent(ReadyToPlayEvent);
 
-	if (multicast && (waveFreeBlockCount >= num_blocks)) {
-		TriggerEvent(bufferReadyEvent);
+	if (multicast) {
+		TriggerEvent(SvrSendNextAudioEvent);
 	}
+
+	/*if (multicast && (waveFreeBlockCount >= BLOCK_COUNT)) {
+		TriggerEvent(bufferReadyEvent);
+	}*/
 	else if (numFreed >= MAX_NUM_STREAM_PACKETS && waveFreeBlockCount >= MAX_NUM_STREAM_PACKETS) 
 	{
 		numFreed = 1;
@@ -263,15 +252,15 @@ void writeToAudioBuffer(LPSTR data, int blockSize)
 	waveFreeBlockCount--;
 	LeaveCriticalSection(&waveCriticalSection);
 	waveHeadBlock++;
-	if (multicast && (waveHeadBlock >= num_blocks)) {
+	/*if (multicast && (waveHeadBlock >= BLOCK_COUNT)) {
 		ResetEvent(bufferReadyEvent);
-	}
-	waveHeadBlock %= num_blocks;
+	}*/
+	waveHeadBlock %= BLOCK_COUNT;
 	head->dwUser = 0;
 	TriggerEvent(ReadyToPlayEvent);
-	if (multicast) {
+	/*if (multicast) {
 		WaitForSingleObject(bufferReadyEvent, INFINITE);
-	}
+	}*/
 }
 
 /*-------------------------------------------------------------------------------------
@@ -311,7 +300,7 @@ DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter)
 				waveOutPrepareHeader(hWaveOut, tail, sizeof(WAVEHDR));
 				waveOutWrite(hWaveOut, tail, sizeof(WAVEHDR));
 				waveTailBlock++;
-				waveTailBlock %= num_blocks;
+				waveTailBlock %= BLOCK_COUNT;
 			}
 		}
 	}
@@ -612,6 +601,16 @@ void close_win_device()
 	free(win_buf8);
 }
 
+void setup_svr_multicast(HANDLE svrEvent) 
+{
+	SvrSendNextAudioEvent = svrEvent;
+}
+
+void change_device_volume(DWORD volume) 
+{
+	waveOutSetVolume(hWaveOut, volume);
+}
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminateAudioApi
 --
@@ -635,7 +634,7 @@ void terminateAudioApi()
 {
 	if (isPlayingAudio)
 	{
-		waveFreeBlockCount = num_blocks;
+		waveFreeBlockCount = BLOCK_COUNT;
 		numFreed = MAX_NUM_STREAM_PACKETS;
 		isPlayingAudio = FALSE;
 		TriggerEvent(ReadyToPlayEvent);

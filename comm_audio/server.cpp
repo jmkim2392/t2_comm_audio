@@ -77,6 +77,7 @@ WSAEVENT StreamCompletedEvent;
 WSAEVENT VoipCompleted;
 
 HANDLE ResumeSendEvent;
+HANDLE SvrMulticastResumeSendEvent;
 
 HANDLE serverThreads[20];
 int svr_threadCount = 0;
@@ -186,6 +187,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 	
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	initialize_events_gen(&SvrMulticastResumeSendEvent, L"SvrMulticastEvent");
 	start_broadcast();
 
 	add_new_thread_gen(svrThreads, AcceptThread);
@@ -309,12 +311,11 @@ void start_request_handler()
 void start_broadcast()
 {
 	DWORD ThreadId;
-
-
 	char achMCAddr[MAXADDRSTR] = TIMECAST_ADDR;
 	u_short nPort = TIMECAST_PORT;
 	u_long  lTTL = TIMECAST_TTL;
 	isBroadcasting = TRUE;
+	setup_svr_multicast(SvrMulticastResumeSendEvent);
 
 	if (!init_winsock(&stWSAData)) {
 		isBroadcasting = FALSE;
@@ -361,7 +362,22 @@ void start_broadcast()
 
 	bi.hSocket = &multicast_Socket;
 	bi.stDstAddr = &multicast_stDstAddr;
+	bi.SendNextEvent = SvrMulticastResumeSendEvent;
 
+	// setup wave out device for MULTICAST SERVER
+	WAVEFORMATEX svr_wfx_multicast_play;
+	svr_wfx_multicast_play.nSamplesPerSec = 11025; /* sample rate */
+	svr_wfx_multicast_play.wBitsPerSample = 8; /* sample size */
+	svr_wfx_multicast_play.nChannels = 2; /* channels*/
+	svr_wfx_multicast_play.cbSize = 0; /* size of _extra_ info */
+	svr_wfx_multicast_play.wFormatTag = WAVE_FORMAT_PCM;
+	svr_wfx_multicast_play.nBlockAlign = (svr_wfx_multicast_play.wBitsPerSample * svr_wfx_multicast_play.nChannels) >> 3;
+	svr_wfx_multicast_play.nAvgBytesPerSec = svr_wfx_multicast_play.nBlockAlign * svr_wfx_multicast_play.nSamplesPerSec;
+
+	initialize_waveout_device(svr_wfx_multicast_play, 1, AUDIO_BLOCK_SIZE);
+	change_device_volume((DWORD)MAKELONG(0x0000, 0x0000));
+	
+	
 
 	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_data, (LPVOID)&bi, 0, &ThreadId)) == NULL) {
 		printf("CreateThread failed with error %d\n", GetLastError());
