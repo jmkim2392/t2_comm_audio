@@ -386,7 +386,7 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 
-	if (num_packet == MAX_NUM_STREAM_PACKETS)
+	if (num_packet >= MAX_NUM_STREAM_PACKETS)
 	{
 		dwWaitResult = WaitForSingleObject(SI->EventTrigger, 3000);
 		ResetEvent(SI->EventTrigger);

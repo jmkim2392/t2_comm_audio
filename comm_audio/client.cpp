@@ -40,7 +40,7 @@ std::wstring current_device_ip;
 SOCKADDR_IN cl_addr;
 SOCKADDR_IN server_addr_tcp;
 SOCKADDR_IN server_addr_udp;
-SOCKADDR_IN server_addr_voip_send_udp;
+SOCKADDR_IN cl_udp_voip_sendto_addr;
 SOCKADDR_IN cl_udp_voip_receive_addr;
 SOCKADDR_IN voip_svr_addr_udp;
 SOCKADDR_IN server_addr_tcp_ftp;
@@ -101,73 +101,71 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	initialize_wsa_events(&FtpCompleted);
 	
 	current_device_ip = get_device_ip();
-
-	//save info to open udp socket later
-	udp_port_num = udp_port;
-	initialize_wsa(udp_port, &cl_addr);
-
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// VOIP SETUP
 	//open voip send socket
 	//KTODO: remove port number hardcoding
-	voip_send_udp_port_num = L"4981";
-	initialize_wsa(voip_send_udp_port_num, &server_addr_voip_send_udp);
-	open_socket(&cl_udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
-	setup_svr_addr(&server_addr_voip_send_udp, voip_send_udp_port_num, svr_ip_addr);
+	//voip_send_udp_port_num = L"4981";
+	//initialize_wsa(voip_send_udp_port_num, &cl_udp_voip_sendto_addr);
+	//open_socket(&cl_udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
+	//setup_svr_addr(&cl_udp_voip_sendto_addr, voip_send_udp_port_num, svr_ip_addr);
 
 	//open voip receive socket
 	voip_receive_udp_port_num = L"4982";
 	initialize_wsa(voip_receive_udp_port_num, &cl_udp_voip_receive_addr);
 	open_socket(&cl_udp_voip_receive_socket, SOCK_DGRAM, IPPROTO_UDP);
-	//setup_svr_addr(&cl_udp_voip_receive_addr, voip_receive_udp_port_num, svr_ip_addr);
-
+	setup_svr_addr(&cl_udp_voip_receive_addr, voip_receive_udp_port_num, current_device_ip.c_str());
 
 	if (bind(cl_udp_voip_receive_socket, (struct sockaddr *)&cl_udp_voip_receive_addr, sizeof(sockaddr)) == SOCKET_ERROR) {
 		update_client_msgs("Failed to bind voip udp socket " + std::to_string(WSAGetLastError()));
 		update_status(disconnectedMsg);
 	}
-
 	//set REUSEADDR for udp socket
 	if (setsockopt(cl_udp_voip_receive_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
 		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
-
-	//open tcp socket 
-	tcp_port_num = tcp_port;
-	initialize_wsa(tcp_port, &cl_addr);
-	open_socket(&cl_tcp_req_socket, SOCK_STREAM, IPPROTO_TCP);
-
-	//open tcp ftp socket 
+	if (setsockopt(cl_udp_voip_send_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// FTP SETUP
+	// open tcp ftp socket 
 	// tcp_ftp_port_num should be dynamically decremented from req port number; currently hardcoded
 	initialize_wsa(tcp_ftp_port_num, &cl_addr);
 	open_socket(&cl_tcp_ftp_socket, SOCK_STREAM, IPPROTO_TCP);
-
-	current_device_ip = get_device_ip();
-	setup_svr_addr(&server_addr_tcp, tcp_port, svr_ip_addr);
-	// TODO: make current dev IP consistent with hardcode localhost
-	// This is for client receiver
-	setup_svr_addr(&server_addr_udp, udp_port, current_device_ip.c_str());
 	setup_svr_addr(&server_addr_tcp_ftp, tcp_ftp_port_num, svr_ip_addr);
-
 	// bind ftp socket
 	if (bind(cl_tcp_ftp_socket, (PSOCKADDR)&cl_addr, sizeof(cl_addr)) == SOCKET_ERROR)
 	{
 		printf("bind() failed with error %d\n", WSAGetLastError());
 		update_client_msgs("Failed to bind ftp tcp " + std::to_string(WSAGetLastError()));
 	}
-
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// FILE STREAM RECEIVER SETUP
+	//save info to open udp socket later
+	udp_port_num = udp_port;
+	initialize_wsa(udp_port, &cl_addr);
+	// TODO: make current dev IP consistent with hardcode localhost
+	// This is for client receiver
+	setup_svr_addr(&server_addr_udp, udp_port, current_device_ip.c_str());
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// REQUEST HANDLER SETUP
+	// open tcp socket 
+	tcp_port_num = tcp_port;
+	initialize_wsa(tcp_port, &cl_addr);
+	open_socket(&cl_tcp_req_socket, SOCK_STREAM, IPPROTO_TCP);
+	setup_svr_addr(&server_addr_tcp, tcp_port, svr_ip_addr);
 	// connect to tcp request socket
 	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr_tcp, sizeof(sockaddr)) == -1)
 	{
+		update_client_msgs("Failed to connect to server " + std::to_string(WSAGetLastError()));
 		isConnected = FALSE;
 		update_status(disconnectedMsg);
-		update_client_msgs("Failed to connect to server " + std::to_string(WSAGetLastError()));
 	}
 
 	start_client_request_receiver();
 	start_client_request_handler();
-
-	if (setsockopt(cl_udp_voip_send_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
-		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
-	}
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	if (isConnected) 
 	{
@@ -216,7 +214,7 @@ void setup_svr_addr(SOCKADDR_IN* svr_addr, LPCWSTR svr_port, LPCWSTR svr_ip_addr
 
 	if ((hp = gethostbyname(ip)) == NULL)
 	{
-		update_client_msgs("Server address unknown");
+		update_client_msgs("address unknown");
 		update_status(disconnectedMsg);
 	}
 
@@ -452,7 +450,7 @@ void request_voip(HWND voipHwndDlg)
 	WSAEVENT VoipCompleted;
 	initialize_wsa_events(&VoipCompleted);
 
-	initialize_voip(&cl_udp_voip_receive_socket, &cl_udp_voip_send_socket, &server_addr_voip_send_udp, VoipCompleted, NULL);
+	initialize_voip(&cl_udp_voip_receive_socket, &cl_udp_voip_send_socket, &cl_udp_voip_sendto_addr, VoipCompleted, NULL);
 
 	// send request to voip
 	update_client_msgs("Requesting VOIP from server...");

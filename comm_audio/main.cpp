@@ -585,12 +585,10 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 			{
 				if (selectedFeatureType == IDM_FILE_REQUEST_TYPE)
 				{
-					//reset_client_request_receiver();
 					request_wav_file(filename);
 				}
 				else
 				{
-					//reset_client_request_receiver();
 					request_file_stream(filename);
 					show_dialog(IDM_MULTICAST_TYPE, control_panel_hwnd);
 				}

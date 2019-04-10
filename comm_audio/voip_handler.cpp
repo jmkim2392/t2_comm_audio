@@ -23,7 +23,6 @@
 --------------------------------------------------------------------------------------*/
 #include "voip_handler.h"
 
-
 struct sockaddr_in sender_addr;
 int sender_addr_len;
 int voipPacketNumRecv = 0;
@@ -35,8 +34,8 @@ LPSOCKET_INFORMATION VoipReceiveSocketInfo;
 
 void initialize_voip(SOCKET* receive_socket, SOCKET* send_socket, SOCKADDR_IN* addr, WSAEVENT voipSendCompletedEvent, HANDLE eventTrigger)
 {
+	initialize_voip_receive(receive_socket, NULL, NULL, NULL);
 	initialize_voip_send(send_socket, addr, voipSendCompletedEvent, eventTrigger);
-	initialize_voip_receive(receive_socket, addr, NULL, NULL);
 }
 
 void initialize_voip_receive(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipReceiveCompletedEvent, HANDLE eventTrigger)
@@ -256,13 +255,25 @@ void send_audio_block(PWAVEHDR pwhdr)
 {
 	//KTODO: Remove hardcode byte for data_size, now this hasn't been used. may be used for error check
 	int data_size = 44100;
+	DWORD SendBytes_Voip;
 
 	size_t n;
 
-	n = sendto(VoipSendSocketInfo->Socket, pwhdr->lpData, pwhdr->dwBytesRecorded, 0, (SOCKADDR *)&(VoipSendSocketInfo->Sock_addr), sizeof(VoipSendSocketInfo->Sock_addr));
+	/*n = sendto(VoipSendSocketInfo->Socket, pwhdr->lpData, pwhdr->dwBytesRecorded, 0, (SOCKADDR *)&(VoipSendSocketInfo->Sock_addr), sizeof(VoipSendSocketInfo->Sock_addr));
 	char sbuf[512];
 	sprintf_s(sbuf, "Sent: %d bytes\n", n);
-	update_client_msgs(sbuf);
+	update_client_msgs(sbuf);*/
+
+	memcpy(VoipSendSocketInfo->DataBuf.buf, pwhdr->lpData, pwhdr->dwBytesRecorded);
+	VoipSendSocketInfo->DataBuf.len = (ULONG)pwhdr->dwBytesRecorded;
+	if (WSASendTo(VoipSendSocketInfo->Socket, &(VoipSendSocketInfo->DataBuf), 1, &SendBytes_Voip, 0, (SOCKADDR *)&(VoipSendSocketInfo->Sock_addr), sizeof(VoipSendSocketInfo->Sock_addr), &(VoipSendSocketInfo->Overlapped), NULL) == SOCKET_ERROR)
+	{
+		if (WSAGetLastError() != WSA_IO_PENDING)
+		{
+			update_server_msgs("Send UDP Packet failed with error " + std::to_string(WSAGetLastError()));
+			return;
+		}
+	}
 
 	wave_in_add_buffer(pwhdr, sizeof(WAVEHDR));
 }
