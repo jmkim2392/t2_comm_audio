@@ -1,6 +1,7 @@
 #pragma once
 #include "winsock_handler.h"
 #include "main.h"
+#include "voip_handler.h"
 #include <string>
 
 typedef struct _TCP_SOCKET_INFO {

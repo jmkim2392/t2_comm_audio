@@ -56,12 +56,15 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 	FILE* fp;
 	DWORD SendBytes;
 	broadcasting = true;
+	std::vector<std::string> list = get_file_list();
+	int size = list.size() - 1;
 
 	file_stream_buf = (char*)malloc(AUDIO_PACKET_SIZE);
 	bi.DataBuf.buf = bi.AUDIO_BUFFER;
 
 	for (int i = 0; i < LOOP_SEND; i++) {
-		if (!fopen_s(&fp, "koto.wav", "rb") == 0) {
+		
+		if (!fopen_s(&fp, list[i%size].c_str(), "rb") == 0) {
 			OutputDebugString(L"Open file error\n");
 			exit(1);
 		}
@@ -175,7 +178,17 @@ DWORD WINAPI receive_data(LPVOID lp) {
 		return false;
 	}
 
-	initialize_audio_device(TRUE);
+	// set up waveformatex structure for multicast
+	WAVEFORMATEX wfx_multicast_play;
+	wfx_multicast_play.nSamplesPerSec = 44100; /* sample rate */
+	wfx_multicast_play.wBitsPerSample = 16; /* sample size */
+	wfx_multicast_play.nChannels = 2; /* channels*/
+	wfx_multicast_play.cbSize = 0; /* size of _extra_ info */
+	wfx_multicast_play.wFormatTag = WAVE_FORMAT_PCM;
+	wfx_multicast_play.nBlockAlign = (wfx_multicast_play.wBitsPerSample * wfx_multicast_play.nChannels) >> 3;
+	wfx_multicast_play.nAvgBytesPerSec = wfx_multicast_play.nBlockAlign * wfx_multicast_play.nSamplesPerSec;
+
+	initialize_waveout_device(wfx_multicast_play, TRUE, AUDIO_BLOCK_SIZE);
 
 	ZeroMemory(&(bi->overlapped), sizeof(WSAOVERLAPPED));
 	bi->BytesRECV = 0;
@@ -249,7 +262,7 @@ void CALLBACK multicast_receive_audio(DWORD Error, DWORD BytesTransferred, LPWSA
 	bi->DataBuf.buf = bi->AUDIO_BUFFER;
 
 	int addr_size = sizeof(struct sockaddr_in);
-	writeToAudioBuffer(bi->DataBuf.buf);
+	writeToAudioBuffer(bi->DataBuf.buf, AUDIO_BLOCK_SIZE);
 
 	if (WSARecv(*(bi->hSocket), &(bi->DataBuf), 1, &RecvBytes, &Flags, &(bi->overlapped), multicast_receive_audio) == SOCKET_ERROR) {
 		if (WSAGetLastError() != WSA_IO_PENDING) {

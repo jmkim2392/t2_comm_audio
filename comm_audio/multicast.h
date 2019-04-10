@@ -3,11 +3,12 @@
 #include "main.h"
 #include <ws2tcpip.h>
 
-#define MAXADDRSTR		16
-#define TIMECAST_ADDR   "234.5.6.7"
-#define TIMECAST_PORT   8910
-#define TIMECAST_TTL    2
-#define LOOP_SEND		20
+#define MAXADDRSTR				16
+#define TIMECAST_ADDR			"234.5.6.7"
+#define TIMECAST_PORT			8910
+#define TIMECAST_TTL			2
+#define LOOP_SEND				20
+#define MULTICAST_BLOCK_COUNT	8000
 
 bool init_winsock(WSADATA *stWSAData);
 bool get_datagram_socket(SOCKET *hSocket);

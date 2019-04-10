@@ -12,12 +12,14 @@ void setup_svr_addr(SOCKADDR_IN* svr_addr, LPCWSTR tcp_port, LPCWSTR svr_ip_addr
 void send_request_to_svr(int type, LPCWSTR request);
 void request_wav_file(LPCWSTR filename);
 void request_file_stream(LPCWSTR filename);
+void request_voip(HWND voipHwndDlg);
+void join_multicast_stream();
+void disconnect_multicast();
 void terminate_client();
 void update_client_msgs(std::string message);
 void finalize_ftp(std::string msg);
-void join_multicast_stream();
-void disconnect_multicast();
 void start_client_request_receiver();
 void start_client_request_handler();
 void reset_client_request_receiver();
 void start_client_terminate_file_stream();
+DWORD WINAPI FtpThreadFunc(LPVOID tcp_socket);

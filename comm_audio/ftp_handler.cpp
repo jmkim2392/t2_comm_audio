@@ -259,7 +259,7 @@ void send_file_not_found_packet()
 --	NOTES:
 --	Call this function to begin the completion routine for receiving file from server
 --------------------------------------------------------------------------------------*/
-void start_receiving_file(int type, LPCWSTR request)
+void start_receiving_file()
 {
 	DWORD RecvBytes;
 
@@ -310,7 +310,7 @@ DWORD WINAPI ReceiveFileThreadFunc(LPVOID lpParameter)
 	LPFTP_INFO info = (LPFTP_INFO)lpParameter;
 	EventArray[0] = info->FtpCompleteEvent;
 
-	start_receiving_file(WAV_FILE_REQUEST_TYPE, info->filename);
+	start_receiving_file();
 	while (isReceivingFile)
 	{
 		Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
@@ -379,28 +379,9 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 		isReceivingFile = FALSE;
 		TriggerWSAEvent(SI->CompletedEvent);
 		WSAResetEvent(SI->CompletedEvent);
+		//close_socket(&SI->Socket);
 		return;
 	}
-
-	//if (BytesTransferred != FTP_PACKET_SIZE)
-	//{
-	//	if (SI->DataBuf.buf[BytesTransferred] == FILE_NOT_FOUND)
-	//	{
-	//		finalize_ftp("File Not Found on server.");
-	//		isReceivingFile = FALSE;
-	//		TriggerWSAEvent(SI->CompletedEvent);
-	//		WSAResetEvent(SI->CompletedEvent);
-	//		return;
-	//	}
-	//	else if (SI->DataBuf.buf[BytesTransferred] == TRANSFER_COMPLETE)
-	//	{
-	//		finalize_ftp("File transfer completed.");
-	//		isReceivingFile = FALSE;
-	//		TriggerWSAEvent(SI->CompletedEvent);
-	//		WSAResetEvent(SI->CompletedEvent);
-	//		return;
-	//	}
-	//}
 
 	Flags = 0;
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
@@ -471,6 +452,7 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPP
 
 	if (Error != 0 || BytesTransferred == 1)
 	{
+		//close_socket(&SI->Socket);
 		GlobalFree(SI);
 		return;
 	}

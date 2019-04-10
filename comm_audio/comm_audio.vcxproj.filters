@@ -31,6 +31,9 @@
     <ClCompile Include="audio_api.h">
       <Filter>Headers</Filter>
     </ClCompile>
+    <ClCompile Include="voip_handler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
     <ClCompile Include="multicast.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -69,10 +72,15 @@
     <ClInclude Include="file_streaming_handler.h">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="voip_handler.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
     <ClInclude Include="multicast.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">

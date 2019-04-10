@@ -226,21 +226,23 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 		{
 			packet += SI->DataBuf.buf;
 			request_buffer.update(packet);
-			if (packet.length() == DEFAULT_REQUEST_PACKET_SIZE) {
+			if (packet.length() == DEFAULT_REQUEST_PACKET_SIZE) 
+			{
 				//full packet  
 				SI->DataBuf.len = DEFAULT_REQUEST_PACKET_SIZE;
 				TriggerWSAEvent(SI->CompletedEvent);
 			}
-			else {
+			else 
+			{
 				SI->DataBuf.len = (ULONG)(DEFAULT_REQUEST_PACKET_SIZE - packet.length());
 			}
 		}
 	}
 
-	if (SI->DataBuf.buf[0] == (FILE_LIST_TYPE + '0') && SI->BytesRECV == DEFAULT_REQUEST_PACKET_SIZE)
+	/*if (SI->DataBuf.buf[0] == (FILE_LIST_TYPE + '0') && SI->BytesRECV == DEFAULT_REQUEST_PACKET_SIZE)
 	{
 		WaitForSingleObject(SI->FtpCompletedEvent, INFINITE);
-	}
+	}*/
 
 	SI->DataBuf.buf = SI->Buffer;
 
@@ -303,6 +305,7 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 			}
 		}
 		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
+
 		if (isAcceptingRequests)
 		{
 			if (!request_buffer.empty()) 
@@ -316,7 +319,8 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 					case WAV_FILE_REQUEST_TYPE:
 						parseRequest(&parsedPacket, request);
 						update_server_msgs("Received file transfer request for " + parsedPacket.message);
-						start_ftp(parsedPacket.message);
+						start_ftp(parsedPacket.message, parsedPacket.ip_addr);
+						//start_ftp(parsedPacket.message, "192.168.0.12");
 						break;
 					case AUDIO_STREAM_REQUEST_TYPE:
 						stop_broadcast();
@@ -326,7 +330,8 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 						break;
 					case VOIP_REQUEST_TYPE:
 						// voip request
-						// parsedPacket.message should contain the client info
+						parseRequest(&parsedPacket, request);
+						start_voip(parsedPacket.port_num, parsedPacket.ip_addr);
 						break;
 					case STREAM_COMPLETE_TYPE:
 						start_client_terminate_file_stream();
@@ -401,8 +406,10 @@ void parseRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 	std::string temp_msg = packet.substr(1);
 	size_t pos = 0;
 	int i = 0;
-	while ((pos = temp_msg.find(packetMsgDelimiterStr)) != std::string::npos) {
-		switch (i++) {
+	while ((pos = temp_msg.find(packetMsgDelimiterStr)) != std::string::npos) 
+	{
+		switch (i++) 
+		{
 		case 0:
 			parsedPacket->message = temp_msg.substr(0, pos);
 			break;
@@ -443,7 +450,8 @@ void parseFileListRequest(LPREQUEST_PACKET parsedPacket, std::string packet)
 	std::string temp_msg = packet.substr(1);
 	size_t pos = 0;
 	int i = 0;
-	while ((pos = temp_msg.find(packetMsgDelimiterStr)) != std::string::npos) {
+	while ((pos = temp_msg.find(packetMsgDelimiterStr)) != std::string::npos) 
+	{
 		list.push_back(temp_msg.substr(0, pos));
 		temp_msg.erase(0, pos + packetMsgDelimiterStr.length());
 	}
