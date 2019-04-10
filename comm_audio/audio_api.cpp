@@ -611,8 +611,6 @@ void change_device_volume(DWORD volume)
 	waveOutSetVolume(hWaveOut, volume);
 }
 
-
-
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminateAudioApi
 --

@@ -1,22 +1,79 @@
+/*-------------------------------------------------------------------------------------
+--	SOURCE FILE:	multicast.h				Multicast function
+--
+--	PROGRAM:		Comm_Audio
+--
+--	FUNCTIONS:
+--					bool init_winsock(WSADATA *stWSAData);
+--					bool get_datagram_socket(SOCKET *hSocket);
+--					bool bind_socket(SOCKADDR_IN *stLclAddr, SOCKET *hSocket, u_short nPort);
+--					bool join_multicast_group(struct ip_mreq *stMreq, SOCKET *hSocket, char *achMCAddr);
+--					bool set_ip_ttl(SOCKET *hSocket, u_long  lTTL);
+--					bool disable_loopback(SOCKET *hSocket);
+--					bool set_socket_option_reuseaddr(SOCKET *hSocket);
+--					bool leave_multicast_group(struct ip_mreq *stMreq, SOCKET *hSocket, char *achMCAddr);
+--					DWORD WINAPI receive_data(LPVOID lp);
+--					void CALLBACK multicast_receive_audio(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags);
+--					DWORD WINAPI broadcast_data(LPVOID lp);
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le	
+--
+--	PROGRAMMER:		Phat Le
+--
+--
+--------------------------------------------------------------------------------------*/
+
 #include "multicast.h"
 
+bool broadcasting;
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		broadcast_data	
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		DWORD WINAPI broadcast_data(LPVOID lp)
+--						LPVOID lp: cast as  pointer to Broadcast_info 
+--
+--	RETURNS:		Thread finish
+--
+--	NOTES:
+--------------------------------------------------------------------------------------*/
 DWORD WINAPI broadcast_data(LPVOID lp) {
 	BROADCAST_INFO bi = *(LPBROADCAST_INFO)lp;
 	char *file_stream_buf;
 	int bytes_read;
 	FILE* fp;
 	DWORD SendBytes;
+	broadcasting = true;
+	std::vector<std::string> list = get_file_list();
+
+	int size = list.size();
 	int numAudioSent = 0;
+	int i = 0;
 
 	file_stream_buf = (char*)malloc(AUDIO_PACKET_SIZE);
 	bi.DataBuf.buf = bi.AUDIO_BUFFER;
 
-	for (int i = 0; i < LOOP_SEND; i++) {
-		if (!fopen_s(&fp, "koto.wav", "rb") == 0) {
+	while (broadcasting)
+	{
+		if (!fopen_s(&fp, list[i%size].c_str(), "rb") == 0)
+		{
 			update_server_msgs("Failed opening file to multicast");
 		}
-	
-		while (!feof(fp)) {
+
+		while (!feof(fp))
+		{
 			memset(file_stream_buf, 0, AUDIO_PACKET_SIZE);
 			bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, fp);
 			memcpy(bi.DataBuf.buf, file_stream_buf, bytes_read);
@@ -29,7 +86,7 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 				}
 			}
 			writeToAudioBuffer(bi.AUDIO_BUFFER, AUDIO_PACKET_SIZE);
-			if (++numAudioSent >= 10) 
+			if (++numAudioSent >= 25)
 			{
 				// pass an SvrSendNextAudioEvent to this thread and wait for it here
 				WaitForSingleObject(bi.SendNextEvent, INFINITE);
@@ -38,12 +95,51 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 			}
 		}
 		fclose(fp);
+		i++;
 	}
-	
 	free(file_stream_buf);
 	return TRUE;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		stop_broadcast()
+--
+--	DATE:			April 9, 2019
+--
+--	REVISIONS:		April 9, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		void stop_broadcast()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--------------------------------------------------------------------------------------*/
+void stop_broadcast() {
+	broadcasting = false;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		recieve_data
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		DWORD WINAPI receive_data(LPVOID lp)
+--						LPVOID lp: not used
+--
+--	RETURNS:		Return when thread finishes
+--
+--	NOTES:
+--------------------------------------------------------------------------------------*/
 DWORD WINAPI receive_data(LPVOID lp) {
 	DWORD Flags = 0;
 	DWORD RecvBytes;
@@ -106,8 +202,6 @@ DWORD WINAPI receive_data(LPVOID lp) {
 		SleepEx(5000, TRUE);
 	}
 
-	OutputDebugString(L"Exit\n");
-
 	if (!leave_multicast_group(&stMreq, &hSocket, achMCAddr)) {
 		OutputDebugString(L"Leave_multicast_group failed\n");
 		closesocket(hSocket);
@@ -115,12 +209,35 @@ DWORD WINAPI receive_data(LPVOID lp) {
 		GlobalFree(bi);
 		return false;
 	}
+
 	/* Close the socket */
 	closesocket(hSocket);
 	GlobalFree(bi);
 	return TRUE;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		multicast_receive_audio
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		void CALLBACK multicast_receive_audio(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags)
+--						DWORD Error: Error if compeletion routine fails
+--						DWORD BytesTransferred: Bytes transferred from previous routine
+--						LPWSAOVERLAPPED Overlapped: Overlapped structure
+--						DWORD InFlags: Flag not set
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	This is a completion routine callback function whenever there is data sent to the socket
+--------------------------------------------------------------------------------------*/
 void CALLBACK multicast_receive_audio(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags) {
 	DWORD RecvBytes;
 	DWORD Flags;
@@ -145,6 +262,26 @@ void CALLBACK multicast_receive_audio(DWORD Error, DWORD BytesTransferred, LPWSA
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		init_winsock
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		bool init_winsock(WSADATA *stWSAData)
+--						WSADATA *stWSAData: WSAStartup value
+--
+--	RETURNS:		true if success
+--					false if fail
+--
+--	NOTES:
+--	Call this function to join multicast stream
+--------------------------------------------------------------------------------------*/
 bool init_winsock(WSADATA *stWSAData) {
 	int nRet;
 	if (nRet = WSAStartup(0x0202, &(*stWSAData))) {
@@ -154,6 +291,25 @@ bool init_winsock(WSADATA *stWSAData) {
 	return true;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		get_datagram_socket
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		bool get_datagram_socket(SOCKET *hSocket)
+--						SOCKET *hSocket: Socket descriptor
+--
+--	RETURNS:		true if success
+--					false if fail
+--
+--	NOTES:
+--------------------------------------------------------------------------------------*/
 bool get_datagram_socket(SOCKET *hSocket) {
 	*hSocket = socket(AF_INET, SOCK_DGRAM, 0);
 	if (*hSocket == INVALID_SOCKET) {
@@ -163,6 +319,27 @@ bool get_datagram_socket(SOCKET *hSocket) {
 	return true;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		bind_socket
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		bool bind_socket(SOCKADDR_IN *stLclAddr, SOCKET *hSocket, u_short nPort) 
+--						SOCKETADDR_IN *stLclAddr: addr info
+--						SOCKET *hSocket: Socket descriptor
+--						u_short nPort: Port number to bind to
+--
+--	RETURNS:		true if success
+--					false if fail
+--
+--	NOTES:
+--------------------------------------------------------------------------------------*/
 bool bind_socket(SOCKADDR_IN *stLclAddr, SOCKET *hSocket, u_short nPort) {
 	stLclAddr->sin_family = AF_INET;
 	stLclAddr->sin_addr.s_addr = htonl(INADDR_ANY); /* any interface */
@@ -174,6 +351,27 @@ bool bind_socket(SOCKADDR_IN *stLclAddr, SOCKET *hSocket, u_short nPort) {
 	return true;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		join_multicast_group
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		bool join_multicast_group(struct ip_mreq *stMreq, SOCKET *hSocket, char *achMCAddr)
+--						struct ip_mreq *stMreq: Multicast struc
+--						SOCKET *hSocket: Socket descriptor
+--						char *achMCAddr: multicast IP address
+--
+--	RETURNS:		true if success
+--					false if fail
+--
+--	NOTES:
+--------------------------------------------------------------------------------------*/
 bool join_multicast_group(struct ip_mreq *stMreq, SOCKET *hSocket, char *achMCAddr) {
 	stMreq->imr_multiaddr.s_addr = inet_addr(achMCAddr);
 	stMreq->imr_interface.s_addr = INADDR_ANY;
@@ -184,6 +382,26 @@ bool join_multicast_group(struct ip_mreq *stMreq, SOCKET *hSocket, char *achMCAd
 	return true;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		set_ip_ttl
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		bool set_ip_ttl(SOCKET *hSocket, u_long  lTTL) 
+--						SOCKET *hSocket: socket descriptor
+--						u_long lTTL: datagram hop life
+--
+--	RETURNS:		true if success
+--					false if fail
+--
+--	NOTES:
+--------------------------------------------------------------------------------------*/
 bool set_ip_ttl(SOCKET *hSocket, u_long  lTTL) {
 	if (setsockopt(*hSocket, IPPROTO_IP, IP_MULTICAST_TTL, (char *)&lTTL, sizeof(lTTL)) == SOCKET_ERROR) {
 		OutputDebugString(L"setsockopt() IP_MULTICAST_TTL failed\n");
@@ -192,6 +410,26 @@ bool set_ip_ttl(SOCKET *hSocket, u_long  lTTL) {
 	return true;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		disable_loopback
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		bool disable_loopback(SOCKET *hSocket) 
+--						SOCKET *hSocket: Socket descriptor
+--
+--	RETURNS:		true if success
+--					false if fail
+--
+--	NOTES:
+--	Call this function to join multicast stream
+--------------------------------------------------------------------------------------*/
 bool disable_loopback(SOCKET *hSocket) {
 	BOOL fFlag = false;
 	if (setsockopt(*hSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&fFlag, sizeof(fFlag)) == SOCKET_ERROR) {
@@ -201,7 +439,26 @@ bool disable_loopback(SOCKET *hSocket) {
 	return true;
 }
 
-
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		set-socket_option_reuseddr
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		bool set_socket_option_reuseaddr(SOCKET *hSocket)
+--						SOCKET *hSocket: Socket descriptor
+--
+--	RETURNS:		true if success
+--					false if fail
+--
+--	NOTES:
+--	Call this function to join multicast stream
+--------------------------------------------------------------------------------------*/
 bool set_socket_option_reuseaddr(SOCKET *hSocket) {
 	BOOL fFlag = TRUE;
 	if (setsockopt(*hSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&fFlag, sizeof(fFlag)) == SOCKET_ERROR) {
@@ -211,7 +468,27 @@ bool set_socket_option_reuseaddr(SOCKET *hSocket) {
 	return true;
 }
 
-
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		leave_multicast_group
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		bool leave_multicast_group(struct ip_mreq *stMreq, SOCKET *hSocket, char *achMCAddr)
+--						struct ip_mreq *stMreq: Multicast struct
+--						SOCKET *hSocket: Socket Descriptor
+--						char *achMCAddr: Multicast IP address
+--
+--	RETURNS:		true if success
+--					false if fail
+--
+--	NOTES:
+--------------------------------------------------------------------------------------*/
 bool leave_multicast_group(struct ip_mreq *stMreq, SOCKET *hSocket, char *achMCAddr) {
 	stMreq->imr_multiaddr.s_addr = inet_addr(achMCAddr);
 	stMreq->imr_interface.s_addr = INADDR_ANY;
