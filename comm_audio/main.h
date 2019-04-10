@@ -13,6 +13,9 @@
 #include <iomanip>
 #include <time.h>
 #include <sstream>
+#include <locale>
+#include <codecvt>
+#include <atlstr.h>
 #include "constants.h"
 #include "server.h"
 #include "circular_buffer.h"
@@ -30,6 +33,7 @@ typedef struct _SOCKET_INFORMATION {
 	CHAR Buffer[DEFAULT_REQUEST_PACKET_SIZE];
 	CHAR FTP_BUFFER[FTP_PACKET_SIZE];
 	CHAR AUDIO_BUFFER[AUDIO_BLOCK_SIZE];
+	CHAR VOIP_RECV_BUFFER[VOIP_BLOCK_SIZE];
 	WSABUF DataBuf;
 	WSAEVENT CompletedEvent;
 	WSAEVENT FtpCompletedEvent;
@@ -50,6 +54,12 @@ typedef struct _BROADCAST_INFO {
 	SOCKADDR_IN *stSrcAddr;
 	WSAEVENT CompletedEvent;
 } BROADCAST_INFO, *LPBROADCAST_INFO;
+
+typedef struct _VOIP_INFORMATION {
+	WSAEVENT CompletedEvent;
+	LPCWSTR Ip_addr;
+	LPCWSTR Udp_Port;
+} VOIP_INFO, *LPVOIP_INFO;
 
 static HWND parent_hwnd, child_hwnd, control_panel_hwnd, popup;
 
@@ -75,5 +85,7 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 void update_status(std::string newStatus);
 
 void update_messages(std::vector<std::string> messages);
+
+void start_Server_Stream();
 void setup_file_list_dropdown(std::vector<std::string> options);
 void close_popup();

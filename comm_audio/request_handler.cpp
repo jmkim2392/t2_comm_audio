@@ -305,6 +305,7 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 			}
 		}
 		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
+
 		if (isAcceptingRequests)
 		{
 			if (!request_buffer.empty()) 
@@ -328,7 +329,8 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 						break;
 					case VOIP_REQUEST_TYPE:
 						// voip request
-						// parsedPacket.message should contain the client info
+						parseRequest(&parsedPacket, request);
+						start_voip(parsedPacket.port_num, parsedPacket.ip_addr);
 						break;
 					case STREAM_COMPLETE_TYPE:
 						start_client_terminate_file_stream();

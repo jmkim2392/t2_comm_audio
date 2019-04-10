@@ -28,6 +28,8 @@ namespace fs = std::filesystem;
 
 SOCKET svr_tcp_accept_socket;
 SOCKET udp_audio_socket;
+SOCKET udp_voip_receive_socket;
+SOCKET udp_voip_send_socket;
 SOCKET svr_tcp_ftp_socket;
 
 SOCKET RequestSocket;
@@ -40,13 +42,20 @@ HANDLE StreamingThread;
 HANDLE BroadCastThread;
 
 LPCWSTR svr_tcp_ftp_port = L"4984";
+std::string svr_tcp_ftp_port_str = "4984";
 
 TCP_SOCKET_INFO tcp_socket_info;
 BROADCAST_INFO bi;
 
-SOCKADDR_IN InternetAddr;
-SOCKADDR_IN client_addr_udp;
+SOCKADDR_IN svr_req_handler_addr;
+SOCKADDR_IN svr_file_stream_addr;
+SOCKADDR_IN svr_udp_voip_receive_addr;
+SOCKADDR_IN svr_udp_voip_sendto_addr;
 SOCKADDR_IN client_addr_tcp_ftp;
+
+LPCWSTR voip_send_port_num;
+LPCWSTR voip_receive_port_num;
+
 SOCKADDR_IN multicast_stLclAddr, multicast_stDstAddr;
 
 struct ip_mreq stMreq;    /* Multicast interface structure */
@@ -59,6 +68,8 @@ BOOL ftpSocketReady = FALSE;
 WSAEVENT AcceptEvent;
 WSAEVENT RequestReceivedEvent;
 WSAEVENT StreamCompletedEvent;
+WSAEVENT VoipCompleted;
+
 HANDLE ResumeSendEvent;
 
 HANDLE serverThreads[20];
@@ -66,6 +77,9 @@ int svr_threadCount = 0;
 std::vector<HANDLE> svrThreads;
 
 std::vector<std::string> server_msgs;
+
+std::wstring svr_device_ip;
+std::string svr_device_ip_str;
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_server
@@ -87,49 +101,86 @@ std::vector<std::string> server_msgs;
 --	NOTES:
 --	Call this function to intialize the program as a server
 --------------------------------------------------------------------------------------*/
-void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port) 
+void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 {
 	DWORD ThreadId;
+	BOOL bOptVal = FALSE;
+	int bOptLen = sizeof(BOOL);
 
-	//open tcp socket 
-	initialize_wsa(tcp_port, &InternetAddr);
 	initialize_wsa_events(&AcceptEvent);
 	initialize_wsa_events(&RequestReceivedEvent);
 	initialize_wsa_events(&StreamCompletedEvent);
+	initialize_wsa_events(&VoipCompleted);
 	initialize_events_gen(&ResumeSendEvent, L"ResumeSend");
 
-	open_socket(&svr_tcp_accept_socket, SOCK_STREAM,IPPROTO_TCP);
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// REQUEST HANDLER SETUP
+	//open tcp socket 
+	initialize_wsa(tcp_port, &svr_req_handler_addr);
+	open_socket(&svr_tcp_accept_socket, SOCK_STREAM, IPPROTO_TCP);
 
-	if (bind(svr_tcp_accept_socket, (PSOCKADDR)&InternetAddr,
-		sizeof(InternetAddr)) == SOCKET_ERROR)
+	if (bind(svr_tcp_accept_socket, (PSOCKADDR)&svr_req_handler_addr,
+		sizeof(svr_req_handler_addr)) == SOCKET_ERROR)
 	{
-		printf("bind() failed with error %d\n", WSAGetLastError());
 		update_server_msgs("Failed to bind tcp " + std::to_string(WSAGetLastError()));
 		terminate_connection();
 		return;
 	}
-	//open udp socket
-	initialize_wsa(udp_port, &InternetAddr);
-	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
-
-
-	//open tcp ftp socket 
-	// tcp_ftp_port_num should be dynamically decremented from req port number; currently hardcoded
-	initialize_wsa(svr_tcp_ftp_port, &InternetAddr);
-	open_socket(&svr_tcp_ftp_socket, SOCK_STREAM, IPPROTO_TCP);
-
 
 	start_request_receiver();
 	start_request_handler();
-	start_broadcast();
-
 	if ((AcceptThread = CreateThread(NULL, 0, connection_monitor, (LPVOID)&svr_tcp_accept_socket, 0, &ThreadId)) == NULL)
 	{
 		update_server_msgs("Failed to create AcceptThread " + std::to_string(GetLastError()));
 
 		return;
 	}
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	svr_device_ip = get_device_ip();
+	int size_needed = WideCharToMultiByte(CP_UTF8, 0, &svr_device_ip[0], (int)svr_device_ip.size(), NULL, 0, NULL, NULL);
+	std::string temp_ip_str(size_needed, 0);
+	WideCharToMultiByte(CP_UTF8, 0, &svr_device_ip[0], (int)svr_device_ip.size(), &temp_ip_str[0], size_needed, NULL, NULL);
+	svr_device_ip_str = temp_ip_str;
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// VOIP SETUP
+	//open udp send socket
+	voip_send_port_num = L"4982";
+	initialize_wsa(voip_send_port_num, &svr_udp_voip_sendto_addr);
+	open_socket(&udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
+	// setup_client_addr happens when start_voip is called after voip request is received by server
+
+	////open udp receive socket
+	voip_receive_port_num = L"4981";
+	initialize_wsa(voip_receive_port_num, &svr_udp_voip_receive_addr);
+	open_socket(&udp_voip_receive_socket, SOCK_DGRAM, IPPROTO_UDP);
+	setup_client_addr(&svr_udp_voip_receive_addr, "4981", svr_device_ip_str);
+
+	if (bind(udp_voip_receive_socket, (struct sockaddr *)&svr_udp_voip_receive_addr, sizeof(sockaddr)) == SOCKET_ERROR) {
+		update_server_msgs("Failed to bind voip udp socket " + std::to_string(WSAGetLastError()));
+		update_status(disconnectedMsg);
+	}
+	//set REUSEADDR for udp socket
+	if (setsockopt(udp_voip_receive_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_server_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
+	if (setsockopt(udp_voip_send_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// FTP SETUP
+	//open tcp ftp socket 
+	// tcp_ftp_port_num should be dynamically decremented from req port number; currently hardcoded
+	initialize_wsa(svr_tcp_ftp_port, &client_addr_tcp_ftp);
+	open_socket(&svr_tcp_ftp_socket, SOCK_STREAM, IPPROTO_TCP);
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// FILE STREAM SETUP
+	//open udp socket
+	initialize_wsa(udp_port, &svr_file_stream_addr);
+	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	start_broadcast();
 
 	add_new_thread_gen(svrThreads, AcceptThread);
 	update_server_msgs("Server online..");
@@ -145,8 +196,8 @@ void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::s
 
 	//wcstombs_s(&i, port_num, MAX_INPUT_LENGTH, client_port, MAX_INPUT_LENGTH);
 	//wcstombs_s(&i, ip, MAX_INPUT_LENGTH, client_ip_addr, MAX_INPUT_LENGTH);
-	port_num = (char*) client_port.c_str();
-	ip = (char*) client_ip_addr.c_str();
+	port_num = (char*)client_port.c_str();
+	ip = (char*)client_ip_addr.c_str();
 
 	port = atoi(port_num);
 
@@ -156,9 +207,8 @@ void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::s
 
 	if ((hp = gethostbyname(ip)) == NULL)
 	{
-		update_client_msgs("Server address unknown");
+		update_server_msgs("Server address unknown");
 		update_status(disconnectedMsg);
-		exit(1);
 	}
 
 	// Copy the server address
@@ -177,7 +227,7 @@ void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::s
 --
 --	PROGRAMMER:		Jason Kim
 --
---	INTERFACE:		void start_request_receiver() 
+--	INTERFACE:		void start_request_receiver()
 --
 --	RETURNS:		void
 --
@@ -185,7 +235,7 @@ void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::s
 --	Call this function to start the request receiver which receives request packets from
 --	clients
 --------------------------------------------------------------------------------------*/
-void start_request_receiver() 
+void start_request_receiver()
 {
 	DWORD ThreadId;
 
@@ -252,24 +302,24 @@ void start_request_handler()
 //--	Call this function to initialize and start multicasting audio to clients
 //--------------------------------------------------------------------------------------*/
 void start_broadcast()
-{	
+{
 	DWORD ThreadId;
 
 
-	char achMCAddr[MAXADDRSTR] = TIMECAST_ADDR;	
-	u_short nPort = TIMECAST_PORT;	
-	u_long  lTTL = TIMECAST_TTL;	
-	isBroadcasting = TRUE;	
+	char achMCAddr[MAXADDRSTR] = TIMECAST_ADDR;
+	u_short nPort = TIMECAST_PORT;
+	u_long  lTTL = TIMECAST_TTL;
+	isBroadcasting = TRUE;
 
 	if (!init_winsock(&stWSAData)) {
-		isBroadcasting = FALSE;	
+		isBroadcasting = FALSE;
 		return;
 	}
 
-	if (!get_datagram_socket(&multicast_Socket)) {	
+	if (!get_datagram_socket(&multicast_Socket)) {
 		WSACleanup();
-		isBroadcasting = FALSE;	
-		return;	
+		isBroadcasting = FALSE;
+		return;
 	}
 
 	if (!bind_socket(&multicast_stLclAddr, &multicast_Socket, 0)) {
@@ -329,7 +379,7 @@ void start_broadcast()
 --
 --	PROGRAMMER:		Jason Kim
 --
---	INTERFACE:		DWORD WINAPI connection_monitor(LPVOID tcp_socket) 
+--	INTERFACE:		DWORD WINAPI connection_monitor(LPVOID tcp_socket)
 --								LPVOID tcp_socket - the tcp_socket to open and listen
 --	RETURNS:		DWORD
 --
@@ -348,7 +398,7 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 		update_server_msgs("listen() failed with error " + std::to_string(WSAGetLastError()));
 		return WSAGetLastError();
 	}
-	
+
 	while (isAcceptingConnections)
 	{
 		tcp_socket_info.tcp_socket = accept(*socket, NULL, NULL);
@@ -382,7 +432,7 @@ DWORD WINAPI connection_monitor(LPVOID tcp_socket) {
 --	Call this function to check if file requested by client exists and begin sending file
 --	if doesn't exist, send file_not_found packet
 --------------------------------------------------------------------------------------*/
-void start_ftp(std::string filename, std::string ip_addr) 
+void start_ftp(std::string filename, std::string ip_addr)
 {
 	LPWSTR ip = new WCHAR[ip_addr.length() + 1];
 
@@ -390,9 +440,10 @@ void start_ftp(std::string filename, std::string ip_addr)
 
 	ip[ip_addr.length()] = 0;
 
-	setup_svr_addr(&client_addr_tcp_ftp, svr_tcp_ftp_port, ip);
+	//setup_svr_addr(&client_addr_tcp_ftp, svr_tcp_ftp_port, ip);
+	setup_client_addr(&client_addr_tcp_ftp, svr_tcp_ftp_port_str, ip_addr);
 
-	if (!ftpSocketReady) 
+	if (!ftpSocketReady)
 	{
 		// connect to tcp request socket
 		if (connect(svr_tcp_ftp_socket, (struct sockaddr *)&client_addr_tcp_ftp, sizeof(sockaddr)) == -1)
@@ -402,7 +453,7 @@ void start_ftp(std::string filename, std::string ip_addr)
 		}
 		ftpSocketReady = TRUE;
 	}
-	
+
 	update_server_msgs("Starting File Transfer");
 	initialize_ftp(&svr_tcp_ftp_socket, NULL);
 	(open_file(filename) == 0) ? start_sending_file() : send_file_not_found_packet();
@@ -437,7 +488,7 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 
 	update_server_msgs("Starting File Stream");
 
-	setup_client_addr(&client_addr_udp, client_port_num, client_ip_addr);
+	setup_client_addr(&svr_file_stream_addr, client_port_num, client_ip_addr);
 
 	// TODO: May or may not need to bind to socket to receive from client when VOIP connected, 
 	//	 but when testing with localhost, binding to same address causes issues even with SO_REUSEADDR
@@ -451,7 +502,7 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 		update_server_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}*/
 
-	initialize_file_stream(&udp_audio_socket, &client_addr_udp, StreamCompletedEvent, ResumeSendEvent);
+	initialize_file_stream(&udp_audio_socket, &svr_file_stream_addr, StreamCompletedEvent, ResumeSendEvent);
 
 	if (open_file_to_stream(filename) == 0) {
 		if ((StreamingThread = CreateThread(NULL, 0, SendStreamThreadFunc, (LPVOID)StreamCompletedEvent, 0, &ThreadId)) == NULL)
@@ -465,6 +516,95 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 		update_server_msgs("Failed to open requested file " + std::to_string(GetLastError()));
 		return;
 	}
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_voip
+--
+--	DATE:			April 3, 2019
+--
+--	REVISIONS:		April 3, 2019
+--
+--	DESIGNER:		Dasha Strigoun
+--
+--	PROGRAMMER:		Dasha Strigoun
+--
+--	INTERFACE:		void start_voip()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to start the voip process
+--------------------------------------------------------------------------------------*/
+void start_voip(std::string client_port_num, std::string client_ip_addr)
+{
+	//start_Server_Stream();
+
+	LPCWSTR receiving_port = L"4981";
+	LPCWSTR sending_port = L"4982";
+	LPCWSTR ip_addr = L"127.0.0.1";
+
+	setup_client_addr(&svr_udp_voip_sendto_addr, client_port_num, client_ip_addr);
+	initialize_voip(&udp_voip_receive_socket, &udp_voip_send_socket, &svr_udp_voip_sendto_addr, VoipCompleted, NULL);
+
+	// setup wave out device for VOIP
+	WAVEFORMATEX wfx_voip_play;
+	wfx_voip_play.nSamplesPerSec = 11025; /* sample rate */
+	wfx_voip_play.wBitsPerSample = 8; /* sample size */
+	wfx_voip_play.nChannels = 2; /* channels*/
+	wfx_voip_play.cbSize = 0; /* size of _extra_ info */
+	wfx_voip_play.wFormatTag = WAVE_FORMAT_PCM;
+	wfx_voip_play.nBlockAlign = (wfx_voip_play.wBitsPerSample * wfx_voip_play.nChannels) >> 3;
+	wfx_voip_play.nAvgBytesPerSec = wfx_voip_play.nBlockAlign * wfx_voip_play.nSamplesPerSec;
+
+	initialize_waveout_device(wfx_voip_play, 0, VOIP_BLOCK_SIZE);
+
+
+	// struct with VoipCompleted event and port
+	LPVOIP_INFO receiving_thread_params;
+	if ((receiving_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
+		sizeof(VOIP_INFO))) == NULL)
+	{
+		//terminate_connection();
+		return;
+	}
+	receiving_thread_params->CompletedEvent = VoipCompleted;
+	receiving_thread_params->Ip_addr = ip_addr;
+	receiving_thread_params->Udp_Port = receiving_port;
+
+	HANDLE ReceiverThread;
+	DWORD ReceiverThreadId;
+	if ((ReceiverThread = CreateThread(NULL, 0, ReceiverThreadFunc, (LPVOID)receiving_thread_params, 0, &ReceiverThreadId)) == NULL)
+	{
+		update_client_msgs("Failed creating Voip Receiving Thread with error " + std::to_string(GetLastError()));
+		return;
+	}
+
+	startRecording();
+
+
+	// struct with VoipCompleted event and port
+	//LPVOIP_INFO sending_thread_params;
+	//if ((sending_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
+	//	sizeof(VOIP_INFO))) == NULL)
+	//{
+	//	//terminate_connection();
+	//	return;
+	//}
+	//sending_thread_params->CompletedEvent = VoipCompleted;
+	//sending_thread_params->Ip_addr = ip_addr;
+	//sending_thread_params->Udp_Port = sending_port;
+
+	//HANDLE SenderThread;
+	//DWORD SenderThreadId;
+	//if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)sending_thread_params, 0, &SenderThreadId)) == NULL)
+	//{
+	//	update_client_msgs("Failed creating Voip Sending Thread with error " + std::to_string(GetLastError()));
+	//	return;
+	//}
+
+	//add_new_thread_gen(serverThreads, ReceiverThreadId, svr_threadCount++);
+	//add_new_thread_gen(serverThreads, SenderThreadId, svr_threadCount++);
 }
 
 /*-------------------------------------------------------------------------------------

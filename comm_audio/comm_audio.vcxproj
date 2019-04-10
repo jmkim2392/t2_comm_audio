@@ -127,6 +127,7 @@
     <ClCompile Include="request_handler.cpp" />
     <ClCompile Include="server.cpp" />
     <ClCompile Include="audio_api.h" />
+    <ClCompile Include="voip_handler.cpp" />
     <ClCompile Include="winsock_handler.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -139,6 +140,7 @@
     <ClInclude Include="multicast.h" />
     <ClInclude Include="request_handler.h" />
     <ClInclude Include="server.h" />
+    <ClInclude Include="voip_handler.h" />
     <ClInclude Include="winsock_handler.h" />
     <ClInclude Include="constants.h" />
     <ClInclude Include="main.h" />
