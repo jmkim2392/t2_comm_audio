@@ -60,7 +60,7 @@ void initialize_voip_receive(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipRec
 	}
 
 	// KTODO: remove buf.len hardcode. this same as audio send buffer block size;
-	VoipReceiveSocketInfo->DataBuf.len = 44100;
+	VoipReceiveSocketInfo->DataBuf.len = VOIP_BLOCK_SIZE;
 	VoipReceiveSocketInfo->DataBuf.buf = VoipReceiveSocketInfo->AUDIO_BUFFER;
 	if (voipReceiveCompletedEvent != NULL)
 	{
@@ -95,7 +95,7 @@ void initialize_voip_send(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipSendCo
 	}
 
 	// KTODO: remove buf.len hardcode. this same as audio send buffer block size;
-	VoipSendSocketInfo->DataBuf.len = 44100;
+	VoipSendSocketInfo->DataBuf.len = VOIP_BLOCK_SIZE;
 	VoipSendSocketInfo->DataBuf.buf = VoipSendSocketInfo->AUDIO_BUFFER;
 	if (voipSendCompletedEvent != NULL)
 	{
@@ -141,26 +141,22 @@ DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
 
 	EventArray[0] = params->CompletedEvent;
 
-	OutputDebugStringA("launch server thread\n");
 	start_receiving_voip();
 
 	while (isReceivingFileStream)
 	{
-		while (isReceivingFileStream)
+		Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+
+		if (Index == WSA_WAIT_FAILED)
 		{
-			Index = WSAWaitForMultipleEvents(1, EventArray, FALSE, WSA_INFINITE, TRUE);
+			update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
+			terminate_connection();
+			return FALSE;
+		}
 
-			if (Index == WSA_WAIT_FAILED)
-			{
-				update_client_msgs("WSAWaitForMultipleEvents failed with error " + std::to_string(WSAGetLastError()));
-				terminate_connection();
-				return FALSE;
-			}
-
-			if (Index != WAIT_IO_COMPLETION)
-			{
-				break;
-			}
+		if (Index != WAIT_IO_COMPLETION)
+		{
+			break;
 		}
 	}
 	return 0;
@@ -226,7 +222,6 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 	DWORD RecvBytes;
 	DWORD Flags;
 
-	OutputDebugStringA("Recv CRoutine\n");
 	LPSOCKET_INFORMATION SI = (LPSOCKET_INFORMATION)Overlapped;
 	if (Error != 0)
 	{
@@ -244,7 +239,7 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 	Flags = 0;
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 
-	writeToAudioBuffer(SI->DataBuf.buf);
+	writeToAudioBuffer(SI->DataBuf.buf, VOIP_BLOCK_SIZE);
 
 	SI->DataBuf.buf = SI->VOIP_RECV_BUFFER;
 	if (WSARecvFrom(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& sender_addr, &sender_addr_len, &(SI->Overlapped), Voip_ReceiveRoutine) == SOCKET_ERROR)

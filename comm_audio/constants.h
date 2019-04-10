@@ -10,7 +10,6 @@
 #define AUDIO_PACKET_SIZE 8192
 #define BLOCK_COUNT 5000
 #define MAX_NUM_STREAM_PACKETS 50
-//#define VOIP_BLOCK_SIZE 44100
 #define VOIP_BLOCK_SIZE 11025
 
 // Request types

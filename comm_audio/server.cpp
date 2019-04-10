@@ -526,6 +526,7 @@ void start_voip(std::string client_port_num, std::string client_ip_addr)
 	setup_client_addr(&svr_udp_voip_sendto_addr, client_port_num, client_ip_addr);
 	initialize_voip(&udp_voip_receive_socket, &udp_voip_send_socket, &svr_udp_voip_sendto_addr, VoipCompleted, NULL);
 
+	// setup wave out device for VOIP
 	WAVEFORMATEX wfx_voip_play;
 	wfx_voip_play.nSamplesPerSec = 11025; /* sample rate */
 	wfx_voip_play.wBitsPerSample = 8; /* sample size */
@@ -535,7 +536,7 @@ void start_voip(std::string client_port_num, std::string client_ip_addr)
 	wfx_voip_play.nBlockAlign = (wfx_voip_play.wBitsPerSample * wfx_voip_play.nChannels) >> 3;
 	wfx_voip_play.nAvgBytesPerSec = wfx_voip_play.nBlockAlign * wfx_voip_play.nSamplesPerSec;
 
-	initialize_waveout_device(wfx_voip_play, 0);
+	initialize_waveout_device(wfx_voip_play, 0, VOIP_BLOCK_SIZE);
 
 
 	// struct with VoipCompleted event and port

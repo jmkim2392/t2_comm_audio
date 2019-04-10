@@ -326,7 +326,7 @@ void CALLBACK FileStream_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPW
 	Flags = 0;
 	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 
-	writeToAudioBuffer(SI->DataBuf.buf);
+	writeToAudioBuffer(SI->DataBuf.buf, AUDIO_BLOCK_SIZE);
 
 	SI->DataBuf.buf = SI->AUDIO_BUFFER;
 	if (WSARecvFrom(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, (SOCKADDR *)& client, &client_len, &(SI->Overlapped), FileStream_ReceiveRoutine) == SOCKET_ERROR)

@@ -169,17 +169,6 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
 	}
 
-	WAVEFORMATEX wfx_fs_play;
-	wfx_fs_play.nSamplesPerSec = 44100; /* sample rate */
-	wfx_fs_play.wBitsPerSample = 16; /* sample size */
-	wfx_fs_play.nChannels = 2; /* channels*/
-	wfx_fs_play.cbSize = 0; /* size of _extra_ info */
-	wfx_fs_play.wFormatTag = WAVE_FORMAT_PCM;
-	wfx_fs_play.nBlockAlign = (wfx_fs_play.wBitsPerSample * wfx_fs_play.nChannels) >> 3;
-	wfx_fs_play.nAvgBytesPerSec = wfx_fs_play.nBlockAlign * wfx_fs_play.nSamplesPerSec;
-
-	initialize_waveout_device(wfx_fs_play, 0);
-
 	if (isConnected) 
 	{
 		update_client_msgs("Connected to server");
@@ -375,6 +364,17 @@ void request_file_stream(LPCWSTR filename)
 	DWORD ThreadId;
 	initialize_wsa_events(&FileStreamCompleted);
 
+	// setup Wave Out device for file stream
+	WAVEFORMATEX wfx_fs_play;
+	wfx_fs_play.nSamplesPerSec = 44100; /* sample rate */
+	wfx_fs_play.wBitsPerSample = 16; /* sample size */
+	wfx_fs_play.nChannels = 2; /* channels*/
+	wfx_fs_play.cbSize = 0; /* size of _extra_ info */
+	wfx_fs_play.wFormatTag = WAVE_FORMAT_PCM;
+	wfx_fs_play.nBlockAlign = (wfx_fs_play.wBitsPerSample * wfx_fs_play.nChannels) >> 3;
+	wfx_fs_play.nAvgBytesPerSec = wfx_fs_play.nBlockAlign * wfx_fs_play.nSamplesPerSec;
+	initialize_waveout_device(wfx_fs_play, 0, AUDIO_BLOCK_SIZE);
+
 	open_socket(&cl_udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 
 	if (bind(cl_udp_audio_socket, (struct sockaddr *)&server_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR)
@@ -462,6 +462,7 @@ void request_voip(HWND voipHwndDlg)
 	LPCWSTR stream_req_msg = temp_msg.c_str();
 	send_request_to_svr(VOIP_REQUEST_TYPE, stream_req_msg);
 
+	// setup wave out device for VOIP
 	WAVEFORMATEX wfx_voip_play;
 	wfx_voip_play.nSamplesPerSec = 11025; /* sample rate */
 	wfx_voip_play.wBitsPerSample = 8; /* sample size */
@@ -471,7 +472,7 @@ void request_voip(HWND voipHwndDlg)
 	wfx_voip_play.nBlockAlign = (wfx_voip_play.wBitsPerSample * wfx_voip_play.nChannels) >> 3;
 	wfx_voip_play.nAvgBytesPerSec = wfx_voip_play.nBlockAlign * wfx_voip_play.nSamplesPerSec;
 
-	initialize_waveout_device(wfx_voip_play, 0);
+	initialize_waveout_device(wfx_voip_play, 0, VOIP_BLOCK_SIZE);
 
 
 	// struct with VoipCompleted event and port

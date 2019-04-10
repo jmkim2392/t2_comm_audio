@@ -92,7 +92,7 @@ MMRESULT win_mret;
 --	NOTES:
 --	Call this function to setup the audio device and audio playing feature
 --------------------------------------------------------------------------------------*/
-void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag)
+void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag, int blockSize)
 {
 	// KTODO: Probably inintialize wave in device here too.
 	DWORD ThreadId;
@@ -102,7 +102,7 @@ void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag)
 	/*
 	 * initialise the module variables
 	 */
-	waveBlocks = allocateBlocks(AUDIO_BLOCK_SIZE, BLOCK_COUNT);
+	waveBlocks = allocateBlocks(blockSize, BLOCK_COUNT);
 	waveFreeBlockCount = BLOCK_COUNT;
 	waveHeadBlock = 0;
 	waveTailBlock = 0;
@@ -239,7 +239,7 @@ static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance,
 --	NOTES:
 --	Call this function to write data into the audio circular buffer and begin playing audio
 --------------------------------------------------------------------------------------*/
-void writeToAudioBuffer(LPSTR data)
+void writeToAudioBuffer(LPSTR data, int blockSize)
 {
 	WAVEHDR* head;
 	head = &waveBlocks[waveHeadBlock];
@@ -249,8 +249,8 @@ void writeToAudioBuffer(LPSTR data)
 		waveOutUnprepareHeader(hWaveOut, head, sizeof(WAVEHDR));
 	}
 
-	memcpy(head->lpData + head->dwUser, data, AUDIO_BLOCK_SIZE);
-	head->dwBufferLength = AUDIO_BLOCK_SIZE;
+	memcpy(head->lpData + head->dwUser, data, blockSize);
+	head->dwBufferLength = blockSize;
 
 	EnterCriticalSection(&waveCriticalSection);
 	waveFreeBlockCount--;
@@ -432,16 +432,16 @@ void freeBlocks(WAVEHDR* blockArray)
 void initialize_wavein_device(HWND hWndDlg)
 {
 	// KTODO: if this works and have time, change it to array or sth
-	win_buf1 = (BYTE*)malloc(WIN_SRATE);
-	win_buf2 = (BYTE*)malloc(WIN_SRATE);
-	win_buf3 = (BYTE*)malloc(WIN_SRATE);
-	win_buf4 = (BYTE*)malloc(WIN_SRATE);
-	win_buf5 = (BYTE*)malloc(WIN_SRATE);
-	win_buf6 = (BYTE*)malloc(WIN_SRATE);
-	win_buf7 = (BYTE*)malloc(WIN_SRATE);
-	win_buf8 = (BYTE*)malloc(WIN_SRATE);
+	win_buf1 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
+	win_buf2 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
+	win_buf3 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
+	win_buf4 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
+	win_buf5 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
+	win_buf6 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
+	win_buf7 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
+	win_buf8 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
 
-	wfx_win.nSamplesPerSec = WIN_SRATE; /* sample rate */
+	wfx_win.nSamplesPerSec = VOIP_BLOCK_SIZE; /* sample rate */
 	//wfx_win.wBitsPerSample = 16; /* sample size */
 	wfx_win.wBitsPerSample = 8; /* sample size */
 	wfx_win.nChannels = 2; /* channels*/
@@ -451,7 +451,7 @@ void initialize_wavein_device(HWND hWndDlg)
 	wfx_win.nAvgBytesPerSec = wfx_win.nBlockAlign * wfx_win.nSamplesPerSec;
 
 	whdr1.lpData = (LPSTR)win_buf1;
-	whdr1.dwBufferLength = WIN_SRATE;
+	whdr1.dwBufferLength = VOIP_BLOCK_SIZE;
 	whdr1.dwBytesRecorded = 0;
 	whdr1.dwFlags = 0;
 	whdr1.dwLoops = 1;
@@ -460,7 +460,7 @@ void initialize_wavein_device(HWND hWndDlg)
 	whdr1.reserved = 0;
 
 	whdr2.lpData = (LPSTR)win_buf2;
-	whdr2.dwBufferLength = WIN_SRATE;
+	whdr2.dwBufferLength = VOIP_BLOCK_SIZE;
 	whdr2.dwBytesRecorded = 0;
 	whdr2.dwFlags = 0;
 	whdr2.dwLoops = 1;
@@ -469,7 +469,7 @@ void initialize_wavein_device(HWND hWndDlg)
 	whdr2.reserved = 0;
 
 	whdr3.lpData = (LPSTR)win_buf3;
-	whdr3.dwBufferLength = WIN_SRATE;
+	whdr3.dwBufferLength = VOIP_BLOCK_SIZE;
 	whdr3.dwBytesRecorded = 0;
 	whdr3.dwFlags = 0;
 	whdr3.dwLoops = 1;
@@ -478,7 +478,7 @@ void initialize_wavein_device(HWND hWndDlg)
 	whdr3.reserved = 0;
 
 	whdr4.lpData = (LPSTR)win_buf4;
-	whdr4.dwBufferLength = WIN_SRATE;
+	whdr4.dwBufferLength = VOIP_BLOCK_SIZE;
 	whdr4.dwBytesRecorded = 0;
 	whdr4.dwFlags = 0;
 	whdr4.dwLoops = 1;
@@ -487,7 +487,7 @@ void initialize_wavein_device(HWND hWndDlg)
 	whdr4.reserved = 0;
 
 	whdr5.lpData = (LPSTR)win_buf5;
-	whdr5.dwBufferLength = WIN_SRATE;
+	whdr5.dwBufferLength = VOIP_BLOCK_SIZE;
 	whdr5.dwBytesRecorded = 0;
 	whdr5.dwFlags = 0;
 	whdr5.dwLoops = 1;
@@ -496,7 +496,7 @@ void initialize_wavein_device(HWND hWndDlg)
 	whdr5.reserved = 0;
 
 	whdr6.lpData = (LPSTR)win_buf6;
-	whdr6.dwBufferLength = WIN_SRATE;
+	whdr6.dwBufferLength = VOIP_BLOCK_SIZE;
 	whdr6.dwBytesRecorded = 0;
 	whdr6.dwFlags = 0;
 	whdr6.dwLoops = 1;
@@ -505,7 +505,7 @@ void initialize_wavein_device(HWND hWndDlg)
 	whdr6.reserved = 0;
 
 	whdr7.lpData = (LPSTR)win_buf7;
-	whdr7.dwBufferLength = WIN_SRATE;
+	whdr7.dwBufferLength = VOIP_BLOCK_SIZE;
 	whdr7.dwBytesRecorded = 0;
 	whdr7.dwFlags = 0;
 	whdr7.dwLoops = 1;
@@ -514,7 +514,7 @@ void initialize_wavein_device(HWND hWndDlg)
 	whdr7.reserved = 0;
 
 	whdr8.lpData = (LPSTR)win_buf8;
-	whdr8.dwBufferLength = WIN_SRATE;
+	whdr8.dwBufferLength = VOIP_BLOCK_SIZE;
 	whdr8.dwBytesRecorded = 0;
 	whdr8.dwFlags = 0;
 	whdr8.dwLoops = 1;

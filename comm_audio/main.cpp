@@ -108,36 +108,36 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		break;
-	case WIM_OPEN:
-		MMRESULT win_mret2;
-		OutputDebugStringA("WIMOPEN\n");
-		wave_in_add_buffer();
+	//case WIM_OPEN:
+	//	MMRESULT win_mret2;
+	//	OutputDebugStringA("WIMOPEN\n");
+	//	wave_in_add_buffer();
 
-		break;
-	case WIM_DATA:
-		// post message to process this input block received
-		// NOTE: callback cannot call other waveform functions
-		//....................................................
+	//	break;
+	//case WIM_DATA:
+	//	// post message to process this input block received
+	//	// NOTE: callback cannot call other waveform functions
+	//	//....................................................
 
-		//PostMessage((HWND)dwInstance, USR_INBLOCK, 0, dwParam1);
-		OutputDebugStringA("data");
-		char sbuf[512];
-		sprintf_s(sbuf, "%d\n", ((PWAVEHDR)lParam)->dwBytesRecorded);
-		update_client_msgs(sbuf);
+	//	//PostMessage((HWND)dwInstance, USR_INBLOCK, 0, dwParam1);
+	//	OutputDebugStringA("data");
+	//	char sbuf[512];
+	//	sprintf_s(sbuf, "%d\n", ((PWAVEHDR)lParam)->dwBytesRecorded);
+	//	update_client_msgs(sbuf);
 
-		//if (blReset) {
-			//waveInClose(hWaveIn);
-			//blReset = FALSE;
-			//return 0;
-		//}
+	//	//if (blReset) {
+	//		//waveInClose(hWaveIn);
+	//		//blReset = FALSE;
+	//		//return 0;
+	//	//}
 
-	//	waveInAddBuffer(hWaveIn, (PWAVEHDR)lParam, sizeof(WAVEHDR));
-		wave_in_add_buffer((PWAVEHDR)lParam, sizeof(WAVEHDR));
-		break;
-	case WIM_CLOSE:
-		OutputDebugStringA("wim close");
-		close_win_device();
-		break;
+	////	waveInAddBuffer(hWaveIn, (PWAVEHDR)lParam, sizeof(WAVEHDR));
+	//	wave_in_add_buffer((PWAVEHDR)lParam, sizeof(WAVEHDR));
+	//	break;
+	//case WIM_CLOSE:
+	//	OutputDebugStringA("wim close");
+	//	close_win_device();
+	//	break;
 	case WM_PAINT:
 		break;
 	case WM_DESTROY:
@@ -592,7 +592,7 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 				{
 					//reset_client_request_receiver();
 					request_file_stream(filename);
-					show_dialog(IDM_VOIP_TYPE, control_panel_hwnd);
+					show_dialog(IDM_MULTICAST_TYPE, control_panel_hwnd);
 				}
 			}
 			reset_client_request_receiver();
