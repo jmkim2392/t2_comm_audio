@@ -86,7 +86,7 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 				}
 			}
 			writeToAudioBuffer(bi.AUDIO_BUFFER, AUDIO_PACKET_SIZE);
-			if (++numAudioSent >= 25)
+			if (++numAudioSent >= 11)
 			{
 				// pass an SvrSendNextAudioEvent to this thread and wait for it here
 				WaitForSingleObject(bi.SendNextEvent, INFINITE);
