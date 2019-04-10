@@ -7,7 +7,18 @@
 --					void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr);
 --					void setup_svr_addr(SOCKADDR_IN* svr_addr, LPCWSTR tcp_port, LPCWSTR svr_ip_addr);
 --					void send_request_to_svr(int type, LPCWSTR request);
+--					void request_wav_file(LPCWSTR filename);
+--					void request_file_stream(LPCWSTR filename);
 --					void terminate_client();
+--					void update_client_msgs(std::string message);
+--					void finalize_ftp(std::string msg);
+--					void join_multicast_stream();
+--					void disconnect_multicast();
+--					void start_client_request_receiver();
+--					void start_client_request_handler();
+--					void reset_client_request_receiver();
+--					void start_client_terminate_file_stream();
+--
 --
 --	DATE:			March 14, 2019
 --
@@ -412,10 +423,40 @@ void request_file_stream(LPCWSTR filename)
 	isStreaming = TRUE;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	join_multicast_stream
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		join_multicast_stream()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to join multicast stream
+--------------------------------------------------------------------------------------*/
 void join_multicast_stream() {
 	HANDLE multicast_receive_thread;
 	DWORD ThreadId;
 	multicast_connected = true;
+
+
+	// setup Wave Out device for file stream
+	WAVEFORMATEX wfx_fs_play;
+	wfx_fs_play.nSamplesPerSec = 44100; /* sample rate */
+	wfx_fs_play.wBitsPerSample = 16; /* sample size */
+	wfx_fs_play.nChannels = 2; /* channels*/
+	wfx_fs_play.cbSize = 0; /* size of _extra_ info */
+	wfx_fs_play.wFormatTag = WAVE_FORMAT_PCM;
+	wfx_fs_play.nBlockAlign = (wfx_fs_play.wBitsPerSample * wfx_fs_play.nChannels) >> 3;
+	wfx_fs_play.nAvgBytesPerSec = wfx_fs_play.nBlockAlign * wfx_fs_play.nSamplesPerSec;
+	initialize_waveout_device(wfx_fs_play, 0, AUDIO_BLOCK_SIZE);
 
 	if ((multicast_receive_thread = CreateThread(NULL, 0, receive_data, &multicast_connected, 0, &ThreadId)) == NULL) {
 		printf("CreateThread failed with error %d\n", GetLastError());
@@ -425,6 +466,25 @@ void join_multicast_stream() {
 	add_new_thread_gen(clntThreads, multicast_receive_thread);
 }
 
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	join_multicast_stream
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		disconnect_multicast()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function when leaving multicast
+--------------------------------------------------------------------------------------*/
 void disconnect_multicast() {
 	multicast_connected = false;
 }

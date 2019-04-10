@@ -4,13 +4,19 @@
 --	PROGRAM:		Comm_Audio
 --
 --	FUNCTIONS:
---					void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
---					void start_request_receiver()
---					void start_request_handler()
---					void initialize_events()
---					DWORD WINAPI connection_monitor(LPVOID tcp_socket)
---					void add_new_thread(DWORD threadId)
---					void terminate_server()
+--					void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port);
+--					void start_request_receiver();
+--					void start_request_handler();
+--					void start_broadcast();
+--					DWORD WINAPI connection_monitor(LPVOID tcp_socket);
+--					void start_ftp(std::string filename);
+--					void start_file_stream(std::string filename, std::string client_port_num, std::string client_ip_addr);
+--					void terminate_server();
+--					void update_server_msgs(std::string message);
+--					void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr);
+--					void resume_streaming();
+--					void send_request_to_clnt(std::string msg);
+--
 --
 --	DATE:			March 8, 2019
 --
@@ -71,6 +77,7 @@ WSAEVENT StreamCompletedEvent;
 WSAEVENT VoipCompleted;
 
 HANDLE ResumeSendEvent;
+HANDLE SvrMulticastResumeSendEvent;
 
 HANDLE serverThreads[20];
 int svr_threadCount = 0;
@@ -180,6 +187,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 	
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	initialize_events_gen(&SvrMulticastResumeSendEvent, L"SvrMulticastEvent");
 	start_broadcast();
 
 	add_new_thread_gen(svrThreads, AcceptThread);
@@ -282,34 +290,32 @@ void start_request_handler()
 	add_new_thread_gen(svrThreads, RequestHandlerThread);
 }
 
-///*-------------------------------------------------------------------------------------
-//--	FUNCTION:	start_broadcast
-//--
-//--	DATE:			March 11, 2019
-//--
-//--	REVISIONS:		March 11, 2019
-//--
-//--	DESIGNER:		Jason Kim
-//--
-//--	PROGRAMMER:		Jason Kim
-//--
-//--	INTERFACE:		void start_broadcast(SOCKET* socket, LPCWSTR udp_port)
-//--								SOCKET* socket - the udp Socket to multicast
-//--								LPCWSTR udp_port - udp port number
-//--	RETURNS:		DWORD
-//--
-//--	NOTES:
-//--	Call this function to initialize and start multicasting audio to clients
-//--------------------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_broadcast
+--
+--	DATE:			April 5, 2019
+--
+--	REVISIONS:		April 5, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		start_broadcast()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function start broadcast
+--------------------------------------------------------------------------------------*/
 void start_broadcast()
 {
 	DWORD ThreadId;
-
-
 	char achMCAddr[MAXADDRSTR] = TIMECAST_ADDR;
 	u_short nPort = TIMECAST_PORT;
 	u_long  lTTL = TIMECAST_TTL;
 	isBroadcasting = TRUE;
+	setup_svr_multicast(SvrMulticastResumeSendEvent);
 
 	if (!init_winsock(&stWSAData)) {
 		isBroadcasting = FALSE;
@@ -356,7 +362,22 @@ void start_broadcast()
 
 	bi.hSocket = &multicast_Socket;
 	bi.stDstAddr = &multicast_stDstAddr;
+	bi.SendNextEvent = SvrMulticastResumeSendEvent;
 
+	// setup wave out device for MULTICAST SERVER
+	WAVEFORMATEX svr_wfx_multicast_play;
+	svr_wfx_multicast_play.nSamplesPerSec = 11025; /* sample rate */
+	svr_wfx_multicast_play.wBitsPerSample = 8; /* sample size */
+	svr_wfx_multicast_play.nChannels = 2; /* channels*/
+	svr_wfx_multicast_play.cbSize = 0; /* size of _extra_ info */
+	svr_wfx_multicast_play.wFormatTag = WAVE_FORMAT_PCM;
+	svr_wfx_multicast_play.nBlockAlign = (svr_wfx_multicast_play.wBitsPerSample * svr_wfx_multicast_play.nChannels) >> 3;
+	svr_wfx_multicast_play.nAvgBytesPerSec = svr_wfx_multicast_play.nBlockAlign * svr_wfx_multicast_play.nSamplesPerSec;
+
+	initialize_waveout_device(svr_wfx_multicast_play, 1, AUDIO_BLOCK_SIZE);
+	change_device_volume((DWORD)MAKELONG(0x0000, 0x0000));
+	
+	
 
 	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_data, (LPVOID)&bi, 0, &ThreadId)) == NULL) {
 		printf("CreateThread failed with error %d\n", GetLastError());
@@ -485,7 +506,6 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 	DWORD ThreadId;
 	BOOL bOptVal = FALSE;
 	int bOptLen = sizeof(BOOL);
-
 	update_server_msgs("Starting File Stream");
 
 	setup_client_addr(&svr_file_stream_addr, client_port_num, client_ip_addr);
