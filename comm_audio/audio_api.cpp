@@ -40,6 +40,8 @@ HANDLE AudioPlayerThread;
 HANDLE BufRdySignalerThread;
 HANDLE AudioRecorderThread;
 
+HANDLE SvrSendNextAudioEvent;
+
 BOOL isPlayingAudio = FALSE;
 BOOL isRecordingAudio = FALSE;
 BOOL multicast = FALSE;
@@ -113,16 +115,6 @@ void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag, int bl
 	/*
 	 * set up the WAVEFORMATEX structure.
 	 */
-	//wfx.nSamplesPerSec = 44100; /* sample rate */
-	//wfx.wBitsPerSample = 16; /* sample size */
-	//wfx.nSamplesPerSec = 11025; /* sample rate */
-	//wfx.wBitsPerSample = 8; /* sample size */
-	//wfx.nChannels = 2; /* channels*/
-	//wfx.cbSize = 0; /* size of _extra_ info */
-	//wfx.wFormatTag = WAVE_FORMAT_PCM;
-	//wfx.nBlockAlign = (wfx.wBitsPerSample * wfx.nChannels) >> 3;
-	//wfx.nAvgBytesPerSec = wfx.nBlockAlign * wfx.nSamplesPerSec;
-
 	wfx.nSamplesPerSec = wfxparam.nSamplesPerSec; /* sample rate */
 	wfx.wBitsPerSample = wfxparam.wBitsPerSample; /* sample size */
 	wfx.nChannels = wfxparam.nChannels; /* channels*/
@@ -210,9 +202,13 @@ static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance,
 	LeaveCriticalSection(&waveCriticalSection);
 	TriggerEvent(ReadyToPlayEvent);
 
-	if (multicast && (waveFreeBlockCount >= BLOCK_COUNT)) {
-		TriggerEvent(bufferReadyEvent);
+	if (multicast) {
+		TriggerEvent(SvrSendNextAudioEvent);
 	}
+
+	/*if (multicast && (waveFreeBlockCount >= BLOCK_COUNT)) {
+		TriggerEvent(bufferReadyEvent);
+	}*/
 	else if (numFreed >= MAX_NUM_STREAM_PACKETS && waveFreeBlockCount >= MAX_NUM_STREAM_PACKETS) 
 	{
 		numFreed = 1;
@@ -256,15 +252,15 @@ void writeToAudioBuffer(LPSTR data, int blockSize)
 	waveFreeBlockCount--;
 	LeaveCriticalSection(&waveCriticalSection);
 	waveHeadBlock++;
-	if (multicast && (waveHeadBlock >= BLOCK_COUNT)) {
+	/*if (multicast && (waveHeadBlock >= BLOCK_COUNT)) {
 		ResetEvent(bufferReadyEvent);
-	}
+	}*/
 	waveHeadBlock %= BLOCK_COUNT;
 	head->dwUser = 0;
 	TriggerEvent(ReadyToPlayEvent);
-	if (multicast) {
+	/*if (multicast) {
 		WaitForSingleObject(bufferReadyEvent, INFINITE);
-	}
+	}*/
 }
 
 /*-------------------------------------------------------------------------------------
@@ -604,6 +600,18 @@ void close_win_device()
 	free(win_buf7);
 	free(win_buf8);
 }
+
+void setup_svr_multicast(HANDLE svrEvent) 
+{
+	SvrSendNextAudioEvent = svrEvent;
+}
+
+void change_device_volume(DWORD volume) 
+{
+	waveOutSetVolume(hWaveOut, volume);
+}
+
+
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	terminateAudioApi

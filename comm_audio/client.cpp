@@ -417,6 +417,18 @@ void join_multicast_stream() {
 	DWORD ThreadId;
 	multicast_connected = true;
 
+
+	// setup Wave Out device for file stream
+	WAVEFORMATEX wfx_fs_play;
+	wfx_fs_play.nSamplesPerSec = 44100; /* sample rate */
+	wfx_fs_play.wBitsPerSample = 16; /* sample size */
+	wfx_fs_play.nChannels = 2; /* channels*/
+	wfx_fs_play.cbSize = 0; /* size of _extra_ info */
+	wfx_fs_play.wFormatTag = WAVE_FORMAT_PCM;
+	wfx_fs_play.nBlockAlign = (wfx_fs_play.wBitsPerSample * wfx_fs_play.nChannels) >> 3;
+	wfx_fs_play.nAvgBytesPerSec = wfx_fs_play.nBlockAlign * wfx_fs_play.nSamplesPerSec;
+	initialize_waveout_device(wfx_fs_play, 0, AUDIO_BLOCK_SIZE);
+
 	if ((multicast_receive_thread = CreateThread(NULL, 0, receive_data, &multicast_connected, 0, &ThreadId)) == NULL) {
 		printf("CreateThread failed with error %d\n", GetLastError());
 		WSACleanup();

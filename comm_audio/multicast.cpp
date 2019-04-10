@@ -6,18 +6,17 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 	int bytes_read;
 	FILE* fp;
 	DWORD SendBytes;
+	int numAudioSent = 0;
 
 	file_stream_buf = (char*)malloc(AUDIO_PACKET_SIZE);
 	bi.DataBuf.buf = bi.AUDIO_BUFFER;
 
 	for (int i = 0; i < LOOP_SEND; i++) {
 		if (!fopen_s(&fp, "koto.wav", "rb") == 0) {
-			OutputDebugString(L"Open file error\n");
-			exit(1);
+			update_server_msgs("Failed opening file to multicast");
 		}
 	
 		while (!feof(fp)) {
-			OutputDebugString(L"Sending\n");
 			memset(file_stream_buf, 0, AUDIO_PACKET_SIZE);
 			bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, fp);
 			memcpy(bi.DataBuf.buf, file_stream_buf, bytes_read);
@@ -26,18 +25,22 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 			{
 				if (WSAGetLastError() != WSA_IO_PENDING)
 				{
-					OutputDebugString(L"Sending Error\n");
 					return FALSE;
 				}
+			}
+			writeToAudioBuffer(bi.AUDIO_BUFFER, AUDIO_PACKET_SIZE);
+			if (++numAudioSent >= 10) 
+			{
+				// pass an SvrSendNextAudioEvent to this thread and wait for it here
+				WaitForSingleObject(bi.SendNextEvent, INFINITE);
+				ResetEvent(bi.SendNextEvent);
+				numAudioSent = 1;
 			}
 		}
 		fclose(fp);
 	}
-	OutputDebugString(L"Done\n");
 	
 	free(file_stream_buf);
-
-
 	return TRUE;
 }
 
@@ -81,17 +84,6 @@ DWORD WINAPI receive_data(LPVOID lp) {
 		WSACleanup();
 		return false;
 	}
-
-	// set up waveformatex structure for multicast
-	WAVEFORMATEX wfx_multicast_play;
-	wfx_multicast_play.nSamplesPerSec = 11025; /* sample rate */
-	wfx_multicast_play.wBitsPerSample = 8; /* sample size */
-	wfx_multicast_play.nChannels = 2; /* channels*/
-	wfx_multicast_play.cbSize = 0; /* size of _extra_ info */
-	wfx_multicast_play.wFormatTag = WAVE_FORMAT_PCM;
-	wfx_multicast_play.nBlockAlign = (wfx_multicast_play.wBitsPerSample * wfx_multicast_play.nChannels) >> 3;
-	wfx_multicast_play.nAvgBytesPerSec = wfx_multicast_play.nBlockAlign * wfx_multicast_play.nSamplesPerSec;
-	initialize_waveout_device(wfx_multicast_play, TRUE, AUDIO_BLOCK_SIZE);
 
 	ZeroMemory(&(bi->overlapped), sizeof(WSAOVERLAPPED));
 	bi->BytesRECV = 0;

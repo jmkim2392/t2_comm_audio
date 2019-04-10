@@ -52,6 +52,7 @@ typedef struct _BROADCAST_INFO {
 	DWORD BytesRECV;
 	SOCKADDR_IN *stDstAddr;
 	SOCKADDR_IN *stSrcAddr;
+	HANDLE SendNextEvent;
 	WSAEVENT CompletedEvent;
 } BROADCAST_INFO, *LPBROADCAST_INFO;
 
