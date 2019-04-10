@@ -435,7 +435,6 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 	DWORD ThreadId;
 	BOOL bOptVal = FALSE;
 	int bOptLen = sizeof(BOOL);
-
 	update_server_msgs("Starting File Stream");
 
 	setup_client_addr(&client_addr_udp, client_port_num, client_ip_addr);

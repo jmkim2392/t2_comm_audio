@@ -29,6 +29,8 @@
 
 #include "multicast.h"
 
+bool broadcasting;
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:		broadcast_data	
 --
@@ -53,6 +55,7 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 	int bytes_read;
 	FILE* fp;
 	DWORD SendBytes;
+	broadcasting = true;
 
 	file_stream_buf = (char*)malloc(AUDIO_PACKET_SIZE);
 	bi.DataBuf.buf = bi.AUDIO_BUFFER;
@@ -77,15 +80,40 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 					return FALSE;
 				}
 			}
+			if (!broadcasting) {
+				fclose(fp);
+				free(file_stream_buf);
+				OutputDebugString(L"Multicast Exit\n");
+				return TRUE;
+			}
 		}
 		fclose(fp);
 	}
 	OutputDebugString(L"Done\n");
-	
+	broadcasting = false;
 	free(file_stream_buf);
-
-
 	return TRUE;
+}
+
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:		stop_broadcast()
+--
+--	DATE:			April 9, 2019
+--
+--	REVISIONS:		April 9, 2019
+--
+--	DESIGNER:		Phat Le
+--
+--	PROGRAMMER:		Phat Le
+--
+--	INTERFACE:		void stop_broadcast()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--------------------------------------------------------------------------------------*/
+void stop_broadcast() {
+	broadcasting = false;
 }
 
 /*-------------------------------------------------------------------------------------

@@ -21,3 +21,4 @@ bool leave_multicast_group(struct ip_mreq *stMreq, SOCKET *hSocket, char *achMCA
 DWORD WINAPI receive_data(LPVOID lp);
 void CALLBACK multicast_receive_audio(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags);
 DWORD WINAPI broadcast_data(LPVOID lp);
+void stop_broadcast();
