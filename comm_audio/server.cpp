@@ -78,6 +78,9 @@ std::vector<HANDLE> svrThreads;
 
 std::vector<std::string> server_msgs;
 
+std::wstring svr_device_ip;
+std::string svr_device_ip_str;
+
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_server
 --
@@ -109,42 +112,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	initialize_wsa_events(&StreamCompletedEvent);
 	initialize_wsa_events(&VoipCompleted);
 	initialize_events_gen(&ResumeSendEvent, L"ResumeSend");
-	/////////////////////////////////////////////////////////////////////////////////////////////////////
-	// VOIP SETUP
-	//open udp send socket
-	voip_send_port_num = L"4982";
-	initialize_wsa(voip_send_port_num, &svr_udp_voip_sendto_addr);
-	open_socket(&udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
-	// setup_client_addr happens when start_voip is called after voip request is received by server
 
-	////open udp receive socket
-	//voip_receive_port_num = L"4981";
-	//initialize_wsa(voip_receive_port_num, &svr_udp_voip_receive_addr);
-	//open_socket(&udp_voip_receive_socket, SOCK_DGRAM, IPPROTO_UDP);
-	//setup_client_addr(&svr_udp_voip_receive_addr, "4981", "localhost");
-
-	//if (bind(udp_voip_receive_socket, (struct sockaddr *)&svr_udp_voip_receive_addr, sizeof(sockaddr)) == SOCKET_ERROR) {
-	//	update_server_msgs("Failed to bind voip udp socket " + std::to_string(WSAGetLastError()));
-	//	update_status(disconnectedMsg);
-	//}
-	////set REUSEADDR for udp socket
-	//if (setsockopt(udp_voip_receive_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
-	//	update_server_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
-	//}
-	//if (setsockopt(udp_voip_send_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
-	//	update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
-	//}
-	/////////////////////////////////////////////////////////////////////////////////////////////////////
-	// FTP SETUP
-	//open tcp ftp socket 
-	// tcp_ftp_port_num should be dynamically decremented from req port number; currently hardcoded
-	initialize_wsa(svr_tcp_ftp_port, &client_addr_tcp_ftp);
-	open_socket(&svr_tcp_ftp_socket, SOCK_STREAM, IPPROTO_TCP);
-	/////////////////////////////////////////////////////////////////////////////////////////////////////
-	// FILE STREAM SETUP
-	//open udp socket
-	initialize_wsa(udp_port, &svr_file_stream_addr);
-	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 	// REQUEST HANDLER SETUP
 	//open tcp socket 
@@ -168,9 +136,51 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 		return;
 	}
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
-	//start_broadcast();
 
+	svr_device_ip = get_device_ip();
+	int size_needed = WideCharToMultiByte(CP_UTF8, 0, &svr_device_ip[0], (int)svr_device_ip.size(), NULL, 0, NULL, NULL);
+	std::string temp_ip_str(size_needed, 0);
+	WideCharToMultiByte(CP_UTF8, 0, &svr_device_ip[0], (int)svr_device_ip.size(), &temp_ip_str[0], size_needed, NULL, NULL);
+	svr_device_ip_str = temp_ip_str;
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// VOIP SETUP
+	//open udp send socket
+	voip_send_port_num = L"4982";
+	initialize_wsa(voip_send_port_num, &svr_udp_voip_sendto_addr);
+	open_socket(&udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
+	// setup_client_addr happens when start_voip is called after voip request is received by server
+
+	////open udp receive socket
+	voip_receive_port_num = L"4981";
+	initialize_wsa(voip_receive_port_num, &svr_udp_voip_receive_addr);
+	open_socket(&udp_voip_receive_socket, SOCK_DGRAM, IPPROTO_UDP);
+	setup_client_addr(&svr_udp_voip_receive_addr, "4981", svr_device_ip_str);
+
+	if (bind(udp_voip_receive_socket, (struct sockaddr *)&svr_udp_voip_receive_addr, sizeof(sockaddr)) == SOCKET_ERROR) {
+		update_server_msgs("Failed to bind voip udp socket " + std::to_string(WSAGetLastError()));
+		update_status(disconnectedMsg);
+	}
+	//set REUSEADDR for udp socket
+	if (setsockopt(udp_voip_receive_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_server_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
+	if (setsockopt(udp_voip_send_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
+		update_client_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
+	}
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// FTP SETUP
+	//open tcp ftp socket 
+	// tcp_ftp_port_num should be dynamically decremented from req port number; currently hardcoded
+	initialize_wsa(svr_tcp_ftp_port, &client_addr_tcp_ftp);
+	open_socket(&svr_tcp_ftp_socket, SOCK_STREAM, IPPROTO_TCP);
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// FILE STREAM SETUP
+	//open udp socket
+	initialize_wsa(udp_port, &svr_file_stream_addr);
+	open_socket(&udp_audio_socket, SOCK_DGRAM, IPPROTO_UDP);
 	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	start_broadcast();
 
 	add_new_thread_gen(svrThreads, AcceptThread);
 	update_server_msgs("Server online..");

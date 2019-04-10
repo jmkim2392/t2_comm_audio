@@ -100,15 +100,37 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	initialize_wsa_events(&ClntReqRecvEvent);
 	initialize_wsa_events(&FtpCompleted);
 	
+	// REQUEST HANDLER SETUP
+	// open tcp socket 
+	tcp_port_num = tcp_port;
+	initialize_wsa(tcp_port, &cl_addr);
+	open_socket(&cl_tcp_req_socket, SOCK_STREAM, IPPROTO_TCP);
+	setup_svr_addr(&server_addr_tcp, tcp_port, svr_ip_addr);
+	// connect to tcp request socket
+	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr_tcp, sizeof(sockaddr)) == -1)
+	{
+		update_client_msgs("Failed to connect to server " + std::to_string(WSAGetLastError()));
+		isConnected = FALSE;
+		update_status(disconnectedMsg);
+	}
+
+	start_client_request_receiver();
+	start_client_request_handler();
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
 	current_device_ip = get_device_ip();
+
+	//current_device_ip = L"192.168.0.8";
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 	// VOIP SETUP
 	//open voip send socket
 	//KTODO: remove port number hardcoding
-	//voip_send_udp_port_num = L"4981";
-	//initialize_wsa(voip_send_udp_port_num, &cl_udp_voip_sendto_addr);
-	//open_socket(&cl_udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
-	//setup_svr_addr(&cl_udp_voip_sendto_addr, voip_send_udp_port_num, svr_ip_addr);
+	voip_send_udp_port_num = L"4981";
+	initialize_wsa(voip_send_udp_port_num, &cl_udp_voip_sendto_addr);
+	open_socket(&cl_udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
+	setup_svr_addr(&cl_udp_voip_sendto_addr, voip_send_udp_port_num, svr_ip_addr);
 
 	//open voip receive socket
 	voip_receive_udp_port_num = L"4982";
@@ -149,23 +171,7 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	// This is for client receiver
 	setup_svr_addr(&server_addr_udp, udp_port, current_device_ip.c_str());
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
-	// REQUEST HANDLER SETUP
-	// open tcp socket 
-	tcp_port_num = tcp_port;
-	initialize_wsa(tcp_port, &cl_addr);
-	open_socket(&cl_tcp_req_socket, SOCK_STREAM, IPPROTO_TCP);
-	setup_svr_addr(&server_addr_tcp, tcp_port, svr_ip_addr);
-	// connect to tcp request socket
-	if (connect(cl_tcp_req_socket, (struct sockaddr *)&server_addr_tcp, sizeof(sockaddr)) == -1)
-	{
-		update_client_msgs("Failed to connect to server " + std::to_string(WSAGetLastError()));
-		isConnected = FALSE;
-		update_status(disconnectedMsg);
-	}
-
-	start_client_request_receiver();
-	start_client_request_handler();
-	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	
 
 	if (isConnected) 
 	{

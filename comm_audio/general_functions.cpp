@@ -232,6 +232,8 @@ std::wstring get_device_ip()
 	IP_ADAPTER_DNS_SERVER_ADDRESS *pDnServer = NULL;
 	IP_ADAPTER_PREFIX *pPrefix = NULL;
 
+	LPWSTR ipBuf = new WCHAR[65];
+
 	// Allocate a 15 KB buffer to start with.
 	outBufLen = WORKING_BUFFER_SIZE;
 	wchar_t ipstringbuffer[MAX_INPUT_LENGTH+1];
@@ -272,6 +274,7 @@ std::wstring get_device_ip()
 
 			if (pCurrAddresses->OperStatus == IfOperStatusUp) {
 				iRetval =WSAAddressToString(pCurrAddresses->FirstUnicastAddress->Address.lpSockaddr, (DWORD)pCurrAddresses->FirstUnicastAddress->Address.iSockaddrLength, NULL, ipstringbuffer, &ipbufferlength);
+				int temp = WSAGetLastError();
 				std::wstring ws(ipstringbuffer);
 				return ws;
 			}

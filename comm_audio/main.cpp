@@ -530,6 +530,7 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			show_dialog(IDM_VOIP_TYPE, hwnd);
 			break;
 		case IDM_MULTICAST_TYPE:
+			join_multicast_stream();
 			show_dialog(IDM_MULTICAST_TYPE, hwnd);
 			break;
 		case IDCANCEL:
