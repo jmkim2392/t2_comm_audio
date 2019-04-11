@@ -4,12 +4,21 @@
 --	PROGRAM:		Comm_Audio
 --
 --	FUNCTIONS:
+--					void initialize_waveout_device(WAVEFORMATEX, BOOL, int)
 --					void CALLBACK waveOutProc(HWAVEOUT, UINT, DWORD, DWORD, DWORD);
+--					void writeToAudioBuffer(LPSTR, int)
+--					DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter) 
+--					DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter)
 --					WAVEHDR* allocateBlocks(int size, int count);
 --					void freeBlocks(WAVEHDR* blockArray);
---					void writeToAudioBuffer(LPSTR data);
---					DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter);
---					DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter);
+--					void initialize_wavein_device(HWND hWndDlg)
+--					void startRecording()
+--					void wave_in_add_buffer(PWAVEHDR pwhdr, size_t size) 
+--					void wave_in_add_buffer()
+--					void close_win_device()
+--					void setup_svr_multicast(HANDLE svrEvent) 
+--					void change_device_volume(DWORD volume) 
+--					void terminateAudioApi() 
 --
 --	DATE:			March 31, 2019
 --
@@ -23,7 +32,8 @@
 --------------------------------------------------------------------------------------*/
 #include "audio_api.h"
 
-HWAVEOUT hWaveOut; /* device handle */
+// WaveOut
+HWAVEOUT hWaveOut;
 WAVEFORMATEX wfx;
 WAVEFORMATEX wfx_win;
 static CRITICAL_SECTION waveCriticalSection;
@@ -50,9 +60,7 @@ std::vector<HANDLE> audioThreads;
 
 HANDLE BufferOpenToWriteEvent;
 
-
-///////////////////////////////////////////////////
-// WaveIN
+// WaveIn
 HWAVEIN hWaveIn;
 BYTE *win_buf1;
 BYTE *win_buf2;
@@ -71,8 +79,6 @@ WAVEHDR whdr6;
 WAVEHDR whdr7;
 WAVEHDR whdr8;
 BOOL blReset = FALSE;
-//int WIN_SRATE = 44100;
-int WIN_SRATE = 11025;
 MMRESULT win_mret;
 
 
@@ -85,25 +91,24 @@ MMRESULT win_mret;
 --
 --	DESIGNER:		Keishi Asai, Jason Kim
 --
---	PROGRAMMER:		Keishi Asai, Jason Kim
+--	PROGRAMMER:		Keishi Asai, Jason Kim	
 --
---	INTERFACE:		initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag)
+--	INTERFACE:		initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag, int blockSize)
+--								WAVEFORMATEX wfxparam - wave header format for initialization
+--								BOOL multicastFlag - flag to distinguish the feature is multicast or not
+--								int blockSize - audio block size
 --
 --	RETURNS:		void
 --
 --	NOTES:
---	Call this function to setup the audio device and audio playing feature
+--	Call this function to setup the waveout device and the audio playing feature
 --------------------------------------------------------------------------------------*/
 void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag, int blockSize)
 {
-	// KTODO: Probably inintialize wave in device here too.
 	DWORD ThreadId;
 
 	multicast = multicastFlag;
 
-	/*
-	 * initialise the module variables
-	 */
 	waveBlocks = allocateBlocks(blockSize, BLOCK_COUNT);
 	waveFreeBlockCount = BLOCK_COUNT;
 	waveHeadBlock = 0;
@@ -112,23 +117,15 @@ void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag, int bl
 
 	initialize_events_gen(&ReadyToPlayEvent, L"AudioPlayReady");
 	initialize_events_gen(&BufferOpenToWriteEvent, L"BufferReadyToWrite");
-	/*
-	 * set up the WAVEFORMATEX structure.
-	 */
-	wfx.nSamplesPerSec = wfxparam.nSamplesPerSec; /* sample rate */
-	wfx.wBitsPerSample = wfxparam.wBitsPerSample; /* sample size */
-	wfx.nChannels = wfxparam.nChannels; /* channels*/
-	wfx.cbSize = wfxparam.cbSize; /* size of _extra_ info */
+
+	wfx.nSamplesPerSec = wfxparam.nSamplesPerSec;
+	wfx.wBitsPerSample = wfxparam.wBitsPerSample;
+	wfx.nChannels = wfxparam.nChannels;
+	wfx.cbSize = wfxparam.cbSize;
 	wfx.wFormatTag = wfxparam.wFormatTag;
 	wfx.nBlockAlign = wfxparam.nBlockAlign;
 	wfx.nAvgBytesPerSec = wfx.nAvgBytesPerSec;
 
-	/*
-	 * try to open the default wave device. WAVE_MAPPER is
-	 * a constant defined in mmsystem.h, it always points to the
-	 * default wave device on the system (some people have 2 or
-	 * more sound cards).
-	 */
 	if (waveOutOpen(
 		&hWaveOut,
 		WAVE_MAPPER,
@@ -137,7 +134,6 @@ void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag, int bl
 		(DWORD_PTR)&waveFreeBlockCount,
 		CALLBACK_FUNCTION
 	) != MMSYSERR_NOERROR) {
-		//fprintf(stderr, "%s: unable to open wave mapper device\n", argv[0]);
 		ExitProcess(1);
 	}
 
@@ -174,6 +170,11 @@ void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag, int bl
 --	PROGRAMMER:		Keishi Asai, Jason Kim
 --
 --	INTERFACE:		static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
+--									HWAVEOUT hWaveOut - waveout device handler
+--									UINT uMsg - message for the callback
+--									DWORD dwInstance - user-instance data specified with waveOutOpen
+--									DWORD dwParam1 - message parameter
+--									DWORD dwParam2 - message parameter
 --
 --	RETURNS:		void
 --
@@ -183,14 +184,9 @@ void initialize_waveout_device(WAVEFORMATEX wfxparam, BOOL multicastFlag, int bl
 static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
 {
 	/*
-	 * pointer to free block counter
-	 */
-	int* freeBlockCounter = (int*)dwInstance;
-	/*
 	 * ignore calls that occur due to openining and closing the
 	 * device.
 	 */
-
 	if (uMsg != WOM_DONE) {
 		return;
 	}
@@ -206,9 +202,6 @@ static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance,
 		TriggerEvent(SvrSendNextAudioEvent);
 	}
 
-	/*if (multicast && (waveFreeBlockCount >= BLOCK_COUNT)) {
-		TriggerEvent(bufferReadyEvent);
-	}*/
 	else if (numFreed >= MAX_NUM_STREAM_PACKETS && waveFreeBlockCount >= MAX_NUM_STREAM_PACKETS) 
 	{
 		numFreed = 1;
@@ -227,13 +220,15 @@ static void CALLBACK waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD dwInstance,
 --
 --	PROGRAMMER:		Keishi Asai, Jason Kim
 --
---	INTERFACE:		void writeToAudioBuffer(LPSTR data)
+--	INTERFACE:		void writeToAudioBuffer(LPSTR data, int blockSize)
 --									LPSTR data - the audio data to write to block
+--									int blockSize - the size of audio block
 --
 --	RETURNS:		void
 --
 --	NOTES:
---	Call this function to write data into the audio circular buffer and begin playing audio
+--	Call this function to write data into the audio circular buffer and make
+--  the audio circular buffer status ready to read
 --------------------------------------------------------------------------------------*/
 void writeToAudioBuffer(LPSTR data, int blockSize)
 {
@@ -252,15 +247,10 @@ void writeToAudioBuffer(LPSTR data, int blockSize)
 	waveFreeBlockCount--;
 	LeaveCriticalSection(&waveCriticalSection);
 	waveHeadBlock++;
-	/*if (multicast && (waveHeadBlock >= BLOCK_COUNT)) {
-		ResetEvent(bufferReadyEvent);
-	}*/
+
 	waveHeadBlock %= BLOCK_COUNT;
 	head->dwUser = 0;
 	TriggerEvent(ReadyToPlayEvent);
-	/*if (multicast) {
-		WaitForSingleObject(bufferReadyEvent, INFINITE);
-	}*/
 }
 
 /*-------------------------------------------------------------------------------------
@@ -274,8 +264,8 @@ void writeToAudioBuffer(LPSTR data, int blockSize)
 --
 --	PROGRAMMER:		Keishi Asai, Jason Kim
 --
---	INTERFACE:		DWORD WINAPI writeToAudioBuffer(LPVOID lpParameter)
---									LPSTR data - the audio data to write to block
+--	INTERFACE:		DWORD WINAPI playAudioThreadFunc(LPVOID lpParameter)
+--									LPVOID lpParameter - event to listen 
 --
 --	RETURNS:		DWORD
 --
@@ -369,8 +359,9 @@ WAVEHDR* allocateBlocks(int size, int count)
 	int i;
 	WAVEHDR* blocks;
 	DWORD totalBufferSize = (size + sizeof(WAVEHDR)) * count;
+
 	/*
-	 * allocate memory for the entire set in one go
+	 * allocate memory for the entire circular buffer
 	 */
 	if ((buffer = (unsigned char*)HeapAlloc(
 		GetProcessHeap(),
@@ -380,14 +371,14 @@ WAVEHDR* allocateBlocks(int size, int count)
 		fprintf(stderr, "Memory allocation error\n");
 		ExitProcess(1);
 	}
+
 	/*
-	 * and set up the pointers to each bit
+	 *  set up the pointers to each bit
 	 */
 	blocks = (WAVEHDR*)buffer;
 	buffer += sizeof(WAVEHDR) * count;
 	for (i = 0; i < count; i++) {
 		blocks[i].dwBufferLength = size;
-		// May break by casting
 		blocks[i].lpData = (LPSTR)buffer;
 		buffer += size;
 	}
@@ -415,19 +406,30 @@ WAVEHDR* allocateBlocks(int size, int count)
 --------------------------------------------------------------------------------------*/
 void freeBlocks(WAVEHDR* blockArray)
 {
-	/*
-	 * and this is why allocateBlocks works the way it does
-	 */
 	HeapFree(GetProcessHeap(), 0, blockArray);
 }
 
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-// Wave In
-
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	initialize_wavein_device
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai
+--
+--	PROGRAMMER:		Keishi Asai
+--
+--	INTERFACE:		initialize_waveout_device(HWND hWndDlg)
+--								HWND hWndDlg - the window handle listens to wavein device events
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to setup the wavein device
+--------------------------------------------------------------------------------------*/
 void initialize_wavein_device(HWND hWndDlg)
 {
-	// KTODO: if this works and have time, change it to array or sth
 	win_buf1 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
 	win_buf2 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
 	win_buf3 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
@@ -437,11 +439,10 @@ void initialize_wavein_device(HWND hWndDlg)
 	win_buf7 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
 	win_buf8 = (BYTE*)malloc(VOIP_BLOCK_SIZE);
 
-	wfx_win.nSamplesPerSec = VOIP_BLOCK_SIZE; /* sample rate */
-	//wfx_win.wBitsPerSample = 16; /* sample size */
-	wfx_win.wBitsPerSample = 8; /* sample size */
-	wfx_win.nChannels = 2; /* channels*/
-	wfx_win.cbSize = 0; /* size of _extra_ info */
+	wfx_win.nSamplesPerSec = VOIP_BLOCK_SIZE;
+	wfx_win.wBitsPerSample = 8;
+	wfx_win.nChannels = 2;
+	wfx_win.cbSize = 0;
 	wfx_win.wFormatTag = WAVE_FORMAT_PCM;
 	wfx_win.nBlockAlign = (wfx_win.wBitsPerSample * wfx_win.nChannels) >> 3;
 	wfx_win.nAvgBytesPerSec = wfx_win.nBlockAlign * wfx_win.nSamplesPerSec;
@@ -518,59 +519,84 @@ void initialize_wavein_device(HWND hWndDlg)
 	whdr8.dwUser = 0;
 	whdr8.reserved = 0;
 
-
-	//win_mret = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx_win, (DWORD)parent_hwnd, 0, CALLBACK_WINDOW);
 	win_mret = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx_win, (DWORD)hWndDlg, 0, CALLBACK_WINDOW);
-	//win_mret = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx_win, (DWORD_PTR)waveInProc, 0, CALLBACK_FUNCTION);
+
 	if (win_mret == MMSYSERR_NOERROR) {
-		OutputDebugStringA("good");
-		// From WIM_OPEN
-
 		win_mret = waveInPrepareHeader(hWaveIn, &whdr1, sizeof(WAVEHDR));
-		if (win_mret == MMSYSERR_NOERROR) {
-			OutputDebugStringA("good");
-		}
-		else {
-			OutputDebugStringA("bad");
-		}
 		win_mret = waveInPrepareHeader(hWaveIn, &whdr2, sizeof(WAVEHDR));
-		if (win_mret == MMSYSERR_NOERROR) {
-			OutputDebugStringA("good");
-		}
-		else {
-			OutputDebugStringA("bad");
-		}
 	}
-
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	startRecording
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai
+--
+--	PROGRAMMER:		Keishi Asai
+--
+--	INTERFACE:		startRecording()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	An interface function to start recording
+--------------------------------------------------------------------------------------*/
 void startRecording()
 {
 	waveInStart(hWaveIn);
-	OutputDebugStringA("start wave in\n");
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	wave_in_add_buffer
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai
+--
+--	PROGRAMMER:		Keishi Asai
+--
+--	INTERFACE:		void wave_in_add_buffer(PWAVEHDR pwhdr, size_t size) 
+--							PWAVEHDR pwhdr - a pointer to wavein block header
+--							size_t size - the size of block header
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	An interface function to push back the processed audio block to the wavein device queue
+--------------------------------------------------------------------------------------*/
 void wave_in_add_buffer(PWAVEHDR pwhdr, size_t size) 
 {
 	waveInAddBuffer(hWaveIn, pwhdr, size);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	wave_in_add_buffer
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai
+--
+--	PROGRAMMER:		Keishi Asai
+--
+--	INTERFACE:		void wave_in_add_buffer() 
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to add all audio buffers to the wavein device queue
+--------------------------------------------------------------------------------------*/
 void wave_in_add_buffer()
 {
 	win_mret = waveInAddBuffer(hWaveIn, &whdr1, sizeof(WAVEHDR));
-	if (win_mret == MMSYSERR_NOERROR) {
-		OutputDebugStringA("good");
-	}
-	else {
-		OutputDebugStringA("bad add");
-	}
 	win_mret = waveInAddBuffer(hWaveIn, &whdr2, sizeof(WAVEHDR));
-	if (win_mret == MMSYSERR_NOERROR) {
-		OutputDebugStringA("ccc");
-	}
-	else {
-		OutputDebugStringA("bad add2");
-	}
 	win_mret = waveInAddBuffer(hWaveIn, &whdr3, sizeof(WAVEHDR));
 	win_mret = waveInAddBuffer(hWaveIn, &whdr4, sizeof(WAVEHDR));
 	win_mret = waveInAddBuffer(hWaveIn, &whdr5, sizeof(WAVEHDR));
@@ -579,8 +605,24 @@ void wave_in_add_buffer()
 	win_mret = waveInAddBuffer(hWaveIn, &whdr8, sizeof(WAVEHDR));
 }
 
-
-
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	close_win_device
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Keishi Asai
+--
+--	PROGRAMMER:		Keishi Asai
+--
+--	INTERFACE:		void close_win_device() 
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	An interface function to close the wavein device
+--------------------------------------------------------------------------------------*/
 void close_win_device()
 {
 	waveInUnprepareHeader(hWaveIn, &whdr1, sizeof(WAVEHDR));
@@ -601,11 +643,47 @@ void close_win_device()
 	free(win_buf8);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	setup_svr_multicast
+--
+--	DATE:			April 10, 2019
+--
+--	REVISIONS:		April 10, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void setup_svr_multicast() 
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Setup an event to control packet flow for multicast
+--------------------------------------------------------------------------------------*/
 void setup_svr_multicast(HANDLE svrEvent) 
 {
 	SvrSendNextAudioEvent = svrEvent;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	change_device_volume
+--
+--	DATE:			April 10, 2019
+--
+--	REVISIONS:		April 10, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void change_device_volume() 
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	An interface function to change the waveout volume
+--------------------------------------------------------------------------------------*/
 void change_device_volume(DWORD volume) 
 {
 	waveOutSetVolume(hWaveOut, volume);
@@ -628,7 +706,6 @@ void change_device_volume(DWORD volume)
 --
 --	NOTES:
 --	Call this function to terminate the audio api
---	TODO: may need to implement later, for now nothing
 --------------------------------------------------------------------------------------*/
 void terminateAudioApi() 
 {
