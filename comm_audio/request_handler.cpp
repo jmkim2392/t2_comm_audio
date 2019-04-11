@@ -323,13 +323,13 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 						//start_ftp(parsedPacket.message, "192.168.0.12");
 						break;
 					case AUDIO_STREAM_REQUEST_TYPE:
-						stop_broadcast();
 						parseRequest(&parsedPacket, request);
 						update_server_msgs("Received file stream request for " + parsedPacket.message);
 						start_file_stream(parsedPacket.message, parsedPacket.port_num, parsedPacket.ip_addr);
 						break;
 					case VOIP_REQUEST_TYPE:
 						// voip request
+						stop_broadcast();
 						parseRequest(&parsedPacket, request);
 						start_voip(parsedPacket.port_num, parsedPacket.ip_addr);
 						break;

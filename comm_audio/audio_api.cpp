@@ -716,6 +716,7 @@ void terminateAudioApi()
 		isPlayingAudio = FALSE;
 		TriggerEvent(ReadyToPlayEvent);
 		TriggerEvent(BufferOpenToWriteEvent);
+		waveOutReset(hWaveOut);
 		freeBlocks(waveBlocks);
 	}
 }
