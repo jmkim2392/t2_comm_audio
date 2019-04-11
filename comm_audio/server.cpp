@@ -11,6 +11,7 @@
 --					DWORD WINAPI connection_monitor(LPVOID tcp_socket);
 --					void start_ftp(std::string filename);
 --					void start_file_stream(std::string filename, std::string client_port_num, std::string client_ip_addr);
+--					void start_voip(std::string client_port_num, std::string client_ip_addr);
 --					void terminate_server();
 --					void update_server_msgs(std::string message);
 --					void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr);
