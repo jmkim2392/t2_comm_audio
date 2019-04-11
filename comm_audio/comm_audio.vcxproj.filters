@@ -1,0 +1,119 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="winsock_handler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="server.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="request_handler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="client.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="general_functions.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="ftp_handler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="file_streaming_handler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="audio_api.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="audio_api.h">
+      <Filter>Headers</Filter>
+    </ClCompile>
+    <ClCompile Include="voip_handler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="multicast.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="constants.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="circular_buffer.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="main.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="winsock_handler.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="request_handler.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="server.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="client.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="general_functions.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ftp_handler.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="gui_resource.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="file_streaming_handler.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="voip_handler.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="multicast.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Headers">
+      <UniqueIdentifier>{5e554db6-d655-4dcc-adf4-862c0f24135c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{347bf2db-62d3-4425-9746-acbeee3d83fa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource">
+      <UniqueIdentifier>{1ef42646-0fb9-4649-9323-347379351836}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="menu.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="ServerDialogBox.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="ClientDialogBox.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="ServerControlPanel.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="ClientControlPanel.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FileReqDialogBox.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="StreamingDialogBox.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>
