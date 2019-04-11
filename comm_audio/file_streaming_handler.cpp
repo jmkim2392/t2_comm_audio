@@ -421,6 +421,24 @@ void CALLBACK FileStream_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAO
 	return;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	terminateFileStream
+--
+--	DATE:			March 31, 2019
+--
+--	REVISIONS:		March 31, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void terminateFileStream()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to begin terminating file stream and cleanup
+--------------------------------------------------------------------------------------*/
 void terminateFileStream()
 {
 	if (isReceivingFileStream) 
