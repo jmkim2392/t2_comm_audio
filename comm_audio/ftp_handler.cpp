@@ -224,6 +224,24 @@ void start_sending_file()
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	send_file_not_found_packet
+--
+--	DATE:			March 24, 2019
+--
+--	REVISIONS:		March 24, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void send_file_not_found_packet()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to send a file not found packet to the client
+--------------------------------------------------------------------------------------*/
 void send_file_not_found_packet()
 {
 	memcpy(FtpSocketInfo->DataBuf.buf, file_not_found_packet, 1);
@@ -374,12 +392,9 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 			//FTP COMPLETE PROCESS
 			finalize_ftp("File transfer completed.");
 		}
-		update_client_msgs("Closing ftp socket ");
-
 		isReceivingFile = FALSE;
 		TriggerWSAEvent(SI->CompletedEvent);
 		WSAResetEvent(SI->CompletedEvent);
-		//close_socket(&SI->Socket);
 		return;
 	}
 
@@ -393,7 +408,7 @@ void CALLBACK FTP_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERL
 		SI->DataBuf.len = FTP_PACKET_SIZE;
 		SI->BytesRECV = 0;
 	}
-	else if (BytesTransferred > 0)
+	else if (SI->BytesRECV > 0)
 	{
 		SI->DataBuf.len = FTP_PACKET_SIZE - SI->BytesRECV;
 	}
@@ -445,14 +460,8 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPP
 		update_server_msgs("I/O operation failed with error " + Error);
 	}
 
-	if (BytesTransferred == 0)
-	{
-		update_server_msgs("Closing ftp socket");
-	}
-
 	if (Error != 0 || BytesTransferred == 1)
 	{
-		//close_socket(&SI->Socket);
 		GlobalFree(SI);
 		return;
 	}
@@ -467,8 +476,7 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPP
 		memcpy(SI->DataBuf.buf, buf, bytes_read);
 		SI->DataBuf.len = (ULONG)bytes_read;
 
-		if (WSASend(SI->Socket, &(SI->DataBuf), 1, &SendBytes, 0,
-			&(SI->Overlapped), FTP_SendRoutine) == SOCKET_ERROR)
+		if (WSASend(SI->Socket, &(SI->DataBuf), 1, &SendBytes, 0, &(SI->Overlapped), FTP_SendRoutine) == SOCKET_ERROR)
 		{
 			if (WSAGetLastError() != WSA_IO_PENDING)
 			{
@@ -482,8 +490,7 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPP
 		SI->DataBuf.buf = ftp_complete_packet;
 		SI->DataBuf.len = 1;
 		update_server_msgs("File transfer completed");
-		if (WSASend(SI->Socket, &(SI->DataBuf), 1, &SendBytes, 0,
-			&(SI->Overlapped), NULL) == SOCKET_ERROR)
+		if (WSASend(SI->Socket, &(SI->DataBuf), 1, &SendBytes, 0, &(SI->Overlapped), NULL) == SOCKET_ERROR)
 		{
 			if (WSAGetLastError() != WSA_IO_PENDING)
 			{
@@ -494,6 +501,24 @@ void CALLBACK FTP_SendRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPP
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	terminateFtpHandler
+--
+--	DATE:			March 24, 2019
+--
+--	REVISIONS:		March 24, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void terminateFtpHandler()
+--										
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to start terminating fpt and free its resources
+--------------------------------------------------------------------------------------*/
 void terminateFtpHandler()
 {
 	if (isReceivingFile)
