@@ -18,7 +18,7 @@
 --
 --	DESIGNER:		Dasha Strigoun
 --
---	PROGRAMMER:		Dasha Strigoun
+--	PROGRAMMER:		Dasha Strigoun, Keishi Asai, Jason Kim
 --
 --
 --------------------------------------------------------------------------------------*/
@@ -111,30 +111,31 @@ void initialize_voip_receive(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipRec
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	initialize_voip_send
 --
---	DATE:			April 3, 2019
+--	DATE:			April 8, 2019
 --
---	REVISIONS:		April 3, 2019
+--	REVISIONS:		April 8, 2019
 --
 --	DESIGNER:		Dasha Strigoun
 --
---	PROGRAMMER:		Dasha Strigoun
+--	PROGRAMMER:		Dasha Strigoun, Keishi Asai
 --
---	INTERFACE:		void initialize_voip_receive(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipSendCompletedEvent, HANDLE eventTrigger)
+--	INTERFACE:		void initialize_voip_send(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipSendCompletedEvent, HANDLE eventTrigger)
+--										SOCKET* socket - socket descriptor
+--										SOCKADDR_IN* addr - internet address structure
+--										WSAEVENT fileStreamCompletedEvent - WSAEvent completed to use as trigger
+--										HANDLE eventTrigger - event handle
 --
 --	RETURNS:		void
 --
 --	NOTES:
---	initializes sending sockets for VOIP
+--	Function to initialize the socket information for VOIP sending
 --------------------------------------------------------------------------------------*/
 void initialize_voip_send(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipSendCompletedEvent, HANDLE eventTrigger)
 {
-	//file_stream_buf = (char*)malloc(AUDIO_PACKET_SIZE);
-
 	// Create a socket information structure
 	if ((VoipSendSocketInfo = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
 		sizeof(SOCKET_INFORMATION))) == NULL)
 	{
-		//terminate_connection();
 		return;
 	}
 
@@ -148,7 +149,6 @@ void initialize_voip_send(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipSendCo
 		VoipSendSocketInfo->Sock_addr = *addr;
 	}
 
-	// KTODO: remove buf.len hardcode. this same as audio send buffer block size;
 	VoipSendSocketInfo->DataBuf.len = VOIP_BLOCK_SIZE;
 	VoipSendSocketInfo->DataBuf.buf = VoipSendSocketInfo->AUDIO_BUFFER;
 	if (voipSendCompletedEvent != NULL)
@@ -308,22 +308,22 @@ void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVER
 --	DATE:			April 3, 2019
 --
 --	REVISIONS:		April 3, 2019
+--					April 8, 2019 - JK - Change the send method from sendto() to WSASendTo()
 --
---	DESIGNER:		Keishi Asai
+--	DESIGNER:		Dasha Strigoun
 --
---	PROGRAMMER:		Keishi Asai
+--	PROGRAMMER:		Dasha Strigoun, Keishi Asai, Jason Kim
 --
 --	INTERFACE:		void send_audio_block(PWAVEHDR pwhdr)
+--										PWAVEHDR pwhdr
 --
 --	RETURNS:		void
 --
 --	NOTES:
---	Call this to send audio buffer through sending socket
+--	An interface function to send the fulfilled recording audio block
 --------------------------------------------------------------------------------------*/
 void send_audio_block(PWAVEHDR pwhdr)
 {
-	//KTODO: Remove hardcode byte for data_size, now this hasn't been used. may be used for error check
-	int data_size = 44100;
 	DWORD SendBytes_Voip;
 
 	size_t n;

@@ -144,7 +144,7 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 		return;
 	}
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
-
+	// GET DEVICE IP
 	svr_device_ip = get_device_ip();
 	int size_needed = WideCharToMultiByte(CP_UTF8, 0, &svr_device_ip[0], (int)svr_device_ip.size(), NULL, 0, NULL, NULL);
 	std::string temp_ip_str(size_needed, 0);
@@ -196,6 +196,27 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	update_status(connectedMsg);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	setup_client_addr
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr)
+--									SOCKADDR_IN* client_addr - addr to setup
+--									std::string client_port - port number of the addr
+--									std::string client_ip_addr - ip addr of the addr
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to setup the sockaddr_in used for socket operations
+--------------------------------------------------------------------------------------*/
 void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr)
 {
 	int port;
@@ -203,8 +224,6 @@ void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::s
 	char* ip = (char *)malloc(MAX_INPUT_LENGTH);
 	struct hostent	*hp;
 
-	//wcstombs_s(&i, port_num, MAX_INPUT_LENGTH, client_port, MAX_INPUT_LENGTH);
-	//wcstombs_s(&i, ip, MAX_INPUT_LENGTH, client_ip_addr, MAX_INPUT_LENGTH);
 	port_num = (char*)client_port.c_str();
 	ip = (char*)client_ip_addr.c_str();
 
@@ -297,6 +316,7 @@ void start_request_handler()
 --	DATE:			April 5, 2019
 --
 --	REVISIONS:		April 5, 2019
+--					April 10, 2019 - JK - added new multicast sending method for improved synchronization
 --
 --	DESIGNER:		Phat Le
 --
@@ -377,8 +397,6 @@ void start_broadcast()
 
 	initialize_waveout_device(svr_wfx_multicast_play, 1, AUDIO_BLOCK_SIZE);
 	change_device_volume((DWORD)MAKELONG(0x0000, 0x0000));
-	
-	
 
 	if ((BroadCastThread = CreateThread(NULL, 0, broadcast_data, (LPVOID)&bi, 0, &ThreadId)) == NULL) {
 		printf("CreateThread failed with error %d\n", GetLastError());
@@ -462,7 +480,6 @@ void start_ftp(std::string filename, std::string ip_addr)
 
 	ip[ip_addr.length()] = 0;
 
-	//setup_svr_addr(&client_addr_tcp_ftp, svr_tcp_ftp_port, ip);
 	setup_client_addr(&client_addr_tcp_ftp, svr_tcp_ftp_port_str, ip_addr);
 
 	if (!ftpSocketReady)
@@ -511,18 +528,6 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 
 	setup_client_addr(&svr_file_stream_addr, client_port_num, client_ip_addr);
 
-	// TODO: May or may not need to bind to socket to receive from client when VOIP connected, 
-	//	 but when testing with localhost, binding to same address causes issues even with SO_REUSEADDR
-	//	SO_REUSEADDR implementation may be flawed or can simply open a new port+socket to handle this in VOIP
-
-	/*if (bind(udp_audio_socket, (struct sockaddr *)&client_addr_udp, sizeof(sockaddr)) == SOCKET_ERROR) {
-		update_status(disconnectedMsg);
-		update_server_msgs("Failed binding to udp socket" + std::to_string(WSAGetLastError()));
-	}
-	if (setsockopt(udp_audio_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&bOptVal, bOptLen) == SOCKET_ERROR) {
-		update_server_msgs("Failed to set reuseaddr with error " + std::to_string(WSAGetLastError()));
-	}*/
-
 	initialize_file_stream(&udp_audio_socket, &svr_file_stream_addr, StreamCompletedEvent, ResumeSendEvent);
 
 	if (open_file_to_stream(filename) == 0) {
@@ -559,8 +564,6 @@ void start_file_stream(std::string filename, std::string client_port_num, std::s
 --------------------------------------------------------------------------------------*/
 void start_voip(std::string client_port_num, std::string client_ip_addr)
 {
-	//start_Server_Stream();
-
 	LPCWSTR receiving_port = L"4981";
 	LPCWSTR sending_port = L"4982";
 	LPCWSTR ip_addr = L"127.0.0.1";
@@ -580,13 +583,11 @@ void start_voip(std::string client_port_num, std::string client_ip_addr)
 
 	initialize_waveout_device(wfx_voip_play, 0, VOIP_BLOCK_SIZE);
 
-
 	// struct with VoipCompleted event and port
 	LPVOIP_INFO receiving_thread_params;
 	if ((receiving_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
 		sizeof(VOIP_INFO))) == NULL)
 	{
-		//terminate_connection();
 		return;
 	}
 	receiving_thread_params->CompletedEvent = VoipCompleted;
@@ -745,7 +746,7 @@ std::vector<std::string> get_file_list()
 --	RETURNS:		void
 --
 --	NOTES:
---	TODO implement the rest of server cleanup functions to safely terminate program
+--	Call this function to start terminating the server connection
 --------------------------------------------------------------------------------------*/
 void terminate_server()
 {
