@@ -14,10 +14,6 @@ DWORD WINAPI bufReadySignalingThreadFunc(LPVOID lpParameter);
 
 void initialize_wavein_device(HWND);
 void startRecording();
-static void CALLBACK waveInProc(HWAVEIN hWaveIn, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD lp);
-
-DWORD WINAPI recordAudioThreadFunc(LPVOID lpParameter);
-LPSTR getRecordedAudioBuffer();
 void wave_in_add_buffer(PWAVEHDR pwhdr, size_t size);
 void wave_in_add_buffer();
 void close_win_device();
