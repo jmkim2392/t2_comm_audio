@@ -98,6 +98,24 @@ void open_socket(SOCKET* socket, int socket_type, int protocol_type)
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	close_socket
+--
+--	DATE:			March 8, 2019
+--
+--	REVISIONS:		March 8, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void close_socket(SOCKET* socket)
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to close a socket
+--------------------------------------------------------------------------------------*/
 void close_socket(SOCKET* socket)
 {
 	closesocket(*socket);
