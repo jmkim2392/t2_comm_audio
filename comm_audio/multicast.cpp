@@ -74,6 +74,10 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 
 		while (!feof(fp))
 		{
+			if (!broadcasting)
+			{
+				break;
+			}
 			memset(file_stream_buf, 0, AUDIO_PACKET_SIZE);
 			bytes_read = fread(file_stream_buf, 1, AUDIO_PACKET_SIZE, fp);
 			memcpy(bi.DataBuf.buf, file_stream_buf, bytes_read);
@@ -120,6 +124,8 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 --------------------------------------------------------------------------------------*/
 void stop_broadcast() {
 	broadcasting = false;
+	change_device_volume((DWORD)MAKELONG(0xFFFF, 0xFFFF));
+	terminateAudioApi();
 }
 
 /*-------------------------------------------------------------------------------------
