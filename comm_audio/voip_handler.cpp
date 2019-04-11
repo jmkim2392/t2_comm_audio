@@ -4,12 +4,13 @@
 --	PROGRAM:		Comm_Audio
 --
 --	FUNCTIONS:
---					DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter)
---					void start_receiving_voip(LPCWSTR udp_port)
---					void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags)
---					DWORD WINAPI SenderThreadFunc(LPVOID lpParameter)
---					
---					
+--					DWORD WINAPI ReceiverThreadFunc(LPVOID lpParameter);
+--					void start_receiving_voip();
+--					void CALLBACK Voip_ReceiveRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags);
+--					void send_audio_block(PWAVEHDR whdr);
+--					void initialize_voip(SOCKET* receive_socket, SOCKET* send_socket, SOCKADDR_IN* addr, WSAEVENT voipSendCompletedEvent, HANDLE eventTrigger);
+--					void initialize_voip_receive(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipReceiveCompletedEvent, HANDLE eventTrigger);
+--					void initialize_voip_send(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipSendCompletedEvent, HANDLE eventTrigger);			
 --
 --	DATE:			April 3, 2019
 --
@@ -32,12 +33,48 @@ LPSOCKET_INFORMATION VoipSendSocketInfo;
 LPSOCKET_INFORMATION VoipReceiveSocketInfo;
 
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	initialize_voip
+--
+--	DATE:			April 3, 2019
+--
+--	REVISIONS:		April 3, 2019
+--
+--	DESIGNER:		Dasha Strigoun
+--
+--	PROGRAMMER:		Dasha Strigoun
+--
+--	INTERFACE:		void initialize_voip(SOCKET* receive_socket, SOCKET* send_socket, SOCKADDR_IN* addr, WSAEVENT voipSendCompletedEvent, HANDLE eventTrigger)
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	initializes sending and receiving sockets for VOIP
+--------------------------------------------------------------------------------------*/
 void initialize_voip(SOCKET* receive_socket, SOCKET* send_socket, SOCKADDR_IN* addr, WSAEVENT voipSendCompletedEvent, HANDLE eventTrigger)
 {
 	initialize_voip_receive(receive_socket, NULL, NULL, NULL);
 	initialize_voip_send(send_socket, addr, voipSendCompletedEvent, eventTrigger);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	initialize_voip_receive
+--
+--	DATE:			April 3, 2019
+--
+--	REVISIONS:		April 3, 2019
+--
+--	DESIGNER:		Dasha Strigoun
+--
+--	PROGRAMMER:		Dasha Strigoun
+--
+--	INTERFACE:		void initialize_voip_receive(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipSendCompletedEvent, HANDLE eventTrigger)
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	initializes receiving sockets for VOIP
+--------------------------------------------------------------------------------------*/
 void initialize_voip_receive(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipReceiveCompletedEvent, HANDLE eventTrigger)
 {
 	// Create a socket information structure
@@ -123,10 +160,6 @@ void initialize_voip_send(SOCKET* socket, SOCKADDR_IN* addr, WSAEVENT voipSendCo
 		VoipSendSocketInfo->EventTrigger = eventTrigger;
 	}
 }
-
-
-
-
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	ReceiverThreadFunc
