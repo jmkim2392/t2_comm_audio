@@ -11,6 +11,7 @@
 --					DWORD WINAPI connection_monitor(LPVOID tcp_socket);
 --					void start_ftp(std::string filename);
 --					void start_file_stream(std::string filename, std::string client_port_num, std::string client_ip_addr);
+--					void start_voip(std::string client_port_num, std::string client_ip_addr);
 --					void terminate_server();
 --					void update_server_msgs(std::string message);
 --					void setup_client_addr(SOCKADDR_IN* client_addr, std::string client_port, std::string client_ip_addr);
@@ -601,30 +602,6 @@ void start_voip(std::string client_port_num, std::string client_ip_addr)
 	}
 
 	startRecording();
-
-
-	// struct with VoipCompleted event and port
-	//LPVOIP_INFO sending_thread_params;
-	//if ((sending_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
-	//	sizeof(VOIP_INFO))) == NULL)
-	//{
-	//	//terminate_connection();
-	//	return;
-	//}
-	//sending_thread_params->CompletedEvent = VoipCompleted;
-	//sending_thread_params->Ip_addr = ip_addr;
-	//sending_thread_params->Udp_Port = sending_port;
-
-	//HANDLE SenderThread;
-	//DWORD SenderThreadId;
-	//if ((SenderThread = CreateThread(NULL, 0, SenderThreadFunc, (LPVOID)sending_thread_params, 0, &SenderThreadId)) == NULL)
-	//{
-	//	update_client_msgs("Failed creating Voip Sending Thread with error " + std::to_string(GetLastError()));
-	//	return;
-	//}
-
-	//add_new_thread_gen(serverThreads, ReceiverThreadId, svr_threadCount++);
-	//add_new_thread_gen(serverThreads, SenderThreadId, svr_threadCount++);
 }
 
 /*-------------------------------------------------------------------------------------
