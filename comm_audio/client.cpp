@@ -530,7 +530,6 @@ void request_voip(HWND voipHwndDlg)
 
 	initialize_waveout_device(wfx_voip_play, 0, VOIP_BLOCK_SIZE);
 
-
 	// struct with VoipCompleted event and port
 	LPVOIP_INFO receiving_thread_params;
 	if ((receiving_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,

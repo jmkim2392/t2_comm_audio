@@ -17,9 +17,9 @@
 --
 --	REVISIONS:		March 8, 2019
 --
---	DESIGNER:		Jason Kim
+--	DESIGNER:		Jason Kim, Dasha Strigoun, Keishi Asai
 --
---	PROGRAMMER:		Jason Kim
+--	PROGRAMMER:		Jason Kim, Dasha Strigoun, Keishi Asai
 --
 --	NOTES:
 --	Temporary Window GUI for network testing/dev. To be updated
@@ -108,36 +108,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		break;
-	//case WIM_OPEN:
-	//	MMRESULT win_mret2;
-	//	OutputDebugStringA("WIMOPEN\n");
-	//	wave_in_add_buffer();
-
-	//	break;
-	//case WIM_DATA:
-	//	// post message to process this input block received
-	//	// NOTE: callback cannot call other waveform functions
-	//	//....................................................
-
-	//	//PostMessage((HWND)dwInstance, USR_INBLOCK, 0, dwParam1);
-	//	OutputDebugStringA("data");
-	//	char sbuf[512];
-	//	sprintf_s(sbuf, "%d\n", ((PWAVEHDR)lParam)->dwBytesRecorded);
-	//	update_client_msgs(sbuf);
-
-	//	//if (blReset) {
-	//		//waveInClose(hWaveIn);
-	//		//blReset = FALSE;
-	//		//return 0;
-	//	//}
-
-	////	waveInAddBuffer(hWaveIn, (PWAVEHDR)lParam, sizeof(WAVEHDR));
-	//	wave_in_add_buffer((PWAVEHDR)lParam, sizeof(WAVEHDR));
-	//	break;
-	//case WIM_CLOSE:
-	//	OutputDebugStringA("wim close");
-	//	close_win_device();
-	//	break;
 	case WM_PAINT:
 		break;
 	case WM_DESTROY:
@@ -201,7 +171,7 @@ void InitializeWindow(HINSTANCE hInst, int nCmdShow) {
 --
 --	DESIGNER:		Jason Kim
 --
---	PROGRAMMER:		Jason Kim
+--	PROGRAMMER:		Jason Kim, Keishi Asai
 --
 --	INTERFACE:		void show_dialog(int type, HWND p_hwnd)
 --									int type - the type of dialog to display
@@ -235,10 +205,6 @@ void show_dialog(int type, HWND p_hwnd)
 		break;
 	case IDM_VOIP_TYPE:
 		popup = CreateDialog(hInstance, StreamingDialogName, p_hwnd, (DLGPROC)StreamProc);
-		// KTODO: Find somewhere more appropriate to kick the followings.
-		// However, when pop up dialog, the parent main window seems not receiving window message
-		// So, these may have to be kicked after show stream dialog
-		// Tried callback method not window, but WIM_DATA is not called. (WIM_OPEN is called)
 		initialize_wavein_device(popup);
 		request_voip(popup);
 		break;
@@ -442,9 +408,9 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 --
 --	REVISIONS:		March 26, 2019
 --
---	DESIGNER:		Jason Kim
+--	DESIGNER:		Jason Kim, Dasha Strigoun, Keishi Asai
 --
---	PROGRAMMER:		Jason Kim
+--	PROGRAMMER:		Jason Kim, Dasha Strigoun
 --
 --	INTERFACE:		LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam,
 --											LPARAM lParam)
@@ -469,22 +435,12 @@ LRESULT CALLBACK ServerControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			return 1;
 		}
 	case WIM_OPEN:
-		//MMRESULT win_mret2;
-		OutputDebugStringA("WIMOPEN\n");
 		wave_in_add_buffer();
-
 		break;
 	case WIM_DATA:
-		// post message to process this input block received
-		// NOTE: callback cannot call other waveform functions
-		//....................................................
-
-		//PostMessage((HWND)dwInstance, USR_INBLOCK, 0, dwParam1);
-		OutputDebugStringA("data");
 		send_audio_block((PWAVEHDR)lParam);
 		break;
 	case WIM_CLOSE:
-		OutputDebugStringA("wim close");
 		close_win_device();
 		break;
 	}
@@ -616,9 +572,9 @@ LRESULT CALLBACK FileReqProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPar
 --
 --	REVISIONS:		March 26, 2019
 --
---	DESIGNER:		Jason Kim
+--	DESIGNER:		Jason Kim, Keishi Asai
 --
---	PROGRAMMER:		Jason Kim
+--	PROGRAMMER:		Jason Kim, Keishi Asai
 --
 --	INTERFACE:		LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam,
 --											LPARAM lParam)
@@ -644,22 +600,12 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 			return 1;
 		}
 	case WIM_OPEN:
-		//MMRESULT win_mret2;
-		OutputDebugStringA("WIMOPEN\n");
 		wave_in_add_buffer();
-
 		break;
 	case WIM_DATA:
-		// post message to process this input block received
-		// NOTE: callback cannot call other waveform functions
-		//....................................................
-
-		//PostMessage((HWND)dwInstance, USR_INBLOCK, 0, dwParam1);
-		OutputDebugStringA("data");
 		send_audio_block((PWAVEHDR)lParam);
 		break;
 	case WIM_CLOSE:
-		OutputDebugStringA("wim close");
 		close_win_device();
 		break;
 	}
@@ -736,20 +682,6 @@ void update_messages(std::vector<std::string> messages)
 	SetWindowText(messageOutput, output);
 	delete[] output;
 }
-
-// this doesn't work
-//void start_Server_Stream() 
-//{
-//	HWND hwndDlg;
-//	hwndDlg = CreateDialog(hInstance, StreamingDialogName, control_panel_hwnd, (DLGPROC)StreamProc);
-//	initialize_wavein_device(hwndDlg);
-//	update_server_msgs("initialized wave in");
-//	ShowWindow(hwndDlg, SW_SHOW);
-//	// KTODO: Find somewhere more appropriate to kick the followings.
-//	// However, when pop up dialog, the parent main window seems not receiving window message
-//	// So, these may have to be kicked after show stream dialog
-//	// Tried callback method not window, but WIM_DATA is not called. (WIM_OPEN is called)
-//}
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	setup_file_list_dropdown
