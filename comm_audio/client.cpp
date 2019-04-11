@@ -130,15 +130,11 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	start_client_request_handler();
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
 	current_device_ip = get_device_ip();
 
-	//current_device_ip = L"192.168.0.8";
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 	// VOIP SETUP
 	//open voip send socket
-	//KTODO: remove port number hardcoding
 	voip_send_udp_port_num = L"4981";
 	initialize_wsa(voip_send_udp_port_num, &cl_udp_voip_sendto_addr);
 	open_socket(&cl_udp_voip_send_socket, SOCK_DGRAM, IPPROTO_UDP);
@@ -164,7 +160,6 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 	// FTP SETUP
 	// open tcp ftp socket 
-	// tcp_ftp_port_num should be dynamically decremented from req port number; currently hardcoded
 	initialize_wsa(tcp_ftp_port_num, &cl_addr);
 	open_socket(&cl_tcp_ftp_socket, SOCK_STREAM, IPPROTO_TCP);
 	setup_svr_addr(&server_addr_tcp_ftp, tcp_ftp_port_num, svr_ip_addr);
@@ -179,8 +174,6 @@ void initialize_client(LPCWSTR tcp_port, LPCWSTR udp_port, LPCWSTR svr_ip_addr)
 	//save info to open udp socket later
 	udp_port_num = udp_port;
 	initialize_wsa(udp_port, &cl_addr);
-	// TODO: make current dev IP consistent with hardcode localhost
-	// This is for client receiver
 	setup_svr_addr(&server_addr_udp, udp_port, current_device_ip.c_str());
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 	
@@ -447,7 +440,6 @@ void join_multicast_stream() {
 	DWORD ThreadId;
 	multicast_connected = true;
 
-
 	// setup Wave Out device for file stream
 	WAVEFORMATEX wfx_fs_play;
 	wfx_fs_play.nSamplesPerSec = 44100; /* sample rate */
@@ -544,7 +536,6 @@ void request_voip(HWND voipHwndDlg)
 	if ((receiving_thread_params = (LPVOIP_INFO)GlobalAlloc(GPTR,
 		sizeof(VOIP_INFO))) == NULL)
 	{
-		//terminate_connection();
 		return;
 	}
 	receiving_thread_params->CompletedEvent = VoipCompleted;
@@ -657,12 +648,48 @@ void start_client_request_handler()
 	add_new_thread_gen(clntThreads, ClntRequestHandlerThread);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	reset_client_request_receiver
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void reset_client_request_receiver()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to restart the blocked request receiver
+--------------------------------------------------------------------------------------*/
 void reset_client_request_receiver() 
 {
 	TriggerWSAEvent(FtpCompleted);
 	WSAResetEvent(FtpCompleted);
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_client_terminate_file_stream
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void start_client_terminate_file_stream() 
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to begin the terminating sequence for file stream
+--------------------------------------------------------------------------------------*/
 void start_client_terminate_file_stream() 
 {
 	if (isStreaming) {
@@ -673,6 +700,24 @@ void start_client_terminate_file_stream()
 	}
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	FtpThreadFunc
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		DWORD WINAPI FtpThreadFunc(LPVOID tcp_socket)
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Thread function for new ftp process with new ftp port and socket
+--------------------------------------------------------------------------------------*/
 DWORD WINAPI FtpThreadFunc(LPVOID tcp_socket)
 {
 	DWORD ThreadId;
@@ -721,7 +766,7 @@ DWORD WINAPI FtpThreadFunc(LPVOID tcp_socket)
 --	RETURNS:		void
 --
 --	NOTES:
---	TODO implement the rest of client cleanup functions to safely terminate program
+--	Call this function to start terminating
 --------------------------------------------------------------------------------------*/
 void terminate_client()
 {

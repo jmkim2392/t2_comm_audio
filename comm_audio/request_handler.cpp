@@ -91,6 +91,25 @@ DWORD WINAPI SvrRequestReceiverThreadFunc(LPVOID lpParameter)
 	return TRUE;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	ClntReqReceiverThreadFunc
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		APril 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		DWORD WINAPI ClntReqReceiverThreadFunc(LPVOID lpParameter)
+--									LPVOID lpParameter - request handler info struct
+--
+--	RETURNS:		DWORD
+--
+--	NOTES:
+--	Request Receiver Thread function to begin receiving requests from server
+--------------------------------------------------------------------------------------*/
 DWORD WINAPI ClntReqReceiverThreadFunc(LPVOID lpParameter)
 {
 	LPTCP_SOCKET_INFO req_handler_info;
@@ -119,6 +138,27 @@ DWORD WINAPI ClntReqReceiverThreadFunc(LPVOID lpParameter)
 	return TRUE;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	start_receiving_requests
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		APril 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void start_receiving_requests(SOCKET request_socket, WSAEVENT recvReqEvent, WSAEVENT ftpCompleteEvent)
+--									SOCKET request_socket - request socket to receive from
+--									WSAEVENT recvReqEvent - received request event
+--									WSAEVENT ftpCompleteEvent - file transfer complete event
+--
+--	RETURNS:		DWORD
+--
+--	NOTES:
+--	Call this function to start the WSARecv with a completion routine to handle requests
+--------------------------------------------------------------------------------------*/
 void start_receiving_requests(SOCKET request_socket, WSAEVENT recvReqEvent, WSAEVENT ftpCompleteEvent)
 {
 	LPSOCKET_INFORMATION SocketInfo;
@@ -157,7 +197,6 @@ void start_receiving_requests(SOCKET request_socket, WSAEVENT recvReqEvent, WSAE
 		}
 	}
 }
-
 
 /*-------------------------------------------------------------------------------------
 --	FUNCTION:	RequestReceiverRoutine
@@ -239,11 +278,6 @@ void CALLBACK RequestReceiverRoutine(DWORD Error, DWORD BytesTransferred,
 		}
 	}
 
-	/*if (SI->DataBuf.buf[0] == (FILE_LIST_TYPE + '0') && SI->BytesRECV == DEFAULT_REQUEST_PACKET_SIZE)
-	{
-		WaitForSingleObject(SI->FtpCompletedEvent, INFINITE);
-	}*/
-
 	SI->DataBuf.buf = SI->Buffer;
 
 	if (WSARecv(SI->Socket, &(SI->DataBuf), 1, &RecvBytes, &Flags, &(SI->Overlapped), RequestReceiverRoutine) == SOCKET_ERROR)
@@ -320,7 +354,6 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 						parseRequest(&parsedPacket, request);
 						update_server_msgs("Received file transfer request for " + parsedPacket.message);
 						start_ftp(parsedPacket.message, parsedPacket.ip_addr);
-						//start_ftp(parsedPacket.message, "192.168.0.12");
 						break;
 					case AUDIO_STREAM_REQUEST_TYPE:
 						parseRequest(&parsedPacket, request);
@@ -328,7 +361,6 @@ DWORD WINAPI HandleRequest(LPVOID lpParameter)
 						start_file_stream(parsedPacket.message, parsedPacket.port_num, parsedPacket.ip_addr);
 						break;
 					case VOIP_REQUEST_TYPE:
-						// voip request
 						stop_broadcast();
 						parseRequest(&parsedPacket, request);
 						start_voip(parsedPacket.port_num, parsedPacket.ip_addr);
@@ -513,6 +545,24 @@ std::string generateReqPacketWithData(int type, std::vector<std::string> message
 	return listStringified;
 }
 
+/*-------------------------------------------------------------------------------------
+--	FUNCTION:	terminateRequestHandler
+--
+--	DATE:			April 4, 2019
+--
+--	REVISIONS:		April 4, 2019
+--
+--	DESIGNER:		Jason Kim
+--
+--	PROGRAMMER:		Jason Kim
+--
+--	INTERFACE:		void terminateRequestHandler()
+--
+--	RETURNS:		void
+--
+--	NOTES:
+--	Call this function to start terminating request handler
+--------------------------------------------------------------------------------------*/
 void terminateRequestHandler()
 {
 	isAcceptingRequests = FALSE;

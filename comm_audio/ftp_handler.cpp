@@ -115,7 +115,7 @@ int open_file(std::string filename)
 }
 
 /*-------------------------------------------------------------------------------------
---	FUNCTION:	open_file
+--	FUNCTION:	create_new_file
 --
 --	DATE:			March 24, 2019
 --
