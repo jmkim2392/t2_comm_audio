@@ -57,9 +57,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance, LPSTR lspszCmdParam
 
 	InitializeWindow(hInst, nCmdShow);
 
-	//initialize both sockets
-	//initialize the worker threads to return early if error happens
-
 	while (GetMessage(&Msg, NULL, 0, 0))
 	{
 		TranslateMessage(&Msg);
@@ -322,11 +319,7 @@ LRESULT CALLBACK ServerDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 
 			show_control_panel(IDM_SERVER);
 
-			//TODO: to uncomment after testing features
 			initialize_server(tcp_port_num, udp_port_num);
-
-			//TODO: to remove after testing 
-			//initialize_server(L"4985", L"4986");
 
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
@@ -380,14 +373,9 @@ LRESULT CALLBACK ClientDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM
 			GetDlgItemText(hwnd, IDM_UDP_PORT, udp_port_num, MAX_INPUT_LENGTH);
 			GetDlgItemText(hwnd, IDM_IP_ADDRESS, server_ip, MAX_INPUT_LENGTH);
 
-
 			show_control_panel(IDM_CLIENT);
 
-			//TODO: to uncomment after testing features
 			initialize_client(tcp_port_num, udp_port_num, server_ip);
-
-			//TODO: to remove after testing 
-			//initialize_client(L"4985", L"4986", L"localhost");
 
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
@@ -476,7 +464,6 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 		case IDM_FILE_REQUEST_TYPE:
 			selectedFeatureType = IDM_FILE_REQUEST_TYPE;
 			show_dialog(IDM_FILE_REQUEST_TYPE, hwnd);
-			//enableButtons(FALSE);
 			break;
 		case IDM_FILE_STREAM_TYPE:
 			selectedFeatureType = IDM_FILE_STREAM_TYPE;
@@ -490,7 +477,6 @@ LRESULT CALLBACK ClientControlPanelProc(HWND hwnd, UINT Message, WPARAM wParam, 
 			show_dialog(IDM_MULTICAST_TYPE, hwnd);
 			break;
 		case IDCANCEL:
-			// Disconnect process
 			terminate_client();
 			EnableWindow(parent_hwnd, TRUE);
 			EndDialog(hwnd, wParam);
@@ -592,7 +578,6 @@ LRESULT CALLBACK StreamProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 		switch (LOWORD(wParam))
 		{
 		case IDCANCEL:
-			// Disconnect process
 			start_client_terminate_file_stream();
 			EnableWindow(control_panel_hwnd, TRUE);
 			disconnect_multicast();

@@ -178,7 +178,6 @@ void initialize_server(LPCWSTR tcp_port, LPCWSTR udp_port)
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 	// FTP SETUP
 	//open tcp ftp socket 
-	// tcp_ftp_port_num should be dynamically decremented from req port number; currently hardcoded
 	initialize_wsa(svr_tcp_ftp_port, &client_addr_tcp_ftp);
 	open_socket(&svr_tcp_ftp_socket, SOCK_STREAM, IPPROTO_TCP);
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -484,7 +483,6 @@ void start_ftp(std::string filename, std::string ip_addr)
 
 	if (!ftpSocketReady)
 	{
-		// connect to tcp request socket
 		if (connect(svr_tcp_ftp_socket, (struct sockaddr *)&client_addr_tcp_ftp, sizeof(sockaddr)) == -1)
 		{
 			update_status(disconnectedMsg);

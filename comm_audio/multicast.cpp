@@ -22,7 +22,7 @@
 --
 --	DESIGNER:		Phat Le	
 --
---	PROGRAMMER:		Phat Le
+--	PROGRAMMER:		Phat Le, Jason Kim
 --
 --
 --------------------------------------------------------------------------------------*/
@@ -37,10 +37,11 @@ bool broadcasting;
 --	DATE:			April 5, 2019
 --
 --	REVISIONS:		April 5, 2019
+--					April 10, 2019 - JK - added event listener for steady sending procedure
 --
 --	DESIGNER:		Phat Le
 --
---	PROGRAMMER:		Phat Le
+--	PROGRAMMER:		Phat Le, Jason Kim
 --
 --	INTERFACE:		DWORD WINAPI broadcast_data(LPVOID lp)
 --						LPVOID lp: cast as  pointer to Broadcast_info 
@@ -92,7 +93,6 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 			writeToAudioBuffer(bi.AUDIO_BUFFER, AUDIO_PACKET_SIZE);
 			if (++numAudioSent >= 11)
 			{
-				// pass an SvrSendNextAudioEvent to this thread and wait for it here
 				WaitForSingleObject(bi.SendNextEvent, INFINITE);
 				ResetEvent(bi.SendNextEvent);
 				numAudioSent = 1;
@@ -111,10 +111,11 @@ DWORD WINAPI broadcast_data(LPVOID lp) {
 --	DATE:			April 9, 2019
 --
 --	REVISIONS:		April 9, 2019
+--					April 10, 2019 - JK - added terminate audio api for voip compatibility
 --
 --	DESIGNER:		Phat Le
 --
---	PROGRAMMER:		Phat Le
+--	PROGRAMMER:		Phat Le, Jason Kim
 --
 --	INTERFACE:		void stop_broadcast()
 --
